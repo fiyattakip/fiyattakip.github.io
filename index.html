@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>fiyattakip</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#4957ff" />
+
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- APP -->
+  <div id="appShell" class="hidden">
+    <header class="topbar">
+      <div class="brandPill">fiyattakip</div>
+
+      <div class="topActions">
+        <button id="btnNotif" class="iconBtn" title="Bildirim izni">🔔</button>
+        <button id="btnAi" class="iconBtn" title="AI Arama (demo)">🤖</button>
+        <button id="btnLogout" class="logoutBtn">Çıkış</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card hero">
+        <div class="heroRow">
+          <h1>Fiyat Karşılaştır</h1>
+          <div class="tagNote">Site içi “ucuzdan”</div>
+        </div>
+
+        <p class="muted">
+          Ürün adını yaz, seçtiğin sitelerde arama açar.
+          (Uygulama içinden direkt fiyat çekmek CORS/captcha yüzünden yok.)
+        </p>
+
+        <div id="chips" class="chips"></div>
+
+        <div class="searchRow">
+          <div class="searchBox">
+            <input id="q" type="text" placeholder="Ürün adını yazın..." autocomplete="off" />
+            <div id="suggestBox" class="suggestBox hidden"></div>
+          </div>
+          <button id="btnSearch" class="primaryBtn">Ara</button>
+        </div>
+
+        <div class="subTitle">Arama satırları — Her satır: seçili sitede arama açar + “Favori” hatırlanır.</div>
+        <div class="row">
+          <button id="btnClearResults" class="softBtn">Temizle</button>
+        </div>
+
+        <div id="results" class="results">
+          <div class="empty">Henüz arama yapılmadı.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="sectionTitle">
+          <div>
+            <div class="titleRow">
+              <span class="heart">❤</span>
+              <h2>Favoriler</h2>
+            </div>
+            <div class="muted">Linkler gizli. Site butonları + Copy Link var. %5+ düşüşte bildirim.</div>
+          </div>
+          <button id="btnRefreshFav" class="softBtn">Yenile</button>
+        </div>
+
+        <div id="favList" class="favList">
+          <div class="empty">Favori yok.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- AUTH OVERLAY (arka plan görünmez) -->
+  <div id="authShell" class="authShell">
+    <div class="authCard">
+      <div class="authTabs">
+        <button id="tabLogin" class="tab active">Giriş</button>
+        <button id="tabRegister" class="tab">Kayıt</button>
+      </div>
+
+      <div id="authError" class="authError hidden"></div>
+
+      <div id="loginPane">
+        <label class="lbl">Email</label>
+        <input id="loginEmail" class="inp" type="email" placeholder="ornek@mail.com" />
+        <label class="lbl">Şifre</label>
+        <input id="loginPass" class="inp" type="password" placeholder="••••••••" />
+        <button id="btnLogin" class="primaryBtn full">Giriş Yap</button>
+      </div>
+
+      <div id="registerPane" class="hidden">
+        <label class="lbl">Email</label>
+        <input id="regEmail" class="inp" type="email" placeholder="ornek@mail.com" />
+        <label class="lbl">Şifre</label>
+        <input id="regPass" class="inp" type="password" placeholder="En az 6 karakter" />
+        <label class="lbl">Şifre (tekrar)</label>
+        <input id="regPass2" class="inp" type="password" placeholder="••••••••" />
+        <button id="btnRegister" class="primaryBtn full">Hesap Oluştur</button 인정
+        <div class="hint">Kayıt olunca email doğrulama linki gönderilir.</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="firebase.js"></script>
+  <script type="module" src="app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
+  </script>
+</body>
+</html>
