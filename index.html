@@ -3,196 +3,209 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#3846B5" />
+  <meta name="theme-color" content="#3a49c9" />
   <title>fiyattakip</title>
 
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icon-192.png" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 
-<body class="locked">
-  <div class="app">
-    <header class="topbar">
-      <div class="brand">
-        <img class="brand__logo" src="icon-192.png" alt="fiyattakip" />
-        <div class="brand__text">fiyattakip</div>
-      </div>
+<body>
+  <div class="bg"></div>
 
-      <div class="topbar__actions">
-        <button id="btnNotifications" class="iconbtn" title="Bildirimler (demo)">🔔</button>
-        <button id="btnAI" class="iconbtn" title="Yapay Zeka">✨</button>
-        <button id="btnLogout" class="pill pill--danger hidden" title="Çıkış">⎋ Çıkış</button>
-      </div>
-    </header>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand__icon" src="./icon-192.png" alt="fiyattakip" />
+      <div class="brand__name">fiyattakip</div>
+    </div>
 
-    <main class="container">
-      <!-- SEARCH -->
-      <section class="card hero">
-        <div class="hero__head">
-          <h1 class="hero__title">Fiyat Karşılaştır</h1>
-          <span class="badge">Uygulama içi liste</span>
-        </div>
+    <div class="top-actions">
+      <button id="btnNotify" class="iconbtn" title="Bildirimler">
+        <!-- bell -->
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 22a2.3 2.3 0 0 0 2.2-2H9.8A2.3 2.3 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </button>
 
-        <p class="hero__desc">
-          Ürün adını yaz, seçtiğin sitelerde arama linklerini uygulama içinde listeler.
-          Not: Trendyol/Amazon linkleri “ucuzdan pahalıya” açılmaya çalışır.
-        </p>
+      <button id="btnAI" class="iconbtn" title="AI Arama (demo)">
+        <!-- sparkles -->
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12l1.2-3.2L9 7.6 5.8 6.4 5 3 4.2 6.4 1 7.6l2.8 1.2L5 12Zm10 9l1.6-4.2L21 15l-4.4-1.8L15 9l-1.6 4.2L9 15l4.4 1.8L15 21ZM14 3l.9 2.4L17 6l-2.1.6L14 9l-.9-2.4L11 6l2.1-.6L14 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </button>
 
-        <div class="sitechips" id="siteChips"></div>
+      <button id="btnLogout" class="pill danger">
+        <span class="pill__ic">
+          <!-- logout -->
+          <svg viewBox="0 0 24 24" fill="none"><path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6 9l-3 3 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Çıkış
+      </button>
+    </div>
+  </header>
 
-        <div class="searchrow">
-          <input id="q" class="input" type="text" placeholder="Ürün adını yazın..." autocomplete="off" />
-          <button id="btnSearch" class="btn btn--primary">Ara</button>
-        </div>
-
-        <div class="row row--wrap" style="margin-top:12px">
-          <button id="btnClear" class="btn btn--ghost">Temizle</button>
-          <button id="btnOpenSelected" class="btn btn--ghost">Hepsini Aç</button>
-        </div>
-
-        <div id="searchStatus" class="status">Henüz arama yapılmadı.</div>
-
-        <div id="inAppResults" class="favlist" style="margin-top:12px">
-          <div class="empty">Arama sonuçları burada listelenecek.</div>
-        </div>
-      </section>
-
-      <!-- FAVORITES -->
-      <section class="card">
-        <div class="sectionhead">
-          <div class="sectionhead__left">
-            <div class="sectiontitle"><span class="heart">❤</span><span>Favoriler</span></div>
-            <div class="sectiondesc">
-              ❤️ Takipte ürünlerde fiyat ekledikçe grafik + yüzde değişim + %5+ düşüş rozeti çıkar.
-            </div>
-          </div>
-
-          <div class="sectionhead__right">
-            <select id="sortSelect" class="select">
-              <option value="price_asc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
-              <option value="price_desc">Sırala: Son fiyat (Pahalı→Ucuz)</option>
-              <option value="site_asc">Sırala: Site (A→Z)</option>
-              <option value="name_asc">Sırala: Ürün (A→Z)</option>
-            </select>
-            <button id="btnRefreshFav" class="btn btn--ghost">Yenile</button>
-          </div>
-        </div>
-
-        <div id="favList" class="favlist">
-          <div class="empty">Favori yok.</div>
-        </div>
-      </section>
-    </main>
-
+  <main class="container">
     <!-- AUTH MODAL -->
-    <div id="authModal" class="modal" role="dialog" aria-modal="true">
-      <div class="modal__backdrop"></div>
-      <div class="modal__panel">
-        <div class="modal__title">
-          <img class="modal__logo" src="icon-192.png" alt="fiyattakip" />
-          <div>
-            <div class="modal__brand">fiyattakip</div>
-            <div class="modal__subtitle">Giriş yap / kayıt ol</div>
+    <section id="authWrap" class="modalwrap hidden">
+      <div class="modal">
+        <div class="modal__head">
+          <div class="brand mini">
+            <img class="brand__icon" src="./icon-192.png" alt="">
+            <div>
+              <div class="brand__name">fiyattakip</div>
+              <div class="muted">Giriş yap / kayıt ol</div>
+            </div>
           </div>
         </div>
 
-        <div class="tabs">
-          <button class="tab tab--active" id="tabLogin">Giriş</button>
-          <button class="tab" id="tabRegister">Kayıt</button>
+        <div class="seg">
+          <button id="tabLogin" class="seg__btn active">Giriş</button>
+          <button id="tabRegister" class="seg__btn">Kayıt</button>
         </div>
 
         <div class="form">
-          <label class="label">Email</label>
-          <input id="email" class="input" type="email" placeholder="mail@ornek.com" />
+          <label class="lbl">Email</label>
+          <input id="authEmail" class="input" type="email" placeholder="ornek@mail.com" autocomplete="email" />
 
-          <label class="label">Şifre</label>
-          <div class="pwrow">
-            <input id="password" class="input" type="password" placeholder="••••••••" />
-            <button id="togglePw" class="pwbtn" type="button">👁</button>
+          <label class="lbl">Şifre</label>
+          <div class="passrow">
+            <input id="authPass" class="input" type="password" placeholder="••••••••" autocomplete="current-password" />
+            <button id="togglePass" class="eye" type="button" title="Göster/Gizle">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="1.6"/><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" stroke-width="1.6"/></svg>
+            </button>
           </div>
 
-          <div id="registerExtra" class="hidden">
-            <label class="label">Şifre (tekrar)</label>
-            <div class="pwrow">
-              <input id="password2" class="input" type="password" placeholder="••••••••" />
-              <button id="togglePw2" class="pwbtn" type="button">👁</button>
+          <div id="authPass2Wrap" class="hidden">
+            <label class="lbl">Şifre (tekrar)</label>
+            <div class="passrow">
+              <input id="authPass2" class="input" type="password" placeholder="••••••••" autocomplete="new-password" />
+              <button id="togglePass2" class="eye" type="button" title="Göster/Gizle">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="1.6"/><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" stroke-width="1.6"/></svg>
+              </button>
             </div>
           </div>
 
-          <button id="btnAuthAction" class="btn btn--primary btn--wide">Giriş Yap</button>
-          <button id="btnGoogle" class="btn btn--ghost btn--wide">Google ile devam et</button>
+          <button id="btnAuthSubmit" class="btn primary big">Giriş Yap</button>
 
-          <div id="authErr" class="error hidden"></div>
+          <button id="btnGoogle" class="btn ghost big">
+            <span class="ic">
+              <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.4H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36 16.8 36 11 30.2 11 23S16.8 10 24 10c3.3 0 6.3 1.2 8.6 3.2l5.7-5.7C34.6 4.1 29.6 2 24 2 12.9 2 4 10.9 4 22s8.9 20 20 20 20-8.9 20-20c0-1.1-.1-2.1-.4-3.6z"/><path fill="#FF3D00" d="M6.3 14.7 12.9 19c1.8-4.5 6.2-7.7 11.1-7.7 3.3 0 6.3 1.2 8.6 3.2l5.7-5.7C34.6 4.1 29.6 2 24 2 16.3 2 9.7 6.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 42c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.3 36 26.8 37 24 37c-5.3 0-9.8-3.4-11.4-8.1l-6.6 5.1C9.3 38.6 16.2 42 24 42z"/><path fill="#1976D2" d="M43.6 20.4H42V20H24v8h11.3c-.8 2.3-2.4 4.2-4.6 5.5l.1.1 6.3 5.3C36.7 39.2 44 34 44 22c0-1.1-.1-2.1-.4-3.6z"/></svg>
+            </span>
+            Google ile devam et
+          </button>
+
+          <div id="authMsg" class="err hidden"></div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- AI SETTINGS MODAL -->
-    <div id="aiModal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal__backdrop" data-close="ai"></div>
-      <div class="modal__panel">
-        <div class="modal__title">
-          <div>
-            <div class="modal__brand">✨ Yapay Zeka Ayarları</div>
-            <div class="modal__subtitle">API anahtarı sadece cihazında saklanır.</div>
+    <!-- MAIN CARD -->
+    <section class="card">
+      <div class="hero">
+        <div class="hero__left">
+          <div class="h1">Fiyat<br/>Karşılaştır</div>
+          <div class="sub">
+            Ürün adını yaz, seçtiğin sitelerde arama açar.
+            <span class="pillmini">Site içi “ucuzdan”</span>
+            <div class="sub2">(Uygulama içinden direkt fiyat çekmek CORS/captcha yüzünden yok.)</div>
           </div>
         </div>
+      </div>
 
-        <div class="form">
-          <label class="label">Sağlayıcı</label>
-          <select id="aiProvider" class="select">
-            <option value="gemini">Gemini</option>
-            <option value="openai">OpenAI</option>
+      <div class="sitechips" id="siteChips"></div>
+
+      <div class="searchbar">
+        <input id="q" class="input" placeholder="Ürün adını yazın..." />
+        <button id="btnSearch" class="btn primary">
+          <span class="ic">
+            <!-- search -->
+            <svg viewBox="0 0 24 24" fill="none"><path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke="currentColor" stroke-width="1.6"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </span>
+          Ara
+        </button>
+      </div>
+
+      <div class="hint">Arama satırları — Her satır: seçili sitede arama açar + “Favori” hatırlanır.</div>
+
+      <div class="row">
+        <button id="btnClear" class="btn ghost">Temizle</button>
+        <button id="btnOpenSelected" class="btn ghost">Seçili Siteleri Aç</button>
+      </div>
+
+      <div id="inAppResults" class="searchlist">
+        <div class="empty">Henüz arama yapılmadı.</div>
+      </div>
+    </section>
+
+    <!-- FAVORITES -->
+    <section class="card">
+      <div class="favhead">
+        <div>
+          <div class="h2">❤️ Favoriler</div>
+          <div class="muted">Linkler gizli. Site butonları + Copy Link var. %5+ düşüşte bildirim (demo).</div>
+        </div>
+
+        <div class="favtools">
+          <select id="sortFav" class="select">
+            <option value="last_asc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
+            <option value="last_desc">Sırala: Son fiyat (Pahalı→Ucuz)</option>
+            <option value="newest">Sırala: Son eklenen</option>
           </select>
-
-          <label class="label">Gemini API Key</label>
-          <input id="geminiKey" class="input" type="password" placeholder="AIza..." />
-
-          <label class="label">OpenAI API Key</label>
-          <input id="openaiKey" class="input" type="password" placeholder="sk-..." />
-
-          <div class="row row--wrap">
-            <button id="btnSaveAI" class="btn btn--primary">Kaydet</button>
-            <button id="btnClearAI" class="btn btn--ghost">Temizle</button>
-          </div>
-
-          <div class="hint" style="margin-top:10px">
-            AI önerileri (demo): yazım düzeltme + alternatif arama.
-          </div>
+          <button id="btnRefreshFav" class="btn ghost">Yenile</button>
         </div>
       </div>
-    </div>
+
+      <div id="favList" class="favlist">
+        <div class="empty">Favori yok.</div>
+      </div>
+    </section>
 
     <!-- CHART MODAL -->
-    <div id="chartModal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal__backdrop" data-close="chart"></div>
-      <div class="modal__panel modal__panel--wide">
-        <div class="modal__title">
-          <div>
-            <div class="modal__brand">Fiyat Grafiği</div>
-            <div class="modal__subtitle">Son 50 kayıt</div>
-          </div>
+    <section id="chartModal" class="modalwrap hidden">
+      <div class="modal big">
+        <div class="modal__head row between">
+          <div class="h3">Grafik</div>
+          <button id="chartClose" class="btn ghost">Kapat</button>
         </div>
-        <div class="chartwrap">
-          <canvas id="chartCanvasBig" width="900" height="420"></canvas>
+        <div class="canvasbox big">
+          <canvas id="chartCanvasBig" width="900" height="360"></canvas>
           <div id="chartTipBig" class="charttip hidden"></div>
         </div>
-        <div class="row row--wrap" style="margin-top:10px">
-          <button class="btn btn--ghost" data-closebtn="chart">Kapat</button>
-        </div>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <!-- Firebase CDN compat -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- AI MODAL -->
+    <section id="aiModal" class="modalwrap hidden">
+      <div class="modal">
+        <div class="modal__head row between">
+          <div>
+            <div class="h3">AI Arama (demo)</div>
+            <div class="muted">API key cihazında saklanır (localStorage). Paylaşma.</div>
+          </div>
+          <button id="aiClose" class="btn ghost">Kapat</button>
+        </div>
 
-  <script src="./firebase.js"></script>
-  <script src="./app.js"></script>
+        <label class="lbl">Sağlayıcı</label>
+        <select id="aiProvider" class="select">
+          <option value="openai">OpenAI</option>
+          <option value="gemini">Gemini</option>
+        </select>
+
+        <label class="lbl">API Key</label>
+        <input id="aiKey" class="input" placeholder="sk-... / AIza..." />
+
+        <div class="row">
+          <button id="aiSave" class="btn primary">Kaydet</button>
+          <button id="aiClear" class="btn ghost">Sil</button>
+        </div>
+
+        <div class="muted small">Bu demo sadece ayar saklar. Sonraki adımda gerçek istek yapabiliriz.</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Firebase (CDN) -->
+  <script type="module" src="./firebase.js"></script>
+  <script type="module" src="./app.js"></script>
 
   <script>
     if ("serviceWorker" in navigator) {
@@ -200,4 +213,4 @@
     }
   </script>
 </body>
-            </html>
+                                                                                                                                             </html>
