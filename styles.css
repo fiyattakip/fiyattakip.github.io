@@ -822,3 +822,105 @@ img { max-width: 100%; display: block; }
   .heroHead{ flex-direction: column; gap: 8px; }
   .heroChip{ max-width: 100%; }
     }
+/* =========================================
+   ACİL DÜZELTME BLOĞU (en altta dursun)
+   Class kaçsa bile UI bozulmasın diye
+   ========================================= */
+
+html, body { overflow-x: hidden; }
+* { max-width: 100%; }
+
+img { height: auto; }
+img:not(.brandLogo) {
+  max-width: 140px;     /* üstteki dev ikon büyümesin */
+  border-radius: 18px;
+}
+
+header, .topbar, .navbar, .header {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  background: rgba(245,247,255,0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(15,23,42,0.06);
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+/* Tarayıcı default kare-butonu öldür */
+button, .btn, input[type="button"], input[type="submit"]{
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 16px !important;
+  border: 1px solid rgba(30,41,59,0.16) !important;
+  background: rgba(255,255,255,0.75) !important;
+  padding: 10px 12px !important;
+  font-weight: 800 !important;
+  cursor: pointer;
+}
+
+select{
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 14px !important;
+  border: 1px solid rgba(30,41,59,0.16) !important;
+  background: rgba(255,255,255,0.75) !important;
+  padding: 10px 38px 10px 12px !important;
+  font-weight: 800 !important;
+}
+
+/* Select oku (mobilde çirkin görünmesin) */
+select{
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(30,41,59,0.55) 50%),
+    linear-gradient(135deg, rgba(30,41,59,0.55) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+/* Input */
+input[type="text"], input[type="email"], input[type="password"], textarea{
+  border-radius: 18px !important;
+  border: 1px solid rgba(42,62,166,0.18) !important;
+  background: rgba(255,255,255,0.70) !important;
+  padding: 12px 12px !important;
+  outline: none;
+}
+
+input:focus, textarea:focus, select:focus{
+  box-shadow: 0 0 0 4px rgba(42,62,166,0.10) !important;
+  border-color: rgba(42,62,166,0.35) !important;
+}
+
+/* Metin taşma / sığmama */
+h1, h2, h3, p, span, div, label {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Kartlar: class tutmasa da düzgün dursun */
+.card, .panel, .box, section{
+  border-radius: 22px;
+}
+
+/* Mobilde başlık dev gibi taşıyorsa */
+@media (max-width: 420px){
+  h1{ font-size: 34px !important; line-height: 1.05 !important; }
+  h2{ font-size: 22px !important; }
+}
+
+/* Butonlar üst üste binmesin */
+button, select{
+  max-width: 100%;
+}
+
+/* Eğer üstte küçük kare ikon butonlar çıktıysa, onları da yuvarla */
+.iconBtn, .icon-btn, .smallBtn{
+  border-radius: 14px !important;
+}
