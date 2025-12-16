@@ -1,15 +1,22 @@
 // firebase.js
-// BURAYA Firebase Console -> Project settings -> Web app config içindeki bilgileri koy.
+
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+
+// Firebase config (DOĞRU – DEĞİŞTİRME)
 const firebaseConfig = {
-  apiKey: "FIREBASE_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
+  apiKey: "AIzaSyBcXkVFQzB2XtxO7wqnbXhzM1Io54zCsBI",
+  authDomain: "fiyattakip-ttoxub.firebaseapp.com",
+  projectId: "fiyattakip-ttoxub",
+  storageBucket: "fiyattakip-ttoxub.appspot.com",
+  messagingSenderId: "105868725844",
+  appId: "1:105868725844:web:fc04f5a08e708916e727c1"
 };
 
-firebase.initializeApp(firebaseConfig);
+// Firebase başlat
+const app = initializeApp(firebaseConfig);
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+// AUTH (ÖNEMLİ)
+export const auth = getAuth(app);
+
+export default app;
