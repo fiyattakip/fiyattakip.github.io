@@ -1,3 +1,5 @@
+/* (Önceki styles.css’in tamamı aynen kalsın)
+   Sadece burada tekrar full bırakıyorum: */
 :root{
   --bg1:#e9efff;
   --bg2:#f7f9ff;
@@ -395,4 +397,4 @@ body.locked .topbar__actions{
   .btn{ width: 100%; }
   .searchrow{ flex-direction:column; align-items:stretch; }
   .iconbtn{ width:42px; height:42px; }
-              }
+  }
