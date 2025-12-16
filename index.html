@@ -13,7 +13,6 @@
 </head>
 
 <body>
-  <!-- AUTH OVERLAY (arka plan görünmesin diye) -->
   <div id="authOverlay" class="authOverlay">
     <div class="authCard">
       <div class="authTop">
@@ -64,7 +63,6 @@
     </div>
   </div>
 
-  <!-- APP -->
   <header class="topbar">
     <div class="topbarInner">
       <div class="brandPill">
@@ -126,8 +124,8 @@
 
         <div class="favControls">
           <select id="sortFav" class="select">
+            <option value="lastPriceDesc" selected>Sırala: Son fiyat (Pahalı→Ucuz)</option>
             <option value="lastPriceAsc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
-            <option value="lastPriceDesc">Sırala: Son fiyat (Pahalı→Ucuz)</option>
             <option value="nameAsc">Sırala: Ürün adı (A→Z)</option>
             <option value="siteAsc">Sırala: Site (A→Z)</option>
           </select>
@@ -141,7 +139,6 @@
     </section>
   </main>
 
-  <!-- Chart Modal -->
   <div id="chartModal" class="modal hidden">
     <div class="modalBackdrop"></div>
     <div class="modalCard">
@@ -154,7 +151,6 @@
     </div>
   </div>
 
-  <!-- Help Modal -->
   <div id="helpModal" class="modal hidden">
     <div class="modalBackdrop"></div>
     <div class="modalCard">
@@ -171,9 +167,7 @@
   </div>
 
   <script type="module" src="./app.js"></script>
-
   <script>
-    // SW kayıt
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
@@ -181,4 +175,4 @@
     }
   </script>
 </body>
-          </html>
+</html>
