@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#3846B5" />
   <title>fiyattakip</title>
+
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon-192.png" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 
-<body>
+<body class="locked">
   <div class="app">
-    <!-- TOP BAR -->
     <header class="topbar">
       <div class="brand">
         <img class="brand__logo" src="icon-192.png" alt="fiyattakip" />
@@ -21,30 +21,23 @@
       </div>
 
       <div class="topbar__actions">
-        <button id="btnNotifications" class="iconbtn" title="Bildirimler">
-          🔔
-        </button>
-        <button id="btnAI" class="iconbtn" title="Yapay Zeka">
-          🤖
-        </button>
-        <button id="btnLogout" class="pill pill--danger" title="Çıkış">
-          Çıkış
-        </button>
+        <button id="btnNotifications" class="iconbtn" title="Bildirimler (demo)">🔔</button>
+        <button id="btnAI" class="iconbtn" title="Yapay Zeka">🤖</button>
+        <button id="btnLogout" class="pill pill--danger hidden" title="Çıkış">Çıkış</button>
       </div>
     </header>
 
     <main class="container">
-
-      <!-- HERO / SEARCH -->
+      <!-- SEARCH -->
       <section class="card hero">
         <div class="hero__head">
           <h1 class="hero__title">Fiyat Karşılaştır</h1>
-          <span class="badge">Site içi “ucuzdan”</span>
+          <span class="badge">Uygulama içi liste</span>
         </div>
 
         <p class="hero__desc">
-          Ürün adını yaz, seçtiğin sitelerde arama açar.
-          (Uygulama içinden direkt fiyat çekmek CORS/captcha yüzünden yok.)
+          Ürün adını yaz, seçtiğin sitelerde arama linklerini uygulama içinde listeler.
+          “Hepsini Aç” istersen sekme sekme açar.
         </p>
 
         <div class="sitechips" id="siteChips"></div>
@@ -54,17 +47,15 @@
           <button id="btnSearch" class="btn btn--primary">Ara</button>
         </div>
 
-        <div class="hint">
-          <strong>Arama satırları</strong> — Her satır: seçili sitede arama açar + “Favori” hatırlanır.
-        </div>
-
-        <div class="row row--wrap">
+        <div class="row row--wrap" style="margin-top:12px">
           <button id="btnClear" class="btn btn--ghost">Temizle</button>
-          <button id="btnOpenSelected" class="btn btn--ghost">Seçili Siteleri Aç</button>
+          <button id="btnOpenSelected" class="btn btn--ghost">Hepsini Aç</button>
         </div>
 
-        <div id="searchStatus" class="status">
-          Henüz arama yapılmadı.
+        <div id="searchStatus" class="status">Henüz arama yapılmadı.</div>
+
+        <div id="inAppResults" class="favlist" style="margin-top:12px">
+          <div class="empty">Arama sonuçları burada listelenecek.</div>
         </div>
       </section>
 
@@ -72,12 +63,9 @@
       <section class="card">
         <div class="sectionhead">
           <div class="sectionhead__left">
-            <div class="sectiontitle">
-              <span class="heart">❤</span>
-              <span>Favoriler</span>
-            </div>
+            <div class="sectiontitle"><span class="heart">❤</span><span>Favoriler</span></div>
             <div class="sectiondesc">
-              Linkler gizli. Site butonları + Copy Link var. Uygulama açılınca %5+ düşüş kontrolü (demo).
+              Linkler gizli. Site butonları + Copy Link var. Fiyat ekledikçe grafik oluşur.
             </div>
           </div>
 
@@ -99,8 +87,8 @@
     </main>
 
     <!-- AUTH MODAL -->
-    <div id="authModal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal__backdrop" data-close="auth"></div>
+    <div id="authModal" class="modal" role="dialog" aria-modal="true">
+      <div class="modal__backdrop"></div>
       <div class="modal__panel">
         <div class="modal__title">
           <img class="modal__logo" src="icon-192.png" alt="fiyattakip" />
@@ -134,7 +122,6 @@
           </div>
 
           <button id="btnAuthAction" class="btn btn--primary btn--wide">Giriş Yap</button>
-
           <button id="btnGoogle" class="btn btn--ghost btn--wide">G Google ile devam et</button>
 
           <div id="authErr" class="error hidden"></div>
@@ -147,8 +134,10 @@
       <div class="modal__backdrop" data-close="ai"></div>
       <div class="modal__panel">
         <div class="modal__title">
-          <div class="modal__brand">✨ Yapay Zeka Ayarları</div>
-          <div class="modal__subtitle">API anahtarı sadece cihazında saklanır.</div>
+          <div>
+            <div class="modal__brand">✨ Yapay Zeka Ayarları</div>
+            <div class="modal__subtitle">API anahtarı sadece cihazında saklanır.</div>
+          </div>
         </div>
 
         <div class="form">
@@ -169,8 +158,9 @@
             <button id="btnClearAI" class="btn btn--ghost">Temizle</button>
           </div>
 
-          <div class="hint">
-            Not: GitHub Pages’te API key’i koda yazmak güvenli değildir. Bu ekran güvenli yöntemdir.
+          <div class="hint" style="margin-top:10px">
+            AI önerileri (demo): “yazım düzeltme + alternatif arama” üretir.
+            Bazı tarayıcılarda OpenAI CORS engelleyebilir; Gemini daha uyumludur.
           </div>
         </div>
       </div>
@@ -181,27 +171,28 @@
       <div class="modal__backdrop" data-close="chart"></div>
       <div class="modal__panel modal__panel--wide">
         <div class="modal__title">
-          <div class="modal__brand">📈 Fiyat Grafiği</div>
-          <div class="modal__subtitle">Kayıtlar: son 50 veri</div>
+          <div>
+            <div class="modal__brand">📈 Fiyat Grafiği</div>
+            <div class="modal__subtitle">Son 50 kayıt</div>
+          </div>
         </div>
         <div class="chartwrap">
           <canvas id="chartCanvasBig" width="900" height="420"></canvas>
         </div>
-        <div class="row row--wrap">
+        <div class="row row--wrap" style="margin-top:10px">
           <button class="btn btn--ghost" data-closebtn="chart">Kapat</button>
         </div>
       </div>
     </div>
-
   </div>
 
-  <!-- Firebase (CDN) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <!-- Firebase CDN compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <script src="firebase.js"></script>
-  <script src="app.js"></script>
+  <script src="./firebase.js"></script>
+  <script src="./app.js"></script>
 
   <script>
     if ("serviceWorker" in navigator) {
