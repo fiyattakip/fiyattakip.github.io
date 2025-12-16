@@ -22,8 +22,8 @@
 
       <div class="topbar__actions">
         <button id="btnNotifications" class="iconbtn" title="Bildirimler (demo)">🔔</button>
-        <button id="btnAI" class="iconbtn" title="Yapay Zeka">🤖</button>
-        <button id="btnLogout" class="pill pill--danger hidden" title="Çıkış">Çıkış</button>
+        <button id="btnAI" class="iconbtn" title="Yapay Zeka">✨</button>
+        <button id="btnLogout" class="pill pill--danger hidden" title="Çıkış">⎋ Çıkış</button>
       </div>
     </header>
 
@@ -65,7 +65,7 @@
           <div class="sectionhead__left">
             <div class="sectiontitle"><span class="heart">❤</span><span>Favoriler</span></div>
             <div class="sectiondesc">
-              Linkler gizli. Site butonları + Copy Link var. Fiyat ekledikçe grafik oluşur.
+              ❤️ Takipte olan ürünlerde fiyat ekledikçe grafik + yüzde değişim + %5+ düşüş rozeti çıkar.
             </div>
           </div>
 
@@ -122,7 +122,7 @@
           </div>
 
           <button id="btnAuthAction" class="btn btn--primary btn--wide">Giriş Yap</button>
-          <button id="btnGoogle" class="btn btn--ghost btn--wide">G Google ile devam et</button>
+          <button id="btnGoogle" class="btn btn--ghost btn--wide">🟦 Google ile devam et</button>
 
           <div id="authErr" class="error hidden"></div>
         </div>
@@ -159,8 +159,7 @@
           </div>
 
           <div class="hint" style="margin-top:10px">
-            AI önerileri (demo): “yazım düzeltme + alternatif arama” üretir.
-            Bazı tarayıcılarda OpenAI CORS engelleyebilir; Gemini daha uyumludur.
+            AI önerileri (demo): yazım düzeltme + alternatif arama. (İstersen sonraki adımda gerçek API çağrısını da ekleriz.)
           </div>
         </div>
       </div>
@@ -178,6 +177,7 @@
         </div>
         <div class="chartwrap">
           <canvas id="chartCanvasBig" width="900" height="420"></canvas>
+          <div id="chartTipBig" class="charttip hidden"></div>
         </div>
         <div class="row row--wrap" style="margin-top:10px">
           <button class="btn btn--ghost" data-closebtn="chart">Kapat</button>
