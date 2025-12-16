@@ -1,4 +1,5 @@
-const CACHE = "fiyattakip-v12";
+
+const CACHE = "fiyattakip-v13";
 const ASSETS = [
   "./",
   "./index.html",
