@@ -13,8 +13,8 @@ const SITES = [
 
 // -------- LocalStorage keys --------
 const LS = {
-  selectedSites: "ft_selected_sites_v3",
-  favorites: "ft_favorites_v3",
+  selectedSites: "ft_selected_sites_v4",
+  favorites: "ft_favorites_v4",
   ai: "ft_ai_settings_v1"
 };
 
@@ -57,6 +57,7 @@ const btnClearAI = document.getElementById("btnClearAI");
 
 const chartModal = document.getElementById("chartModal");
 const chartCanvasBig = document.getElementById("chartCanvasBig");
+const chartTipBig = document.getElementById("chartTipBig");
 
 // -------- State --------
 let mode = "login"; // login | register
@@ -69,6 +70,26 @@ function siteById(id){ return SITES.find(s=>s.id===id); }
 function formatTL(n){ if(!Number.isFinite(n)) return "Fiyat yok"; return `${n.toLocaleString("tr-TR")} ₺`; }
 function escapeHtml(s){
   return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function fmtDate(t){
+  try { return new Date(t).toLocaleDateString("tr-TR", { day:"2-digit", month:"2-digit", year:"numeric" }); }
+  catch { return ""; }
+}
+
+// -------- Metrics --------
+function calcChangePercentFromFirst(prices){
+  if (!prices || prices.length < 2) return null;
+  const first = prices[0].v;
+  const last = prices[prices.length - 1].v;
+  if (!Number.isFinite(first) || !Number.isFinite(last) || first<=0) return null;
+  return ((last - first) / first) * 100;
+}
+function calcLastStepPercent(prices){
+  if (!prices || prices.length < 2) return null;
+  const prev = prices[prices.length - 2].v;
+  const last = prices[prices.length - 1].v;
+  if (!Number.isFinite(prev) || !Number.isFinite(last) || prev<=0) return null;
+  return ((last - prev) / prev) * 100;
 }
 
 // -------- Chips --------
@@ -104,6 +125,12 @@ function latestPrice(fav){
   if (fav.prices?.length) return fav.prices[fav.prices.length-1].v;
   return null;
 }
+function findFavByName(name){
+  const key = (name||"").trim().toLowerCase();
+  return loadFavs().find(x => (x.name||"").trim().toLowerCase() === key) || null;
+}
+function isFav(name){ return !!findFavByName(name); }
+
 function upsertFavorite(productName, siteIds){
   const name = (productName||"").trim();
   if (!name) return;
@@ -122,11 +149,25 @@ function upsertFavorite(productName, siteIds){
   saveFavs(favs);
   renderFavs();
 }
+
+function removeFavoriteByName(name){
+  const key = (name||"").trim().toLowerCase();
+  const favs = loadFavs().filter(f => (f.name||"").trim().toLowerCase() !== key);
+  saveFavs(favs);
+  renderFavs();
+}
+
+function toggleFavorite(name, siteIds){
+  if (isFav(name)) removeFavoriteByName(name);
+  else upsertFavorite(name, siteIds);
+}
+
 function deleteFav(id){
   const favs = loadFavs().filter(f=>f.id!==id);
   saveFavs(favs);
   renderFavs();
 }
+
 function addPriceToFav(id, price){
   const p = Number(String(price).replace(",", ".").replace(/[^\d.]/g,""));
   if (!Number.isFinite(p) || p<=0) return;
@@ -143,10 +184,12 @@ function addPriceToFav(id, price){
   saveFavs(favs);
   renderFavs();
 }
+
 function getPrimaryLinkForFav(fav){
   const first = siteById((fav.sites||[])[0]);
   return first ? first.search(fav.name) : "";
 }
+
 function sortFavs(favs){
   const m = sortSelect.value;
   const copy = [...favs];
@@ -180,14 +223,28 @@ function sortFavs(favs){
   return copy;
 }
 
-// -------- Charts --------
-function drawChart(canvas, prices){
+// -------- Chart drawing + tooltip --------
+function chartModel(prices, w, h){
+  const pad = 14;
+  const vals = prices.map(p=>p.v);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const xStep = (w - pad*2) / Math.max(1,(prices.length - 1));
+  const yMap = (v) => {
+    if (max === min) return h/2;
+    const t = (v - min) / (max - min);
+    return (h - pad) - t*(h - pad*2);
+  };
+  return { pad, min, max, xStep, yMap };
+}
+
+function drawChart(canvas, prices, highlightIndex=null){
   const ctx = canvas.getContext("2d");
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0,0,w,h);
 
   if (!prices || prices.length < 2){
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.35;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(10, h-20);
@@ -197,18 +254,9 @@ function drawChart(canvas, prices){
     return;
   }
 
-  const vals = prices.map(p=>p.v);
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const pad = 14;
+  const { pad, xStep, yMap } = chartModel(prices, w, h);
 
-  const xStep = (w - pad*2) / (prices.length - 1);
-  const yMap = (v) => {
-    if (max === min) return h/2;
-    const t = (v - min) / (max - min);
-    return (h - pad) - t*(h - pad*2);
-  };
-
+  // grid
   ctx.globalAlpha = 0.18;
   ctx.lineWidth = 1;
   for (let i=1;i<=3;i++){
@@ -217,6 +265,7 @@ function drawChart(canvas, prices){
   }
   ctx.globalAlpha = 1;
 
+  // line
   ctx.lineWidth = 3;
   ctx.beginPath();
   prices.forEach((p,i)=>{
@@ -226,6 +275,7 @@ function drawChart(canvas, prices){
   });
   ctx.stroke();
 
+  // dots
   ctx.globalAlpha = 0.95;
   prices.forEach((p,i)=>{
     const x = pad + i*xStep;
@@ -233,14 +283,79 @@ function drawChart(canvas, prices){
     ctx.beginPath(); ctx.arc(x,y,3.2,0,Math.PI*2); ctx.fill();
   });
   ctx.globalAlpha = 1;
+
+  // highlight
+  if (highlightIndex !== null && prices[highlightIndex]){
+    const x = pad + highlightIndex*xStep;
+    const y = yMap(prices[highlightIndex].v);
+
+    ctx.globalAlpha = 0.25;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, pad); ctx.lineTo(x, h-pad); ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath(); ctx.arc(x,y,6.2,0,Math.PI*2); ctx.fill();
+  }
 }
 
-function openChartModal(fav){
-  chartModal.classList.remove("hidden");
-  drawChart(chartCanvasBig, fav.prices || []);
+function attachTooltip(canvas, prices, tipEl){
+  if (!tipEl) return;
+
+  function hide(){
+    tipEl.classList.add("hidden");
+    drawChart(canvas, prices, null);
+  }
+
+  function showAt(clientX){
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const w = canvas.width;
+    const pad = 14;
+    const usable = Math.max(1, (w - pad*2));
+    const t = (x - pad) / usable;
+    const idx = Math.round(t * (prices.length - 1));
+    const i = Math.min(prices.length-1, Math.max(0, idx));
+
+    drawChart(canvas, prices, i);
+
+    const p = prices[i];
+    const date = fmtDate(p.t);
+    const price = formatTL(p.v);
+
+    // tooltip pos (CSS translate handles centering)
+    tipEl.style.left = `${(rect.left + (pad + i*(usable/(prices.length-1 || 1))))}px`;
+    tipEl.style.top = `${rect.top + 10}px`;
+    tipEl.innerHTML = `${price}<small>${date}</small>`;
+    tipEl.classList.remove("hidden");
+  }
+
+  const onMove = (e) => {
+    const touch = e.touches?.[0];
+    const clientX = touch ? touch.clientX : e.clientX;
+    showAt(clientX);
+  };
+
+  canvas.addEventListener("mousemove", onMove);
+  canvas.addEventListener("touchstart", onMove, { passive:true });
+  canvas.addEventListener("touchmove", onMove, { passive:true });
+
+  canvas.addEventListener("mouseleave", hide);
+  canvas.addEventListener("touchend", hide);
+  canvas.addEventListener("touchcancel", hide);
 }
 
-// -------- Render Favorites --------
+// -------- Render Favorites (A+B+C burada) --------
+function makeOpenButtonsHtml(fav){
+  const q = fav.name;
+  const ids = (fav.sites||[]).slice(0, 3);
+  return ids.map(id=>{
+    const s = siteById(id);
+    if(!s) return "";
+    const url = s.search(q);
+    return `<button class="btn btn--softok" data-openurl="${encodeURIComponent(url)}">🔗 ${escapeHtml(s.name)}</button>`;
+  }).join("");
+}
+
 function renderFavs(){
   const favs = sortFavs(loadFavs());
   favList.innerHTML = "";
@@ -253,44 +368,59 @@ function renderFavs(){
     const sites = (fav.sites||[]).map(id=>siteById(id)?.name).filter(Boolean);
     const last = latestPrice(fav);
 
+    const totalChange = calcChangePercentFromFirst(fav.prices||[]);
+    const totalBadge = (totalChange === null) ? "" : `
+      <div class="change ${totalChange < 0 ? "down" : "up"}">
+        ${totalChange < 0 ? "▼" : "▲"} ${totalChange.toFixed(1)}%
+      </div>
+    `;
+
+    // B) %5+ düşüş (son iki fiyat arasında)
+    const lastStep = calcLastStepPercent(fav.prices||[]);
+    const dropBadge = (lastStep !== null && lastStep <= -5) ? `
+      <div class="dropbadge">⚠️ %${Math.abs(lastStep).toFixed(1)} düşüş</div>
+    ` : "";
+
     const card = document.createElement("div");
-    card.className = "favcard";
+    card.className = "favcard compact";
     card.innerHTML = `
       <div class="favtop">
         <div>
-          <div class="favtitle">❤ ${escapeHtml(fav.name)}</div>
+          <div class="favtitle">❤️ ${escapeHtml(fav.name)}</div>
           <div class="favsites">Siteler: <strong>${escapeHtml(sites.join(", ")||"-")}</strong></div>
+          ${totalBadge}
+          ${dropBadge}
         </div>
         <div class="pricepill">${formatTL(last)}</div>
       </div>
 
       <div class="favactions">
         ${makeOpenButtonsHtml(fav)}
-        <button class="btn btn--ghost" data-action="copy" data-id="${fav.id}">Copy Link</button>
-        <button class="btn btn--softwarn" data-action="addprice" data-id="${fav.id}">Fiyat ekle</button>
-        <button class="btn btn--softdanger" data-action="delete" data-id="${fav.id}">Sil</button>
+        <button class="btn btn--ghost" data-action="copy" data-id="${fav.id}">📋 Copy</button>
+        <button class="btn btn--softwarn" data-action="addprice" data-id="${fav.id}">➕ Fiyat</button>
+        <button class="btn btn--ghost" data-action="bigchart" data-id="${fav.id}">📈 Grafik</button>
+        <button class="btn btn--softdanger" data-action="delete" data-id="${fav.id}">🗑 Sil</button>
       </div>
 
       <div class="priceentry hidden" id="priceentry_${fav.id}">
         <input class="input" id="price_${fav.id}" inputmode="decimal" placeholder="Fiyat (₺)" />
-        <button class="btn btn--primary" data-action="saveprice" data-id="${fav.id}">Fiyat Ekle</button>
+        <button class="btn btn--primary" data-action="saveprice" data-id="${fav.id}">Kaydet</button>
       </div>
 
       <div class="canvasbox">
         <canvas id="c_${fav.id}" width="820" height="170"></canvas>
-        <div class="note" id="note_${fav.id}">${(fav.prices?.length||0) >= 2 ? "" : "Grafik için en az 2 fiyat gir."}</div>
-        <div class="row row--wrap" style="margin-top:10px">
-          <button class="btn btn--ghost" data-action="bigchart" data-id="${fav.id}">Grafiği büyüt</button>
-        </div>
+        <div id="tip_${fav.id}" class="charttip hidden"></div>
+        <div class="note" id="note_${fav.id}">${(fav.prices?.length||0) >= 2 ? "Grafikte gezdir: tarih + fiyat gör." : "Grafik için en az 2 fiyat gir."}</div>
       </div>
     `;
     favList.appendChild(card);
 
-    // chart
     const c = document.getElementById(`c_${fav.id}`);
-    drawChart(c, fav.prices||[]);
+    const tip = document.getElementById(`tip_${fav.id}`);
+    const prices = fav.prices || [];
+    drawChart(c, prices, null);
+    attachTooltip(c, prices, tip);
 
-    // open site buttons
     card.querySelectorAll("[data-openurl]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         const url = decodeURIComponent(btn.getAttribute("data-openurl"));
@@ -298,7 +428,6 @@ function renderFavs(){
       });
     });
 
-    // actions
     card.querySelectorAll("[data-action]").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         const action = btn.getAttribute("data-action");
@@ -327,32 +456,27 @@ function renderFavs(){
 
         if (action==="bigchart"){
           const f = loadFavs().find(x=>x.id===id);
-          if (f) openChartModal(f);
+          if (f){
+            chartModal.classList.remove("hidden");
+            drawChart(chartCanvasBig, f.prices || [], null);
+            attachTooltip(chartCanvasBig, f.prices || [], chartTipBig);
+          }
         }
       });
     });
   });
 }
 
-function makeOpenButtonsHtml(fav){
-  const q = fav.name;
-  const ids = (fav.sites||[]).slice(0, 3); // 3 buton yeterli
-  return ids.map(id=>{
-    const s = siteById(id);
-    if(!s) return "";
-    const url = s.search(q);
-    return `<button class="btn btn--softok" data-openurl="${encodeURIComponent(url)}">${escapeHtml(s.name)} Aç</button>`;
-  }).join("");
-}
-
-// -------- Search results in-app --------
+// -------- Search results in-app (favori kalbi + compact) --------
 function renderSearchResults(q, siteIds){
+  const favOn = isFav(q);
+
   const rows = siteIds.map(id=>{
     const s = siteById(id);
     if(!s) return "";
     const url = s.search(q);
     return `
-      <div class="favcard">
+      <div class="favcard compact">
         <div class="favtop">
           <div>
             <div class="favtitle">${escapeHtml(s.name)}</div>
@@ -360,9 +484,13 @@ function renderSearchResults(q, siteIds){
           </div>
           <div class="pricepill">Fiyat: —</div>
         </div>
+
         <div class="favactions">
-          <button class="btn btn--softok" data-openurl="${encodeURIComponent(url)}">${escapeHtml(s.name)} Aç</button>
-          <button class="btn btn--ghost" data-copyurl="${encodeURIComponent(url)}">Copy Link</button>
+          <button class="btn btn--softok" data-openurl="${encodeURIComponent(url)}">🔗 Aç</button>
+          <button class="btn btn--ghost" data-copyurl="${encodeURIComponent(url)}">📋 Copy</button>
+          <button class="btn ${favOn ? "btn--softfav" : "btn--ghost"}" data-favtoggle="1">
+            ${favOn ? "❤️ Takipte" : "🤍 Favori"}
+          </button>
         </div>
       </div>
     `;
@@ -382,6 +510,13 @@ function renderSearchResults(q, siteIds){
       await navigator.clipboard?.writeText(url);
     });
   });
+
+  inAppResults.querySelectorAll("[data-favtoggle]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      toggleFavorite(q, siteIds);
+      renderSearchResults(q, siteIds);
+    });
+  });
 }
 
 function doSearch(openTabs){
@@ -389,7 +524,6 @@ function doSearch(openTabs){
   if(!q){ searchStatus.textContent="Ürün adı boş olamaz."; return; }
 
   const selected = getSelectedSites();
-  upsertFavorite(q, selected);
   renderSearchResults(q, selected);
 
   searchStatus.textContent = `Arama hazır: “${q}” — sonuçlar uygulama içinde listelendi.`;
@@ -433,8 +567,6 @@ async function doAuthAction(){
     authErr.classList.remove("hidden");
   }
 }
-
-// Google login: popup dene, olmazsa redirect
 async function loginWithGoogle(){
   try{
     await auth.signInWithPopup(googleProvider);
@@ -442,10 +574,7 @@ async function loginWithGoogle(){
     await auth.signInWithRedirect(googleProvider);
   }
 }
-auth.getRedirectResult().catch((e)=>{
-  // Burada hatayı gösteriyoruz (debug için)
-  console.warn("Redirect error:", e?.code, e?.message);
-});
+auth.getRedirectResult().catch((e)=>console.warn("Redirect error:", e?.code, e?.message));
 
 togglePw.addEventListener("click", ()=> passwordEl.type = (passwordEl.type==="password"?"text":"password"));
 togglePw2.addEventListener("click", ()=> password2El.type = (password2El.type==="password"?"text":"password"));
@@ -489,8 +618,8 @@ document.querySelectorAll("[data-closebtn]").forEach(b=>{
 });
 
 // -------- Events --------
-btnSearch.addEventListener("click", ()=>doSearch(false));          // artık sekme açmıyor
-btnOpenSelected.addEventListener("click", ()=>doSearch(true));     // hepsini aç
+btnSearch.addEventListener("click", ()=>doSearch(false));
+btnOpenSelected.addEventListener("click", ()=>doSearch(true));
 btnClear.addEventListener("click", ()=>{
   qEl.value="";
   searchStatus.textContent="Temizlendi.";
