@@ -1,178 +1,407 @@
-<!doctype html>
-<html lang="tr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#2a3ea6" />
-  <title>fiyattakip</title>
+:root{
+  --bg1:#eef2ff;
+  --bg2:#f8fafc;
+  --card:#ffffffcc;
+  --line:rgba(15,23,42,.10);
+  --text:#0b1220;
+  --muted:rgba(11,18,32,.62);
+  --primary:#2a3ea6;
+  --primary2:#1f2b7a;
+  --shadow: 0 14px 40px rgba(15,23,42,.10);
+  --r1:22px;
+}
 
-  <link rel="manifest" href="./manifest.json" />
-  <link rel="icon" href="./icon-192.png" />
-  <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css" />
-</head>
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
 
-<body>
-  <div id="authOverlay" class="authOverlay">
-    <div class="authCard">
-      <div class="authTop">
-        <div class="brandRow">
-          <img class="brandLogo" src="./icon-192.png" alt="fiyattakip" />
-          <div class="brandText">
-            <div class="brandName">fiyattakip</div>
-            <div class="brandSub">Giriş yap / kayıt ol</div>
-          </div>
-        </div>
-      </div>
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-synthesis: none;
+  -webkit-text-size-adjust: 100%;
+  color:var(--text);
+  background:
+    radial-gradient(1200px 600px at 30% 0%, var(--bg1), transparent 60%),
+    radial-gradient(1200px 700px at 70% 10%, #e7f0ff, transparent 60%),
+    linear-gradient(180deg, var(--bg2), #f6f7ff);
+  overflow-x:hidden;
+}
 
-      <div class="authTabs">
-        <button id="tabSignIn" class="tab active" type="button">Giriş</button>
-        <button id="tabSignUp" class="tab" type="button">Kayıt</button>
-      </div>
+.lockScroll{ overflow:hidden; }
 
-      <div class="authForm">
-        <label class="field">
-          <span>E-posta</span>
-          <input id="authEmail" type="email" placeholder="ornek@mail.com" autocomplete="email" />
-        </label>
+.container{
+  width:min(920px, 94vw);
+  margin: 14px auto 80px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
 
-        <label class="field">
-          <span>Şifre</span>
-          <div class="pwWrap">
-            <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
-            <button id="togglePw" class="iconBtn" type="button" aria-label="Şifreyi göster/gizle">👁️</button>
-          </div>
-        </label>
+.muted{ color: var(--muted); }
+.small{ font-size: 13px; }
 
-        <label id="confirmWrap" class="field hidden">
-          <span>Şifre (tekrar)</span>
-          <div class="pwWrap">
-            <input id="authPassword2" type="password" placeholder="••••••••" autocomplete="new-password" />
-            <button id="togglePw2" class="iconBtn" type="button" aria-label="Şifreyi göster/gizle">👁️</button>
-          </div>
-        </label>
+/* TOPBAR */
+.topbar{
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(245,247,255,.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.topbarInner{
+  width:min(920px, 94vw);
+  margin: 0 auto;
+  padding: 10px 0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.brandPill{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.65);
+  border: 1px solid var(--line);
+}
+.brandLogoSmall{ width: 26px; height: 26px; border-radius: 10px; }
+.brandTitle{ font-weight: 900; letter-spacing: .2px; color: var(--primary); }
 
-        <button id="btnAuthPrimary" class="btnPrimary full" type="button">Giriş Yap</button>
+.topbarActions{ display:flex; align-items:center; gap:10px; }
+.iconBtn{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.72);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor:pointer;
+  font-weight: 800;
+}
+.topIcon{ width:46px; text-align:center; }
 
-        <button id="btnGoogle" class="btnGhost full" type="button">
-          <span class="gIcon">G</span> Google ile devam et
-        </button>
+.btnDanger{
+  border: 1px solid rgba(255,0,60,.18);
+  background: rgba(255,210,220,.45);
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+  cursor:pointer;
+}
 
-        <div id="authMsg" class="authMsg"></div>
-      </div>
-    </div>
-  </div>
+/* CARDS */
+.card{
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r1);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
 
-  <header class="topbar">
-    <div class="topbarInner">
-      <div class="brandPill">
-        <img class="brandLogoSmall" src="./icon-192.png" alt="logo" />
-        <span class="brandTitle">fiyattakip</span>
-      </div>
+.heroGrid{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.hero h1{
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.02;
+  letter-spacing: -.8px;
+  font-weight: 900;
+}
+.hero p{
+  margin: 10px 0 0;
+  line-height: 1.35;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.heroBadge{
+  align-self:flex-start;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(42,62,166,.20);
+  background: rgba(235,240,255,.7);
+  color: var(--primary);
+  font-weight: 900;
+  white-space: nowrap;
+  max-width: 46vw;
+  overflow:hidden;
+  text-overflow: ellipsis;
+}
 
-      <div class="topbarActions">
-        <button id="btnEnableNotif" class="iconBtn topIcon" type="button" title="Bildirim">🔔</button>
-        <button id="btnHelper" class="iconBtn topIcon" type="button" title="Yardım">🤖</button>
-        <button id="btnLogout" class="btnDanger" type="button">Çıkış</button>
-      </div>
-    </div>
-  </header>
+/* CHIPS */
+.chips{
+  display:flex;
+  flex-wrap: wrap;
+  gap:10px;
+  margin-top: 12px;
+}
+.chip{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.62);
+  cursor:pointer;
+  font-weight: 900;
+  max-width: 100%;
+}
+.chip .dot{ width:10px; height:10px; border-radius:999px; background: rgba(42,62,166,.35); }
+.chip.active{ border-color: rgba(42,62,166,.22); background: rgba(235,240,255,.75); }
+.chipText{ font-size: 14px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  <main class="container">
-    <section class="card hero">
-      <div class="heroGrid">
-        <div>
-          <h1>Fiyat<br/>Karşılaştır</h1>
-          <p class="muted">
-            Ürün adını yaz, seçtiğin sitelerde arama açar.
-            <b>(Uygulama içinden direkt fiyat çekmek CORS/captcha yüzünden yok.)</b>
-          </p>
-        </div>
-        <div class="heroBadge">Site içi “ucuzdan”</div>
-      </div>
+/* Search */
+.searchRow{ margin-top: 12px; display:flex; gap:10px; align-items:center; }
+.searchInputWrap{ position: relative; flex:1; }
+.searchInput{
+  width:100%;
+  padding: 14px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(42,62,166,.18);
+  outline: none;
+  background: rgba(255,255,255,.72);
+  font-weight: 800;
+}
+.searchInput:focus{ box-shadow: 0 0 0 4px rgba(42,62,166,.10); }
 
-      <div class="chips" id="siteChips"></div>
+.btnPrimary{
+  border: 0;
+  background: linear-gradient(180deg, var(--primary), var(--primary2));
+  color: white;
+  padding: 14px 16px;
+  border-radius: 18px;
+  font-weight: 900;
+  cursor:pointer;
+  min-width: 92px;
+}
+.btnPrimary.full{ width:100%; }
 
-      <div class="searchRow">
-        <div class="searchInputWrap">
-          <input id="qInput" class="searchInput" type="text" placeholder="Ürün adını yazın..." autocomplete="off" />
-          <div id="suggestBox" class="suggestBox hidden"></div>
-        </div>
-        <button id="btnSearch" class="btnPrimary" type="button">Ara</button>
-      </div>
+.btnGhost{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.68);
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+  cursor:pointer;
+}
+.btnGhost.full{ width:100%; }
 
-      <div class="actionsRow">
-        <button id="btnClearResults" class="btnGhost" type="button">Temizle</button>
-        <button id="btnOpenSelected" class="btnGhost" type="button">Seçili Siteleri Aç</button>
-      </div>
+.actionsRow{ margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
+.subTitle{
+  margin-top: 10px;
+  font-weight: 900;
+  color: rgba(11,18,32,.70);
+  overflow-wrap:anywhere;
+}
 
-      <div class="subTitle">Arama satırları — Her satır: seçili sitede arama açar + “Favori” hatırlanır.</div>
-      <div id="resultsBox" class="resultsBox">
-        <div class="emptyHint">Henüz arama yapılmadı.</div>
-      </div>
-    </section>
+/* Suggestions */
+.suggestBox{
+  position:absolute;
+  top: calc(100% + 8px);
+  left:0; right:0;
+  background: rgba(255,255,255,.92);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  z-index: 40;
+}
+.suggestItem{ padding: 12px 12px; font-weight: 900; cursor:pointer; }
+.suggestItem:hover{ background: rgba(235,240,255,.75); }
+.hidden{ display:none !important; }
 
-    <section class="card">
-      <div class="favHeader">
-        <div>
-          <div class="favTitle">🖤 Favoriler</div>
-          <div class="muted small">
-            Linkler gizli. Site butonları + Copy Link var.
-            Uygulama açılınca %5+ düşüş kontrolü (demo).
-          </div>
-        </div>
+/* Results */
+.resultsBox{
+  margin-top: 10px;
+  border-radius: 18px;
+  border: 1px dashed rgba(42,62,166,.20);
+  padding: 12px;
+}
+.emptyHint{ padding: 14px; color: rgba(11,18,32,.45); font-weight: 900; }
+.resultsList{ display:flex; flex-direction:column; gap:10px; }
+.resultRow{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px dashed rgba(42,62,166,.18);
+  background: rgba(255,255,255,.55);
+}
+.siteTitle{ font-weight: 900; font-size: 18px; }
+.qText{ margin-top: 3px; color: rgba(11,18,32,.55); font-weight: 800; overflow-wrap:anywhere; }
+.resultRight{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.btnOpen, .btnFav, .btnFavOn{
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+  cursor:pointer;
+  border: 1px solid rgba(42,62,166,.18);
+  background: rgba(235,240,255,.72);
+}
+.btnOpen{ border-color: rgba(25,140,60,.18); background: rgba(220,255,235,.65); }
+.btnFavOn{ border-color: rgba(255,0,80,.18); background: rgba(255,220,230,.62); }
 
-        <div class="favControls">
-          <select id="sortFav" class="select">
-            <option value="lastPriceDesc" selected>Sırala: Son fiyat (Pahalı→Ucuz)</option>
-            <option value="lastPriceAsc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
-            <option value="nameAsc">Sırala: Ürün adı (A→Z)</option>
-            <option value="siteAsc">Sırala: Site (A→Z)</option>
-          </select>
-          <button id="btnRefreshFav" class="btnGhost" type="button">Yenile</button>
-        </div>
-      </div>
+/* Favorites */
+.favHeader{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.favTitle{ font-size: 34px; font-weight: 900; letter-spacing: -.6px; }
+.favControls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
-      <div id="favBox" class="favBox">
-        <div class="emptyHint">Favori yok.</div>
-      </div>
-    </section>
-  </main>
+.select{
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.72);
+  padding: 10px 38px 10px 12px;
+  font-weight: 900;
+  appearance:none; -webkit-appearance:none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(30,41,59,0.55) 50%),
+    linear-gradient(135deg, rgba(30,41,59,0.55) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  max-width: 92vw;
+}
 
-  <div id="chartModal" class="modal hidden">
-    <div class="modalBackdrop"></div>
-    <div class="modalCard">
-      <div class="modalTop">
-        <div id="chartTitle" class="modalTitle">Fiyat Grafiği</div>
-        <button id="btnCloseChart" class="iconBtn" type="button">✖</button>
-      </div>
-      <canvas id="chartCanvas" width="800" height="420"></canvas>
-      <div id="chartHint" class="muted small"></div>
-    </div>
-  </div>
+.favBox{ margin-top: 10px; display:flex; flex-direction:column; gap:10px; }
+.favItem{
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px dashed rgba(42,62,166,.18);
+  background: rgba(255,255,255,.55);
+}
+.favTopRow{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+.favName{ font-weight: 900; font-size: 20px; overflow-wrap:anywhere; }
+.favMeta{ color: rgba(11,18,32,.55); font-weight: 800; margin-top: 2px; }
+.badgePrice{
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(42,62,166,.18);
+  background: rgba(235,240,255,.75);
+  font-weight: 900;
+  white-space: nowrap;
+}
 
-  <div id="helpModal" class="modal hidden">
-    <div class="modalBackdrop"></div>
-    <div class="modalCard">
-      <div class="modalTop">
-        <div class="modalTitle">Yardım</div>
-        <button id="btnCloseHelp" class="iconBtn" type="button">✖</button>
-      </div>
-      <div class="helpText">
-        <p><b>Nasıl çalışır?</b> Ürün adını yaz → site seç → “Ara”. Açılan sayfadan linki alıp favoriye ekle. Sonra “Fiyat ekle” ile fiyat geçmişini tut.</p>
-        <p><b>Otomatik fiyat çekmiyor mu?</b> Hayır. Çoğu site CORS/captcha yüzünden tarayıcıdan çekime izin vermiyor.</p>
-        <p><b>%5+ düşüş bildirimi?</b> Uygulama açılınca favorilerin son 2 fiyat kaydı karşılaştırılır. %5+ düşüşte bildirim gösterilir (izin verirsen).</p>
-      </div>
-    </div>
-  </div>
+.favBtns{ margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
+.btnOpenSite,.btnCopy,.btnAddPrice,.btnDelete,.btnChart{
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+  cursor:pointer;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.68);
+}
+.btnOpenSite{ border-color: rgba(25,140,60,.18); background: rgba(220,255,235,.65); }
+.btnCopy{ border-color: rgba(42,62,166,.18); background: rgba(235,240,255,.72); }
+.btnAddPrice{ border-color: rgba(180,120,0,.18); background: rgba(255,243,210,.65); }
+.btnDelete{ border-color: rgba(255,0,70,.18); background: rgba(255,220,230,.62); }
 
-  <script type="module" src="./app.js"></script>
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js").catch(() => {});
-      });
-    }
-  </script>
-</body>
-</html>
+.sparkWrap{ margin-top: 10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.spark{
+  border-radius: 14px;
+  border: 1px solid rgba(42,62,166,.18);
+  background: rgba(255,255,255,.75);
+  max-width: 100%;
+}
+
+/* AUTH */
+.authOverlay{
+  position:fixed; inset:0; z-index: 999;
+  display:flex; align-items:center; justify-content:center;
+  padding: 18px;
+  background: radial-gradient(900px 600px at 30% 0%, rgba(238,242,255,.96), rgba(248,250,252,.92));
+}
+.authCard{
+  width: min(420px, 94vw);
+  background: rgba(255,255,255,.82);
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+.brandRow{ display:flex; gap:12px; align-items:center; }
+.brandLogo{ width: 44px; height: 44px; border-radius: 16px; }
+.brandName{ font-weight: 900; font-size: 20px; color: var(--primary); }
+.brandSub{ margin-top: 2px; color: rgba(11,18,32,.55); font-weight: 800; }
+
+.authTabs{ margin-top: 12px; display:flex; gap:10px; }
+.tab{
+  flex:1;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.68);
+  padding: 10px 12px;
+  border-radius: 16px;
+  font-weight: 900;
+  cursor:pointer;
+}
+.tab.active{ border-color: rgba(42,62,166,.20); background: rgba(235,240,255,.75); color: var(--primary); }
+.authForm{ margin-top: 12px; display:flex; flex-direction:column; gap:10px; }
+.field span{ display:block; font-weight: 900; color: rgba(11,18,32,.70); margin-bottom: 6px; }
+.field input{
+  width:100%;
+  padding: 12px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(42,62,166,.18);
+  background: rgba(255,255,255,.78);
+  outline:none;
+  font-weight: 900;
+}
+.pwWrap{ display:flex; gap:8px; align-items:center; }
+.pwWrap input{ flex:1; }
+.authMsg{ min-height: 18px; font-weight: 900; color: rgba(255,0,70,.85); }
+.authMsg.ok{ color: rgba(20,120,60,.9); }
+
+/* MODAL */
+.modal{ position:fixed; inset:0; z-index: 2000; display:flex; align-items:center; justify-content:center; padding: 16px; }
+.modalBackdrop{ position:absolute; inset:0; background: rgba(0,0,0,.35); }
+.modalCard{
+  position:relative;
+  width: min(920px, 96vw);
+  background: rgba(255,255,255,.92);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+.modalTop{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.modalTitle{ font-weight: 900; font-size: 18px; overflow-wrap:anywhere; }
+#chartCanvas{
+  width: 100%;
+  height: auto;
+  margin-top: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(42,62,166,.18);
+  background: rgba(245,247,255,.6);
+}
+
+/* TOAST */
+.toast{
+  position:fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%) translateY(14px);
+  background: rgba(15,23,42,.92);
+  color:#fff;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-weight: 900;
+  opacity: 0;
+  transition: .18s ease;
+  z-index: 5000;
+}
+.toast.show{ opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* MOBILE */
+@media (max-width: 420px){
+  .hero h1{ font-size: 38px; }
+  .heroBadge{ max-width: 60vw; }
+  .resultRow{ flex-direction:column; align-items:flex-start; }
+  .btnPrimary{ min-width: 84px; }
+  }
