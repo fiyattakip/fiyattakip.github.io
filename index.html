@@ -1,136 +1,184 @@
 <!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#2a3ea6" />
   <title>fiyattakip</title>
 
   <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#EAF0FF" />
   <link rel="icon" href="./icon-192.png" />
-
+  <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
-  <!-- AUTH overlay (arka planı tamamen kapatır) -->
-  <div id="authRoot" class="authRoot"></div>
-
-  <!-- APP -->
-  <div class="app-shell" id="appShell">
-
-    <!-- TOPBAR -->
-    <header class="topbar">
-      <div class="brandpill">
-        <img class="brandlogo" src="./icon-192.png" alt="logo">
-        <span class="brandtext">fiyattakip</span>
-      </div>
-
-      <div class="topactions">
-        <button class="iconbtn" id="notifyBtn" title="Bildirim">
-          🔔
-        </button>
-        <button class="iconbtn" id="aiBtn" title="AI Arama (demo)">
-          🤖
-        </button>
-        <button class="logoutbtn" id="logoutBtn">Çıkış</button>
-      </div>
-    </header>
-
-    <main class="container">
-
-      <!-- HERO / SEARCH -->
-      <section class="card hero">
-        <div class="heroHead">
-          <div class="heroTitle">Fiyat<br/>Karşılaştır</div>
-          <div class="heroChip">Site içi “ucuzdan”</div>
-        </div>
-
-        <p class="heroDesc">
-          Ürün adını yaz, seçtiğin sitelerde arama açar.
-          (Uygulama içinden direkt fiyat çekmek CORS/captcha yüzünden yok.)
-        </p>
-
-        <!-- site chips -->
-        <div class="siteGrid" id="siteGrid"></div>
-
-        <!-- search + autocomplete -->
-        <div class="searchRow">
-          <input id="query" class="searchInput" placeholder="Ürün adını yazın..."
-                 autocomplete="off" />
-          <button id="searchBtn" class="searchBtn">Ara</button>
-        </div>
-
-        <div id="suggestBox" class="suggestBox" style="display:none;"></div>
-
-        <div class="subline">
-          <b>Arama satırları</b> — Her satır: seçili sitede arama açar + “Favori” hatırlanır.
-        </div>
-
-        <div class="rowActions">
-          <button id="clearBtn" class="ghostBtn">Temizle</button>
-          <button id="openAllBtn" class="ghostBtn">Seçili Siteleri Aç</button>
-        </div>
-
-        <div id="results" class="resultsBox">
-          <div class="empty">Henüz arama yapılmadı.</div>
-        </div>
-      </section>
-
-      <!-- FAVORITES -->
-      <section class="card favSection">
-        <div class="favHeader">
-          <div>
-            <div class="favTitle">❤ Favoriler</div>
-            <div class="favDesc">
-              Linkler gizli. Site butonları + Copy Link var.
-              Uygulama açılınca %5+ düşüş kontrolü (demo).
-            </div>
-          </div>
-
-          <div class="favHeaderRight">
-            <select id="sortSelect" class="select">
-              <option value="lastAsc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
-              <option value="lastDesc">Sırala: Son fiyat (Pahalı→Ucuz)</option>
-              <option value="newest">Sırala: En yeni</option>
-            </select>
-            <button id="favRefresh" class="ghostBtn">Yenile</button>
+  <!-- AUTH OVERLAY (arka plan görünmesin diye) -->
+  <div id="authOverlay" class="authOverlay">
+    <div class="authCard">
+      <div class="authTop">
+        <div class="brandRow">
+          <img class="brandLogo" src="./icon-192.png" alt="fiyattakip" />
+          <div class="brandText">
+            <div class="brandName">fiyattakip</div>
+            <div class="brandSub">Giriş yap / kayıt ol</div>
           </div>
         </div>
-
-        <div id="favorites" class="favBox">
-          <div class="empty">Favori yok.</div>
-        </div>
-      </section>
-
-    </main>
-  </div>
-
-  <!-- CHART MODAL -->
-  <div id="chartModal" class="modalBack" style="display:none;">
-    <div class="modalCard">
-      <div class="modalTop">
-        <div>
-          <div id="modalTitle" class="modalTitle">Grafik</div>
-          <div id="modalSub" class="modalSub">—</div>
-        </div>
-        <button id="modalClose" class="modalClose">✕</button>
       </div>
 
-      <canvas id="bigChart" width="900" height="420"></canvas>
-      <div id="chartHint" class="chartHint"></div>
+      <div class="authTabs">
+        <button id="tabSignIn" class="tab active" type="button">Giriş</button>
+        <button id="tabSignUp" class="tab" type="button">Kayıt</button>
+      </div>
+
+      <div class="authForm">
+        <label class="field">
+          <span>E-posta</span>
+          <input id="authEmail" type="email" placeholder="ornek@mail.com" autocomplete="email" />
+        </label>
+
+        <label class="field">
+          <span>Şifre</span>
+          <div class="pwWrap">
+            <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
+            <button id="togglePw" class="iconBtn" type="button" aria-label="Şifreyi göster/gizle">👁️</button>
+          </div>
+        </label>
+
+        <label id="confirmWrap" class="field hidden">
+          <span>Şifre (tekrar)</span>
+          <div class="pwWrap">
+            <input id="authPassword2" type="password" placeholder="••••••••" autocomplete="new-password" />
+            <button id="togglePw2" class="iconBtn" type="button" aria-label="Şifreyi göster/gizle">👁️</button>
+          </div>
+        </label>
+
+        <button id="btnAuthPrimary" class="btnPrimary full" type="button">Giriş Yap</button>
+
+        <button id="btnGoogle" class="btnGhost full" type="button">
+          <span class="gIcon">G</span> Google ile devam et
+        </button>
+
+        <div id="authMsg" class="authMsg"></div>
+      </div>
     </div>
   </div>
 
-  <!-- TOAST -->
-  <div id="toast" class="toast"></div>
+  <!-- APP -->
+  <header class="topbar">
+    <div class="topbarInner">
+      <div class="brandPill">
+        <img class="brandLogoSmall" src="./icon-192.png" alt="logo" />
+        <span class="brandTitle">fiyattakip</span>
+      </div>
+
+      <div class="topbarActions">
+        <button id="btnEnableNotif" class="iconBtn topIcon" type="button" title="Bildirim">🔔</button>
+        <button id="btnHelper" class="iconBtn topIcon" type="button" title="Yardım">🤖</button>
+        <button id="btnLogout" class="btnDanger" type="button">Çıkış</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card hero">
+      <div class="heroGrid">
+        <div>
+          <h1>Fiyat<br/>Karşılaştır</h1>
+          <p class="muted">
+            Ürün adını yaz, seçtiğin sitelerde arama açar.
+            <b>(Uygulama içinden direkt fiyat çekmek CORS/captcha yüzünden yok.)</b>
+          </p>
+        </div>
+        <div class="heroBadge">Site içi “ucuzdan”</div>
+      </div>
+
+      <div class="chips" id="siteChips"></div>
+
+      <div class="searchRow">
+        <div class="searchInputWrap">
+          <input id="qInput" class="searchInput" type="text" placeholder="Ürün adını yazın..." autocomplete="off" />
+          <div id="suggestBox" class="suggestBox hidden"></div>
+        </div>
+        <button id="btnSearch" class="btnPrimary" type="button">Ara</button>
+      </div>
+
+      <div class="actionsRow">
+        <button id="btnClearResults" class="btnGhost" type="button">Temizle</button>
+        <button id="btnOpenSelected" class="btnGhost" type="button">Seçili Siteleri Aç</button>
+      </div>
+
+      <div class="subTitle">Arama satırları — Her satır: seçili sitede arama açar + “Favori” hatırlanır.</div>
+      <div id="resultsBox" class="resultsBox">
+        <div class="emptyHint">Henüz arama yapılmadı.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="favHeader">
+        <div>
+          <div class="favTitle">🖤 Favoriler</div>
+          <div class="muted small">
+            Linkler gizli. Site butonları + Copy Link var.
+            Uygulama açılınca %5+ düşüş kontrolü (demo).
+          </div>
+        </div>
+
+        <div class="favControls">
+          <select id="sortFav" class="select">
+            <option value="lastPriceAsc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
+            <option value="lastPriceDesc">Sırala: Son fiyat (Pahalı→Ucuz)</option>
+            <option value="nameAsc">Sırala: Ürün adı (A→Z)</option>
+            <option value="siteAsc">Sırala: Site (A→Z)</option>
+          </select>
+          <button id="btnRefreshFav" class="btnGhost" type="button">Yenile</button>
+        </div>
+      </div>
+
+      <div id="favBox" class="favBox">
+        <div class="emptyHint">Favori yok.</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Chart Modal -->
+  <div id="chartModal" class="modal hidden">
+    <div class="modalBackdrop"></div>
+    <div class="modalCard">
+      <div class="modalTop">
+        <div id="chartTitle" class="modalTitle">Fiyat Grafiği</div>
+        <button id="btnCloseChart" class="iconBtn" type="button">✖</button>
+      </div>
+      <canvas id="chartCanvas" width="800" height="420"></canvas>
+      <div id="chartHint" class="muted small"></div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modalBackdrop"></div>
+    <div class="modalCard">
+      <div class="modalTop">
+        <div class="modalTitle">Yardım</div>
+        <button id="btnCloseHelp" class="iconBtn" type="button">✖</button>
+      </div>
+      <div class="helpText">
+        <p><b>Nasıl çalışır?</b> Ürün adını yaz → site seç → “Ara”. Açılan sayfadan linki alıp favoriye ekle. Sonra “Fiyat ekle” ile fiyat geçmişini tut.</p>
+        <p><b>Otomatik fiyat çekmiyor mu?</b> Hayır. Çoğu site CORS/captcha yüzünden tarayıcıdan çekime izin vermiyor.</p>
+        <p><b>%5+ düşüş bildirimi?</b> Uygulama açılınca favorilerin son 2 fiyat kaydı karşılaştırılır. %5+ düşüşte bildirim gösterilir (izin verirsen).</p>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="./app.js"></script>
 
   <script>
+    // SW kayıt
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js").catch(()=>{});
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
     }
   </script>
 </body>
-</html>
+          </html>
