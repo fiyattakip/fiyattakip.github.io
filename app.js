@@ -1,691 +1,619 @@
-import { auth, db, googleProvider } from "./firebase.js";
-import {
-  onAuthStateChanged,
-  signOut,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signInWithPopup
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+// app.js
+// Tamamen: arama + favori + fiyat geçmişi + sıralama + grafik + auth + AI ayarları
 
-import {
-  collection,
-  doc,
-  setDoc,
-  getDocs,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-/* SİTELER */
+// ---------- SITES ----------
 const SITES = [
-  { key: "trendyol", name: "Trendyol", search: (q) => `https://www.trendyol.com/sr?q=${encodeURIComponent(q)}` },
-  { key: "hepsiburada", name: "Hepsiburada", search: (q) => `https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}` },
-  { key: "n11", name: "N11", search: (q) => `https://www.n11.com/arama?q=${encodeURIComponent(q)}` },
-  { key: "amazon", name: "Amazon TR", search: (q) => `https://www.amazon.com.tr/s?k=${encodeURIComponent(q)}` },
-  { key: "pazarama", name: "Pazarama", search: (q) => `https://www.pazarama.com/arama?q=${encodeURIComponent(q)}` },
-  { key: "ciceksepeti", name: "ÇiçekSepeti", search: (q) => `https://www.ciceksepeti.com/arama?query=${encodeURIComponent(q)}` },
-  { key: "idefix", name: "İdefix", search: (q) => `https://www.idefix.com/search?q=${encodeURIComponent(q)}` },
+  { id: "trendyol", name: "Trendyol",  search: q => `https://www.trendyol.com/sr?q=${encodeURIComponent(q)}` },
+  { id: "hepsiburada", name: "Hepsiburada", search: q => `https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}` },
+  { id: "n11", name: "N11", search: q => `https://www.n11.com/arama?q=${encodeURIComponent(q)}` },
+  { id: "amazontr", name: "Amazon TR", search: q => `https://www.amazon.com.tr/s?k=${encodeURIComponent(q)}` },
+  { id: "pazarama", name: "Pazarama", search: q => `https://www.pazarama.com/arama?q=${encodeURIComponent(q)}` },
+  { id: "ciceksepeti", name: "ÇiçekSepeti", search: q => `https://www.ciceksepeti.com/arama?query=${encodeURIComponent(q)}` },
+  { id: "idefix", name: "idefix", search: q => `https://www.idefix.com/arama?q=${encodeURIComponent(q)}` }
 ];
 
-/* DOM */
-const $ = (id) => document.getElementById(id);
+// ---------- STORAGE KEYS ----------
+const LS = {
+  selectedSites: "ft_selected_sites_v2",
+  favorites: "ft_favorites_v2",
+  ai: "ft_ai_settings_v1"
+};
 
-const authOverlay = $("authOverlay");
-const tabSignIn = $("tabSignIn");
-const tabSignUp = $("tabSignUp");
-const confirmWrap = $("confirmWrap");
-const authEmail = $("authEmail");
-const authPassword = $("authPassword");
-const authPassword2 = $("authPassword2");
-const btnAuthPrimary = $("btnAuthPrimary");
-const btnGoogle = $("btnGoogle");
-const authMsg = $("authMsg");
-const togglePw = $("togglePw");
-const togglePw2 = $("togglePw2");
+// favorites schema:
+// {
+//   id: string,
+//   name: string,
+//   sites: [siteId],
+//   createdAt: number,
+//   prices: [{t:number, v:number}],   // TL
+//   lastPrice: number|null
+// }
 
-const btnLogout = $("btnLogout");
-const btnEnableNotif = $("btnEnableNotif");
-const btnHelper = $("btnHelper");
-const helpModal = $("helpModal");
-const btnCloseHelp = $("btnCloseHelp");
+// ---------- DOM ----------
+const siteChipsEl = document.getElementById("siteChips");
+const qEl = document.getElementById("q");
+const btnSearch = document.getElementById("btnSearch");
+const btnOpenSelected = document.getElementById("btnOpenSelected");
+const btnClear = document.getElementById("btnClear");
+const searchStatus = document.getElementById("searchStatus");
 
-const siteChips = $("siteChips");
-const qInput = $("qInput");
-const suggestBox = $("suggestBox");
-const btnSearch = $("btnSearch");
-const btnClearResults = $("btnClearResults");
-const btnOpenSelected = $("btnOpenSelected");
-const resultsBox = $("resultsBox");
+const favList = document.getElementById("favList");
+const sortSelect = document.getElementById("sortSelect");
+const btnRefreshFav = document.getElementById("btnRefreshFav");
 
-const favBox = $("favBox");
-const btnRefreshFav = $("btnRefreshFav");
-const sortFav = $("sortFav");
+const btnLogout = document.getElementById("btnLogout");
+const authModal = document.getElementById("authModal");
+const aiModal = document.getElementById("aiModal");
+const chartModal = document.getElementById("chartModal");
 
-const chartModal = $("chartModal");
-const btnCloseChart = $("btnCloseChart");
-const chartTitle = $("chartTitle");
-const chartCanvas = $("chartCanvas");
-const chartHint = $("chartHint");
+const tabLogin = document.getElementById("tabLogin");
+const tabRegister = document.getElementById("tabRegister");
+const registerExtra = document.getElementById("registerExtra");
+const btnAuthAction = document.getElementById("btnAuthAction");
+const btnGoogle = document.getElementById("btnGoogle");
+const authErr = document.getElementById("authErr");
 
-/* STATE */
-let currentUser = null;
-let authMode = "signin";
-let selectedSites = new Set(SITES.map(s => s.key));
-let lastResults = [];
-let favorites = [];
-let recentQueries = [];
+const emailEl = document.getElementById("email");
+const passwordEl = document.getElementById("password");
+const password2El = document.getElementById("password2");
+const togglePw = document.getElementById("togglePw");
+const togglePw2 = document.getElementById("togglePw2");
 
-const LS_RECENT = "ft_recentQueries_v1";
+const btnAI = document.getElementById("btnAI");
+const aiProvider = document.getElementById("aiProvider");
+const geminiKey = document.getElementById("geminiKey");
+const openaiKey = document.getElementById("openaiKey");
+const btnSaveAI = document.getElementById("btnSaveAI");
+const btnClearAI = document.getElementById("btnClearAI");
 
-/* HELPERS */
-function toast(msg) {
-  const t = document.createElement("div");
-  t.className = "toast";
-  t.textContent = msg;
-  document.body.appendChild(t);
-  requestAnimationFrame(() => t.classList.add("show"));
-  setTimeout(() => {
-    t.classList.remove("show");
-    setTimeout(() => t.remove(), 220);
-  }, 1800);
+const chartCanvasBig = document.getElementById("chartCanvasBig");
+
+// ---------- STATE ----------
+let mode = "login"; // login | register
+
+// ---------- UTILS ----------
+function loadJSON(key, fallback){
+  try{
+    const s = localStorage.getItem(key);
+    return s ? JSON.parse(s) : fallback;
+  }catch{ return fallback; }
+}
+function saveJSON(key, val){
+  localStorage.setItem(key, JSON.stringify(val));
+}
+function uid(){
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+function siteById(id){
+  return SITES.find(s => s.id === id);
+}
+function clampNum(n){
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+function formatTL(n){
+  if (!Number.isFinite(n)) return "Fiyat yok";
+  return `${n.toLocaleString("tr-TR")} ₺`;
+}
+function latestPrice(fav){
+  if (Number.isFinite(fav.lastPrice)) return fav.lastPrice;
+  if (fav.prices?.length) return fav.prices[fav.prices.length - 1].v;
+  return null;
 }
 
-function setAuthMsg(text, ok=false){
-  authMsg.textContent = text || "";
-  authMsg.className = "authMsg " + (ok ? "ok" : "err");
-  if(!text) authMsg.className = "authMsg";
+// ---------- CHIPS ----------
+function renderChips(){
+  siteChipsEl.innerHTML = "";
+  const selected = new Set(loadJSON(LS.selectedSites, SITES.map(s=>s.id)));
+
+  SITES.forEach(site => {
+    const chip = document.createElement("button");
+    chip.className = "chip " + (selected.has(site.id) ? "chip--on" : "");
+    chip.type = "button";
+    chip.innerHTML = `<span class="dot"></span><span>${site.name}</span>`;
+    chip.addEventListener("click", () => {
+      if (selected.has(site.id)) selected.delete(site.id);
+      else selected.add(site.id);
+      saveJSON(LS.selectedSites, Array.from(selected));
+      renderChips();
+    });
+    siteChipsEl.appendChild(chip);
+  });
+}
+function getSelectedSites(){
+  const arr = loadJSON(LS.selectedSites, SITES.map(s=>s.id));
+  const valid = arr.filter(id => siteById(id));
+  return valid.length ? valid : SITES.map(s=>s.id);
 }
 
-function normalizeTitle(q){
-  const s = (q || "").trim().replace(/\s+/g, " ");
-  return s.length ? s : "Ürün";
+// ---------- FAVORITES ----------
+function loadFavs(){
+  return loadJSON(LS.favorites, []);
 }
-
-function favIdFrom(siteKey, title){
-  return `${siteKey}__${title.toLowerCase().replace(/[^a-z0-9çğıöşü\- ]/gi,"").replace(/\s+/g,"_")}`.slice(0,150);
+function saveFavs(favs){
+  saveJSON(LS.favorites, favs);
 }
+function upsertFavorite(productName, siteIds){
+  const name = (productName || "").trim();
+  if (!name) return;
 
-function formatTRY(n){
-  if (n == null || Number.isNaN(n)) return "Fiyat yok";
-  try { return new Intl.NumberFormat("tr-TR", { style:"currency", currency:"TRY", maximumFractionDigits: 0 }).format(n); }
-  catch { return `${Math.round(n)} TL`; }
-}
+  const favs = loadFavs();
+  const key = name.toLowerCase();
 
-function percentDrop(prev, cur){
-  if (!prev || !cur) return 0;
-  return ((prev - cur) / prev) * 100;
-}
-
-function openUrl(url){ window.open(url, "_blank", "noopener,noreferrer"); }
-
-async function copyText(text){
-  try {
-    await navigator.clipboard.writeText(text);
-    toast("Link kopyalandı");
-  } catch {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    toast("Link kopyalandı");
-  }
-}
-
-/* AUTH UI */
-function setAuthMode(mode){
-  authMode = mode;
-  if(mode === "signin"){
-    tabSignIn.classList.add("active");
-    tabSignUp.classList.remove("active");
-    confirmWrap.classList.add("hidden");
-    btnAuthPrimary.textContent = "Giriş Yap";
-    authPassword.autocomplete = "current-password";
+  let f = favs.find(x => x.name.toLowerCase() === key);
+  if (!f){
+    f = {
+      id: uid(),
+      name,
+      sites: Array.from(new Set(siteIds)),
+      createdAt: Date.now(),
+      prices: [],
+      lastPrice: null
+    };
+    favs.unshift(f);
   }else{
-    tabSignUp.classList.add("active");
-    tabSignIn.classList.remove("active");
-    confirmWrap.classList.remove("hidden");
-    btnAuthPrimary.textContent = "Hesap Oluştur";
-    authPassword.autocomplete = "new-password";
+    // merge sites
+    const merged = new Set([...(f.sites || []), ...siteIds]);
+    f.sites = Array.from(merged);
   }
-  setAuthMsg("");
+
+  saveFavs(favs);
+  renderFavs();
 }
+function deleteFav(id){
+  const favs = loadFavs().filter(f => f.id !== id);
+  saveFavs(favs);
+  renderFavs();
+}
+function addPriceToFav(id, price){
+  const p = Number(String(price).replace(",", ".").replace(/[^\d.]/g,""));
+  if (!Number.isFinite(p) || p <= 0) return;
 
-togglePw.addEventListener("click", () => {
-  authPassword.type = authPassword.type === "password" ? "text" : "password";
-});
-togglePw2.addEventListener("click", () => {
-  authPassword2.type = authPassword2.type === "password" ? "text" : "password";
-});
+  const favs = loadFavs();
+  const f = favs.find(x => x.id === id);
+  if (!f) return;
 
-tabSignIn.addEventListener("click", () => setAuthMode("signin"));
-tabSignUp.addEventListener("click", () => setAuthMode("signup"));
+  f.prices = Array.isArray(f.prices) ? f.prices : [];
+  f.prices.push({ t: Date.now(), v: p });
+  // keep last 50
+  if (f.prices.length > 50) f.prices = f.prices.slice(-50);
+  f.lastPrice = p;
 
-btnAuthPrimary.addEventListener("click", async () => {
-  setAuthMsg("");
-  const email = authEmail.value.trim();
-  const pw = authPassword.value;
+  saveFavs(favs);
+  renderFavs();
+}
+function getPrimaryLinkForFav(fav){
+  // link: first site in list
+  const q = fav.name;
+  const first = siteById((fav.sites || [])[0]);
+  return first ? first.search(q) : "";
+}
+function sortFavs(favs){
+  const mode = sortSelect.value;
 
-  if(!email || !pw) return setAuthMsg("E-posta ve şifre gir.");
+  const copy = [...favs];
+  copy.sort((a,b) => {
+    const ap = latestPrice(a);
+    const bp = latestPrice(b);
+    const an = (a.name || "").toLowerCase();
+    const bn = (b.name || "").toLowerCase();
 
-  try{
-    if(authMode === "signup"){
-      const pw2 = authPassword2.value;
-      if(pw.length < 6) return setAuthMsg("Şifre en az 6 karakter olmalı.");
-      if(pw !== pw2) return setAuthMsg("Şifreler aynı değil.");
-      await createUserWithEmailAndPassword(auth, email, pw);
-      setAuthMsg("Hesap oluşturuldu.", true);
-    }else{
-      await signInWithEmailAndPassword(auth, email, pw);
-      setAuthMsg("Giriş başarılı.", true);
+    const as0 = (a.sites?.[0] ? siteById(a.sites[0])?.name : "") || "";
+    const bs0 = (b.sites?.[0] ? siteById(b.sites[0])?.name : "") || "";
+
+    if (mode === "price_asc"){
+      const av = Number.isFinite(ap) ? ap : Number.POSITIVE_INFINITY;
+      const bv = Number.isFinite(bp) ? bp : Number.POSITIVE_INFINITY;
+      if (av !== bv) return av - bv;
+      return an.localeCompare(bn, "tr");
     }
-  }catch(e){
-    setAuthMsg("Hata: " + (e?.message || e));
-  }
-});
-
-btnGoogle.addEventListener("click", async () => {
-  setAuthMsg("");
-  try{
-    await signInWithPopup(auth, googleProvider);
-  }catch(e){
-    setAuthMsg("Google giriş hatası: " + (e?.message || e));
-  }
-});
-
-btnLogout.addEventListener("click", async () => {
-  await signOut(auth);
-});
-
-/* SITE CHIPS */
-function renderSiteChips(){
-  siteChips.innerHTML = "";
-  SITES.forEach(s => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "chip" + (selectedSites.has(s.key) ? " active" : "");
-    b.innerHTML = `<span class="dot"></span><span class="chipText">${s.name}</span>`;
-    b.addEventListener("click", () => {
-      if(selectedSites.has(s.key)) selectedSites.delete(s.key);
-      else selectedSites.add(s.key);
-      renderSiteChips();
-    });
-    siteChips.appendChild(b);
-  });
-}
-
-/* RECENT */
-function loadRecent(){
-  try{
-    recentQueries = JSON.parse(localStorage.getItem(LS_RECENT) || "[]");
-    if(!Array.isArray(recentQueries)) recentQueries = [];
-  }catch{ recentQueries = []; }
-}
-function saveRecent(q){
-  const v = normalizeTitle(q);
-  if(!v) return;
-  recentQueries = [v, ...recentQueries.filter(x => x !== v)].slice(0, 12);
-  localStorage.setItem(LS_RECENT, JSON.stringify(recentQueries));
-}
-function renderSuggest(){
-  const q = qInput.value.trim().toLowerCase();
-  if(!q){ suggestBox.classList.add("hidden"); suggestBox.innerHTML = ""; return; }
-  const items = recentQueries.filter(x => x.toLowerCase().includes(q)).slice(0, 6);
-  if(!items.length){ suggestBox.classList.add("hidden"); suggestBox.innerHTML = ""; return; }
-  suggestBox.classList.remove("hidden");
-  suggestBox.innerHTML = items.map(x => `<div class="suggestItem">${x}</div>`).join("");
-  [...suggestBox.querySelectorAll(".suggestItem")].forEach((el, i) => {
-    el.addEventListener("click", () => {
-      qInput.value = items[i];
-      suggestBox.classList.add("hidden");
-      suggestBox.innerHTML = "";
-      qInput.focus();
-    });
-  });
-}
-qInput.addEventListener("input", renderSuggest);
-document.addEventListener("click", (e) => {
-  if(!suggestBox.contains(e.target) && e.target !== qInput){
-    suggestBox.classList.add("hidden");
-  }
-});
-
-/* RESULTS */
-function buildResults(q){
-  const title = normalizeTitle(q);
-  const chosen = SITES.filter(s => selectedSites.has(s.key));
-  lastResults = chosen.map(s => ({
-    siteKey: s.key,
-    siteName: s.name,
-    query: title,
-    url: s.search(title)
-  }));
-}
-
-function isFavorited(siteKey, title){
-  const fid = favIdFrom(siteKey, normalizeTitle(title));
-  return favorites.some(f => f.id === fid);
-}
-
-async function addFavoriteFromResult(r){
-  const title = normalizeTitle(r.query);
-  const fid = favIdFrom(r.siteKey, title);
-  const ref = doc(db, "users", currentUser.uid, "favorites", fid);
-
-  const payload = {
-    id: fid,
-    title,
-    siteKey: r.siteKey,
-    siteName: r.siteName,
-    url: r.url,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    lastPrice: null,
-    priceHistory: []
-  };
-  await setDoc(ref, payload, { merge: true });
-  toast("Favoriye eklendi");
-  await loadFavorites();
-  renderResults();
-  renderFavorites();
-}
-
-async function removeFavorite(siteKey, title){
-  const fid = favIdFrom(siteKey, normalizeTitle(title));
-  await deleteDoc(doc(db, "users", currentUser.uid, "favorites", fid));
-  toast("Favoriden silindi");
-  await loadFavorites();
-  renderResults();
-  renderFavorites();
-}
-
-function renderResults(){
-  resultsBox.innerHTML = "";
-  if(!lastResults.length){
-    resultsBox.innerHTML = `<div class="emptyHint">Henüz arama yapılmadı.</div>`;
-    return;
-  }
-
-  const wrap = document.createElement("div");
-  wrap.className = "resultsList";
-
-  lastResults.forEach(r => {
-    const row = document.createElement("div");
-    row.className = "resultRow";
-
-    const fav = isFavorited(r.siteKey, r.query);
-
-    row.innerHTML = `
-      <div class="resultLeft">
-        <div class="siteTitle">${r.siteName}</div>
-        <div class="qText">${r.query}</div>
-      </div>
-      <div class="resultRight">
-        <button class="btnOpen" type="button">Aç</button>
-        <button class="${fav ? "btnFavOn" : "btnFav"}" type="button">
-          ${fav ? "❤️ Favoride" : "♡ Favori Ekle"}
-        </button>
-      </div>
-    `;
-
-    row.querySelector(".btnOpen").addEventListener("click", () => openUrl(r.url));
-    row.querySelector(fav ? ".btnFavOn" : ".btnFav").addEventListener("click", async () => {
-      if(!currentUser) return;
-      if(fav) await removeFavorite(r.siteKey, r.query);
-      else await addFavoriteFromResult(r);
-    });
-
-    wrap.appendChild(row);
+    if (mode === "price_desc"){
+      const av = Number.isFinite(ap) ? ap : Number.NEGATIVE_INFINITY;
+      const bv = Number.isFinite(bp) ? bp : Number.NEGATIVE_INFINITY;
+      if (av !== bv) return bv - av; // pahalı önce
+      return an.localeCompare(bn, "tr");
+    }
+    if (mode === "site_asc"){
+      const c = as0.localeCompare(bs0, "tr");
+      if (c !== 0) return c;
+      return an.localeCompare(bn, "tr");
+    }
+    // name_asc
+    return an.localeCompare(bn, "tr");
   });
 
-  resultsBox.appendChild(wrap);
-}
-
-btnSearch.addEventListener("click", () => {
-  const q = qInput.value.trim();
-  if(!q) return toast("Ürün adı yaz.");
-  buildResults(q);
-  saveRecent(q);
-  renderSuggest();
-  renderResults();
-});
-qInput.addEventListener("keydown", (e) => { if(e.key === "Enter") btnSearch.click(); });
-
-btnClearResults.addEventListener("click", () => {
-  lastResults = [];
-  resultsBox.innerHTML = `<div class="emptyHint">Henüz arama yapılmadı.</div>`;
-});
-btnOpenSelected.addEventListener("click", () => {
-  if(!lastResults.length) return toast("Önce ara.");
-  lastResults.forEach(r => openUrl(r.url));
-});
-
-/* FAVORITES */
-async function loadFavorites(){
-  if(!currentUser) return;
-  const snap = await getDocs(collection(db, "users", currentUser.uid, "favorites"));
-  favorites = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-}
-
-function sortFavorites(list){
-  const mode = sortFav.value;
-  const copy = [...list];
-
-  const priceOrNull = (f) => (typeof f.lastPrice === "number" ? f.lastPrice : null);
-
-  const cmpNullLastAsc = (a,b) => {
-    const pa = priceOrNull(a), pb = priceOrNull(b);
-    if(pa == null && pb == null) return 0;
-    if(pa == null) return 1;      // null sona
-    if(pb == null) return -1;     // null sona
-    return pa - pb;
-  };
-
-  const cmpNullLastDesc = (a,b) => {
-    const pa = priceOrNull(a), pb = priceOrNull(b);
-    if(pa == null && pb == null) return 0;
-    if(pa == null) return 1;      // null sona
-    if(pb == null) return -1;     // null sona
-    return pb - pa;               // pahalı→ucuz
-  };
-
-  if(mode === "lastPriceAsc") copy.sort(cmpNullLastAsc);
-  if(mode === "lastPriceDesc") copy.sort(cmpNullLastDesc);
-  if(mode === "nameAsc") copy.sort((a,b)=> (a.title||"").localeCompare(b.title||"", "tr"));
-  if(mode === "siteAsc") copy.sort((a,b)=> (a.siteName||"").localeCompare(b.siteName||"", "tr"));
   return copy;
 }
 
-async function addPrice(favId){
-  const val = prompt("Fiyat gir (TL):");
-  if(val == null) return;
-  const n = Number(String(val).replace(",", ".").replace(/[^\d.]/g,""));
-  if(!n || Number.isNaN(n)) return toast("Geçersiz fiyat");
-
-  const ref = doc(db, "users", currentUser.uid, "favorites", favId);
-  const snap = await getDoc(ref);
-  if(!snap.exists()) return;
-
-  const data = snap.data();
-  const hist = Array.isArray(data.priceHistory) ? data.priceHistory : [];
-  const ts = Date.now();
-  hist.push({ ts, price: Math.round(n) });
-
-  await updateDoc(ref, {
-    priceHistory: hist,
-    lastPrice: Math.round(n),
-    updatedAt: serverTimestamp()
-  });
-
-  toast("Fiyat eklendi");
-  await loadFavorites();
-  renderFavorites();
-}
-
-function drawMiniSpark(canvas, history){
+// ---------- CHART (canvas) ----------
+function drawChart(canvas, prices){
   const ctx = canvas.getContext("2d");
   const w = canvas.width;
   const h = canvas.height;
+
   ctx.clearRect(0,0,w,h);
 
-  if(!history || history.length < 2){
-    ctx.globalAlpha = 0.6;
-    ctx.font = "12px system-ui";
-    ctx.fillText("Grafik için en az 2 fiyat kaydı", 10, h/2);
+  if (!prices || prices.length < 2){
+    // simple placeholder line
+    ctx.globalAlpha = 0.5;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(10, h-20);
+    ctx.lineTo(w-10, 20);
+    ctx.stroke();
     ctx.globalAlpha = 1;
     return;
   }
 
-  const prices = history.map(x => x.price);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const pad = 8;
-  const span = (max - min) || 1;
+  const vals = prices.map(p => p.v);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const pad = 14;
 
-  ctx.lineWidth = 2.5;
+  const xStep = (w - pad*2) / (prices.length - 1);
+  const yMap = (v) => {
+    if (max === min) return h/2;
+    const t = (v - min) / (max - min);
+    return (h - pad) - t * (h - pad*2);
+  };
+
+  // grid
+  ctx.globalAlpha = 0.18;
+  ctx.lineWidth = 1;
+  for (let i=1;i<=3;i++){
+    const y = pad + i*(h-pad*2)/4;
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(w-pad, y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // line
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  history.forEach((p, i) => {
-    const x = pad + (i * (w - pad*2)) / (history.length - 1);
-    const y = pad + (h - pad*2) * (1 - ((p.price - min)/span));
-    if(i === 0) ctx.moveTo(x,y);
+  prices.forEach((p,i) => {
+    const x = pad + i*xStep;
+    const y = yMap(p.v);
+    if (i===0) ctx.moveTo(x,y);
     else ctx.lineTo(x,y);
   });
   ctx.stroke();
-}
 
-function openChartModal(title, history){
-  chartTitle.textContent = title || "Fiyat Grafiği";
-  chartModal.classList.remove("hidden");
-  drawBigChart(history || []);
-}
-
-function drawBigChart(history){
-  const ctx = chartCanvas.getContext("2d");
-  const W = chartCanvas.width;
-  const H = chartCanvas.height;
-  ctx.clearRect(0,0,W,H);
-
-  if(!history || history.length < 2){
-    chartHint.textContent = "Grafik için en az 2 fiyat kaydı gerekli.";
-    ctx.globalAlpha = 0.7;
-    ctx.font = "18px system-ui";
-    ctx.fillText("Grafik için en az 2 fiyat kaydı gerekli.", 22, 60);
-    ctx.globalAlpha = 1;
-    return;
-  }
-
-  chartHint.textContent = "Noktaya dokun: tarih + fiyat";
-  const pad = 42;
-
-  const prices = history.map(x => x.price);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const span = (max - min) || 1;
-
-  ctx.globalAlpha = 0.75;
-  ctx.font = "14px system-ui";
-  ctx.fillText(formatTRY(max), 10, pad);
-  ctx.fillText(formatTRY(min), 10, H - 18);
-  ctx.globalAlpha = 1;
-
-  const points = history.map((p, i) => {
-    const x = pad + (i * (W - pad*2)) / (history.length - 1);
-    const y = pad + (H - pad*2) * (1 - ((p.price - min)/span));
-    return { x, y, ...p };
-  });
-
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
-  ctx.stroke();
-
-  points.forEach(p => {
+  // points
+  ctx.globalAlpha = 0.95;
+  prices.forEach((p,i) => {
+    const x = pad + i*xStep;
+    const y = yMap(p.v);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+    ctx.arc(x,y,3.2,0,Math.PI*2);
     ctx.fill();
   });
-
-  const showTip = (x,y) => {
-    let best = null, bd = Infinity;
-    for(const p of points){
-      const d = Math.hypot(p.x - x, p.y - y);
-      if(d < bd){ bd = d; best = p; }
-    }
-    if(!best || bd > 40) return;
-
-    const dt = new Date(best.ts);
-    const label = `${dt.toLocaleDateString("tr-TR")} • ${formatTRY(best.price)}`;
-
-    // redraw clean
-    ctx.clearRect(0,0,W,H);
-    drawBigChart(history);
-
-    const tw = ctx.measureText(label).width + 20;
-    const th = 34;
-    const tx = Math.min(best.x + 10, W - tw - 10);
-    const ty = Math.max(best.y - th - 10, 10);
-
-    ctx.globalAlpha = 0.92;
-    ctx.fillRect(tx, ty, tw, th);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "#fff";
-    ctx.font = "14px system-ui";
-    ctx.fillText(label, tx + 10, ty + 22);
-    ctx.fillStyle = "#000";
-  };
-
-  chartCanvas.onpointermove = (ev) => {
-    const rect = chartCanvas.getBoundingClientRect();
-    const x = ((ev.clientX - rect.left) / rect.width) * W;
-    const y = ((ev.clientY - rect.top) / rect.height) * H;
-    showTip(x,y);
-  };
-  chartCanvas.onpointerdown = chartCanvas.onpointermove;
+  ctx.globalAlpha = 1;
 }
 
-btnCloseChart.addEventListener("click", () => chartModal.classList.add("hidden"));
-chartModal.querySelector(".modalBackdrop").addEventListener("click", () => chartModal.classList.add("hidden"));
+// ---------- RENDER FAVORITES ----------
+function renderFavs(){
+  const favsRaw = loadFavs();
+  const favs = sortFavs(favsRaw);
 
-async function deleteFav(favId){
-  if(!confirm("Favoriden silinsin mi?")) return;
-  await deleteDoc(doc(db, "users", currentUser.uid, "favorites", favId));
-  toast("Silindi");
-  await loadFavorites();
-  renderFavorites();
-}
-
-function renderFavorites(){
-  favBox.innerHTML = "";
-  if(!favorites.length){
-    favBox.innerHTML = `<div class="emptyHint">Favori yok.</div>`;
+  favList.innerHTML = "";
+  if (!favs.length){
+    favList.innerHTML = `<div class="empty">Favori yok.</div>`;
     return;
   }
 
-  const list = sortFavorites(favorites);
+  favs.forEach(fav => {
+    const sites = (fav.sites || []).map(id => siteById(id)?.name).filter(Boolean);
+    const last = latestPrice(fav);
 
-  list.forEach(f => {
     const card = document.createElement("div");
-    card.className = "favItem";
-    const last = typeof f.lastPrice === "number" ? f.lastPrice : null;
-
+    card.className = "favcard";
     card.innerHTML = `
-      <div class="favTopRow">
-        <div class="favInfo">
-          <div class="favName">${f.title || "Ürün"}</div>
-          <div class="favMeta">${f.siteName || ""}</div>
+      <div class="favtop">
+        <div>
+          <div class="favtitle">${escapeHtml(fav.name)}</div>
+          <div class="favsites">Favorilediğin siteler: <strong>${escapeHtml(sites.join(", ") || "-")}</strong></div>
         </div>
-        <div class="favBadges">
-          <div class="badgePrice">${last == null ? "Fiyat yok" : formatTRY(last)}</div>
-        </div>
+        <div class="pricepill">${formatTL(last)}</div>
       </div>
 
-      <div class="favBtns">
-        <button class="btnOpenSite" type="button">${f.siteName} Aç</button>
-        <button class="btnCopy" type="button">Copy Link</button>
-        <button class="btnAddPrice" type="button">${last == null ? "Fiyat ekle" : "Fiyat güncelle"}</button>
-        <button class="btnDelete" type="button">Sil</button>
+      <div class="favactions" data-id="${fav.id}">
+        ${makeOpenButtons(fav)}
+        <button class="btn btn--ghost" data-action="copy">Copy Link</button>
+        <button class="btn btn--softwarn" data-action="addprice">Fiyat ekle</button>
+        <button class="btn btn--softdanger" data-action="delete">Grubu Sil</button>
       </div>
 
-      <div class="sparkWrap">
-        <canvas class="spark" width="320" height="72"></canvas>
-        <button class="btnChart" type="button">Grafiği büyüt</button>
+      <div class="priceentry hidden" id="priceentry_${fav.id}">
+        <input class="input" id="price_${fav.id}" inputmode="decimal" placeholder="Fiyat (₺)" />
+        <button class="btn btn--primary" data-action="saveprice" data-id="${fav.id}">Fiyat Ekle</button>
+      </div>
+
+      <div class="canvasbox">
+        <canvas id="c_${fav.id}" width="820" height="170"></canvas>
+        <div class="note" id="note_${fav.id}">Grafik için en az 2 fiyat kaydı gir.</div>
+        <div class="row row--wrap" style="margin-top:10px">
+          <button class="btn btn--ghost" data-action="bigchart" data-id="${fav.id}">Grafiği büyüt</button>
+        </div>
       </div>
     `;
 
-    card.querySelector(".btnOpenSite").addEventListener("click", () => openUrl(f.url));
-    card.querySelector(".btnCopy").addEventListener("click", () => copyText(f.url));
-    card.querySelector(".btnAddPrice").addEventListener("click", () => addPrice(f.id));
-    card.querySelector(".btnDelete").addEventListener("click", () => deleteFav(f.id));
-    card.querySelector(".btnChart").addEventListener("click", () => openChartModal(`${f.title} • ${f.siteName}`, f.priceHistory || []));
+    favList.appendChild(card);
 
-    const c = card.querySelector(".spark");
-    drawMiniSpark(c, f.priceHistory || []);
+    // draw chart
+    const c = document.getElementById(`c_${fav.id}`);
+    const note = document.getElementById(`note_${fav.id}`);
+    drawChart(c, fav.prices || []);
+    if (fav.prices && fav.prices.length >= 2) note.textContent = "";
 
-    favBox.appendChild(card);
+    // actions
+    card.querySelectorAll("[data-action]").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const action = btn.getAttribute("data-action");
+        const id = fav.id;
+
+        if (action === "delete"){
+          deleteFav(id);
+        }
+        if (action === "copy"){
+          const link = getPrimaryLinkForFav(fav);
+          if (link) navigator.clipboard?.writeText(link);
+        }
+        if (action === "addprice"){
+          const box = document.getElementById(`priceentry_${id}`);
+          box.classList.toggle("hidden");
+          const inp = document.getElementById(`price_${id}`);
+          setTimeout(()=>inp?.focus(), 50);
+        }
+        if (action === "saveprice"){
+          const inp = document.getElementById(`price_${id}`);
+          addPriceToFav(id, inp.value);
+          inp.value = "";
+          document.getElementById(`priceentry_${id}`)?.classList.add("hidden");
+        }
+        if (action === "bigchart"){
+          openChartModal(fav);
+        }
+      });
+    });
   });
 }
 
-btnRefreshFav.addEventListener("click", async () => { await loadFavorites(); renderFavorites(); });
-sortFav.addEventListener("change", () => renderFavorites());
+function makeOpenButtons(fav){
+  const q = fav.name;
+  const ids = fav.sites || [];
+  // max 2 buton göster (mobilde taşmasın), diğerlerini Copy Link ile yönet
+  const showIds = ids.slice(0, 2);
+  const html = showIds.map(id => {
+    const s = siteById(id);
+    if (!s) return "";
+    const cls = "btn btn--softok";
+    return `<button class="${cls}" data-open="${id}">${escapeHtml(s.name)} Aç</button>`;
+  }).join("");
 
-/* NOTIFICATIONS */
-async function ensureNotificationPermission(){
-  if(!("Notification" in window)) return false;
-  if(Notification.permission === "granted") return true;
-  if(Notification.permission === "denied") return false;
-  const p = await Notification.requestPermission();
-  return p === "granted";
-}
-function sendLocalNotification(title, body){
-  if(!("Notification" in window)) return;
-  if(Notification.permission !== "granted") return;
-  new Notification(title, { body });
-}
-btnEnableNotif.addEventListener("click", async () => {
-  const ok = await ensureNotificationPermission();
-  toast(ok ? "Bildirim açık" : "Bildirim kapalı");
-});
-async function checkDropsOnOpen(){
-  if(!favorites.length) return;
+  // attach open click after render
+  setTimeout(() => {
+    const holder = document.querySelector(`.favactions[data-id="${fav.id}"]`);
+    if (!holder) return;
+    holder.querySelectorAll("[data-open]").forEach(b => {
+      b.addEventListener("click", () => {
+        const id = b.getAttribute("data-open");
+        const s = siteById(id);
+        if (!s) return;
+        window.open(s.search(q), "_blank", "noopener,noreferrer");
+      });
+    });
+  }, 0);
 
-  const hits = [];
-  for(const f of favorites){
-    const h = Array.isArray(f.priceHistory) ? f.priceHistory : [];
-    if(h.length < 2) continue;
-    const prev = h[h.length - 2]?.price;
-    const cur = h[h.length - 1]?.price;
-    const drop = percentDrop(prev, cur);
-    if(drop >= 5) hits.push({ f, drop: Math.round(drop) });
-  }
-  if(!hits.length) return;
-
-  const ok = await ensureNotificationPermission();
-  if(!ok) return;
-
-  const first = hits[0];
-  const body =
-    hits.length === 1
-      ? `${first.f.title} (${first.f.siteName}) %${first.drop} düştü.`
-      : `${hits.length} favoride %5+ düşüş var. Örn: ${first.f.title} %${first.drop}`;
-
-  sendLocalNotification("fiyattakip: İndirim Uyarısı", body);
+  return html;
 }
 
-/* HELP MODAL */
-btnHelper.addEventListener("click", () => helpModal.classList.remove("hidden"));
-btnCloseHelp.addEventListener("click", () => helpModal.classList.add("hidden"));
-helpModal.querySelector(".modalBackdrop").addEventListener("click", () => helpModal.classList.add("hidden"));
-
-/* INIT */
-function init(){
-  setAuthMode("signin");
-  renderSiteChips();
-  loadRecent();
+function openChartModal(fav){
+  chartModal.classList.remove("hidden");
+  drawChart(chartCanvasBig, fav.prices || []);
 }
-init();
 
-/* AUTH STATE */
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user || null;
-
-  if(!currentUser){
-    authOverlay.classList.remove("hidden");
-    document.body.classList.add("lockScroll");
-    favorites = [];
-    lastResults = [];
-    renderResults();
-    renderFavorites();
+// ---------- SEARCH FLOW ----------
+function doSearch(openTabs){
+  const q = (qEl.value || "").trim();
+  if (!q){
+    searchStatus.textContent = "Ürün adı boş olamaz.";
     return;
   }
 
-  authOverlay.classList.add("hidden");
-  document.body.classList.remove("lockScroll");
+  const selected = getSelectedSites();
+  // Favoriye ekle (ürün + seçili siteler)
+  upsertFavorite(q, selected);
 
-  await loadFavorites();
-  renderResults();
-  renderFavorites();
-  checkDropsOnOpen();
+  searchStatus.textContent = `Arama kaydedildi: “${q}” — Seçili siteler: ${selected.map(id=>siteById(id)?.name).filter(Boolean).join(", ")}`;
+
+  if (openTabs){
+    selected.forEach(id => {
+      const s = siteById(id);
+      if (!s) return;
+      window.open(s.search(q), "_blank", "noopener,noreferrer");
+    });
+  }
+}
+
+// ---------- AUTH ----------
+function showAuth(show){
+  authModal.classList.toggle("hidden", !show);
+}
+function setAuthMode(m){
+  mode = m;
+  const loginOn = (m === "login");
+  tabLogin.classList.toggle("tab--active", loginOn);
+  tabRegister.classList.toggle("tab--active", !loginOn);
+  registerExtra.classList.toggle("hidden", loginOn);
+  btnAuthAction.textContent = loginOn ? "Giriş Yap" : "Hesap Oluştur";
+  authErr.classList.add("hidden");
+  authErr.textContent = "";
+}
+
+async function doAuthAction(){
+  const email = (emailEl.value || "").trim();
+  const pw = passwordEl.value || "";
+  const pw2 = password2El.value || "";
+
+  try{
+    authErr.classList.add("hidden");
+
+    if (!email || !pw) throw new Error("Email ve şifre zorunlu.");
+
+    if (mode === "register"){
+      if (pw.length < 6) throw new Error("Şifre en az 6 karakter olmalı.");
+      if (pw !== pw2) throw new Error("Şifreler eşleşmiyor.");
+      await auth.createUserWithEmailAndPassword(email, pw);
+    }else{
+      await auth.signInWithEmailAndPassword(email, pw);
+    }
+  }catch(e){
+    authErr.textContent = "Hata: " + (e?.message || String(e));
+    authErr.classList.remove("hidden");
+  }
+}
+
+async function doGoogle(){
+  try{
+    authErr.classList.add("hidden");
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  }catch(e){
+    authErr.textContent = "Google giriş hatası: " + (e?.message || String(e));
+    authErr.classList.remove("hidden");
+  }
+}
+
+function bindAuthUI(){
+  tabLogin.addEventListener("click", ()=>setAuthMode("login"));
+  tabRegister.addEventListener("click", ()=>setAuthMode("register"));
+  btnAuthAction.addEventListener("click", doAuthAction);
+  btnGoogle.addEventListener("click", doGoogle);
+
+  togglePw.addEventListener("click", () => {
+    passwordEl.type = passwordEl.type === "password" ? "text" : "password";
+  });
+  togglePw2.addEventListener("click", () => {
+    password2El.type = password2El.type === "password" ? "text" : "password";
+  });
+
+  btnLogout.addEventListener("click", async () => {
+    try{ await auth.signOut(); }catch{}
+  });
+}
+
+// ---------- AI SETTINGS ----------
+function loadAI(){
+  return loadJSON(LS.ai, { provider:"gemini", geminiKey:"", openaiKey:"" });
+}
+function saveAI(v){
+  saveJSON(LS.ai, v);
+}
+function openAI(){
+  const s = loadAI();
+  aiProvider.value = s.provider || "gemini";
+  geminiKey.value = s.geminiKey || "";
+  openaiKey.value = s.openaiKey || "";
+  aiModal.classList.remove("hidden");
+}
+function bindAI(){
+  btnAI.addEventListener("click", openAI);
+
+  btnSaveAI.addEventListener("click", () => {
+    const v = {
+      provider: aiProvider.value,
+      geminiKey: geminiKey.value.trim(),
+      openaiKey: openaiKey.value.trim()
+    };
+    saveAI(v);
+    aiModal.classList.add("hidden");
+  });
+
+  btnClearAI.addEventListener("click", () => {
+    saveAI({ provider:"gemini", geminiKey:"", openaiKey:"" });
+    geminiKey.value = "";
+    openaiKey.value = "";
+  });
+}
+
+// ---------- MODAL CLOSE ----------
+function bindModalClose(){
+  document.querySelectorAll(".modal__backdrop").forEach(b => {
+    b.addEventListener("click", () => {
+      const type = b.getAttribute("data-close");
+      if (type === "auth") authModal.classList.add("hidden");
+      if (type === "ai") aiModal.classList.add("hidden");
+      if (type === "chart") chartModal.classList.add("hidden");
+    });
+  });
+  document.querySelectorAll("[data-closebtn]").forEach(b => {
+    b.addEventListener("click", () => {
+      const type = b.getAttribute("data-closebtn");
+      if (type === "chart") chartModal.classList.add("hidden");
+    });
+  });
+}
+
+// ---------- DEMO: price drop check on open ----------
+function demoDropCheck(){
+  // DEMO: sadece “%5+ düşüş kontrolü” yazısı var; gerçek kontrol için dış veri çekmek yok.
+  // Burada istersen: son 2 fiyatı karşılaştırıp uyarı verebiliriz.
+  const favs = loadFavs();
+  const drops = [];
+  favs.forEach(f => {
+    const ps = f.prices || [];
+    if (ps.length >= 2){
+      const a = ps[ps.length-2].v;
+      const b = ps[ps.length-1].v;
+      if (a > 0){
+        const pct = ((a-b)/a)*100;
+        if (pct >= 5) drops.push({name:f.name, pct});
+      }
+    }
+  });
+  // Bildirim izni vs eklemek istersen, buraya bağlarız.
+  // Şimdilik sadece sessiz.
+}
+
+// ---------- EVENTS ----------
+btnSearch.addEventListener("click", () => doSearch(true));
+btnOpenSelected.addEventListener("click", () => doSearch(true));
+btnClear.addEventListener("click", () => {
+  qEl.value = "";
+  searchStatus.textContent = "Temizlendi.";
 });
+qEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") doSearch(true);
+});
+
+btnRefreshFav.addEventListener("click", renderFavs);
+sortSelect.addEventListener("change", renderFavs);
+
+// ---------- INIT ----------
+renderChips();
+renderFavs();
+bindAuthUI();
+bindAI();
+bindModalClose();
+demoDropCheck();
+
+// Firebase auth state
+auth.onAuthStateChanged((user) => {
+  if (!user){
+    showAuth(true);
+  }else{
+    showAuth(false);
+  }
+});
+
+// ---------- HELPERS ----------
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+                    }
