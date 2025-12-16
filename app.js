@@ -18,7 +18,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-/* -------------------- SİTELER -------------------- */
+/* SİTELER */
 const SITES = [
   { key: "trendyol", name: "Trendyol", search: (q) => `https://www.trendyol.com/sr?q=${encodeURIComponent(q)}` },
   { key: "hepsiburada", name: "Hepsiburada", search: (q) => `https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}` },
@@ -29,7 +29,7 @@ const SITES = [
   { key: "idefix", name: "İdefix", search: (q) => `https://www.idefix.com/search?q=${encodeURIComponent(q)}` },
 ];
 
-/* -------------------- DOM -------------------- */
+/* DOM */
 const $ = (id) => document.getElementById(id);
 
 const authOverlay = $("authOverlay");
@@ -69,19 +69,18 @@ const chartTitle = $("chartTitle");
 const chartCanvas = $("chartCanvas");
 const chartHint = $("chartHint");
 
-/* -------------------- STATE -------------------- */
+/* STATE */
 let currentUser = null;
-let authMode = "signin"; // signin | signup
-let selectedSites = new Set(SITES.map(s => s.key)); // default hepsi seçili
-let lastResults = []; // {siteKey, siteName, query, url}
-let favorites = [];   // loaded from firestore
-let recentQueries = []; // from localStorage
+let authMode = "signin";
+let selectedSites = new Set(SITES.map(s => s.key));
+let lastResults = [];
+let favorites = [];
+let recentQueries = [];
 
-/* -------------------- HELPERS -------------------- */
 const LS_RECENT = "ft_recentQueries_v1";
 
+/* HELPERS */
 function toast(msg) {
-  // basit toast
   const t = document.createElement("div");
   t.className = "toast";
   t.textContent = msg;
@@ -105,7 +104,6 @@ function normalizeTitle(q){
 }
 
 function favIdFrom(siteKey, title){
-  // aynı ürün+site tek kayıt olsun
   return `${siteKey}__${title.toLowerCase().replace(/[^a-z0-9çğıöşü\- ]/gi,"").replace(/\s+/g,"_")}`.slice(0,150);
 }
 
@@ -120,16 +118,13 @@ function percentDrop(prev, cur){
   return ((prev - cur) / prev) * 100;
 }
 
-function openUrl(url){
-  window.open(url, "_blank", "noopener,noreferrer");
-}
+function openUrl(url){ window.open(url, "_blank", "noopener,noreferrer"); }
 
 async function copyText(text){
   try {
     await navigator.clipboard.writeText(text);
     toast("Link kopyalandı");
   } catch {
-    // fallback
     const ta = document.createElement("textarea");
     ta.value = text;
     document.body.appendChild(ta);
@@ -140,7 +135,7 @@ async function copyText(text){
   }
 }
 
-/* -------------------- AUTH UI -------------------- */
+/* AUTH UI */
 function setAuthMode(mode){
   authMode = mode;
   if(mode === "signin"){
@@ -181,7 +176,6 @@ btnAuthPrimary.addEventListener("click", async () => {
       const pw2 = authPassword2.value;
       if(pw.length < 6) return setAuthMsg("Şifre en az 6 karakter olmalı.");
       if(pw !== pw2) return setAuthMsg("Şifreler aynı değil.");
-
       await createUserWithEmailAndPassword(auth, email, pw);
       setAuthMsg("Hesap oluşturuldu.", true);
     }else{
@@ -206,7 +200,7 @@ btnLogout.addEventListener("click", async () => {
   await signOut(auth);
 });
 
-/* -------------------- SITE CHIPS -------------------- */
+/* SITE CHIPS */
 function renderSiteChips(){
   siteChips.innerHTML = "";
   SITES.forEach(s => {
@@ -223,14 +217,12 @@ function renderSiteChips(){
   });
 }
 
-/* -------------------- RECENT SUGGESTIONS -------------------- */
+/* RECENT */
 function loadRecent(){
   try{
     recentQueries = JSON.parse(localStorage.getItem(LS_RECENT) || "[]");
     if(!Array.isArray(recentQueries)) recentQueries = [];
-  }catch{
-    recentQueries = [];
-  }
+  }catch{ recentQueries = []; }
 }
 function saveRecent(q){
   const v = normalizeTitle(q);
@@ -238,23 +230,11 @@ function saveRecent(q){
   recentQueries = [v, ...recentQueries.filter(x => x !== v)].slice(0, 12);
   localStorage.setItem(LS_RECENT, JSON.stringify(recentQueries));
 }
-
 function renderSuggest(){
   const q = qInput.value.trim().toLowerCase();
-  if(!q){
-    suggestBox.classList.add("hidden");
-    suggestBox.innerHTML = "";
-    return;
-  }
-  const items = recentQueries
-    .filter(x => x.toLowerCase().includes(q))
-    .slice(0, 6);
-
-  if(!items.length){
-    suggestBox.classList.add("hidden");
-    suggestBox.innerHTML = "";
-    return;
-  }
+  if(!q){ suggestBox.classList.add("hidden"); suggestBox.innerHTML = ""; return; }
+  const items = recentQueries.filter(x => x.toLowerCase().includes(q)).slice(0, 6);
+  if(!items.length){ suggestBox.classList.add("hidden"); suggestBox.innerHTML = ""; return; }
   suggestBox.classList.remove("hidden");
   suggestBox.innerHTML = items.map(x => `<div class="suggestItem">${x}</div>`).join("");
   [...suggestBox.querySelectorAll(".suggestItem")].forEach((el, i) => {
@@ -266,7 +246,6 @@ function renderSuggest(){
     });
   });
 }
-
 qInput.addEventListener("input", renderSuggest);
 document.addEventListener("click", (e) => {
   if(!suggestBox.contains(e.target) && e.target !== qInput){
@@ -274,7 +253,7 @@ document.addEventListener("click", (e) => {
   }
 });
 
-/* -------------------- RESULTS (SEARCH) -------------------- */
+/* RESULTS */
 function buildResults(q){
   const title = normalizeTitle(q);
   const chosen = SITES.filter(s => selectedSites.has(s.key));
@@ -294,8 +273,8 @@ function isFavorited(siteKey, title){
 async function addFavoriteFromResult(r){
   const title = normalizeTitle(r.query);
   const fid = favIdFrom(r.siteKey, title);
-
   const ref = doc(db, "users", currentUser.uid, "favorites", fid);
+
   const payload = {
     id: fid,
     title,
@@ -305,7 +284,7 @@ async function addFavoriteFromResult(r){
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     lastPrice: null,
-    priceHistory: [] // [{ts:number, price:number}]
+    priceHistory: []
   };
   await setDoc(ref, payload, { merge: true });
   toast("Favoriye eklendi");
@@ -316,8 +295,7 @@ async function addFavoriteFromResult(r){
 
 async function removeFavorite(siteKey, title){
   const fid = favIdFrom(siteKey, normalizeTitle(title));
-  const ref = doc(db, "users", currentUser.uid, "favorites", fid);
-  await deleteDoc(ref);
+  await deleteDoc(doc(db, "users", currentUser.uid, "favorites", fid));
   toast("Favoriden silindi");
   await loadFavorites();
   renderResults();
@@ -374,24 +352,18 @@ btnSearch.addEventListener("click", () => {
   renderSuggest();
   renderResults();
 });
-
-qInput.addEventListener("keydown", (e) => {
-  if(e.key === "Enter"){
-    btnSearch.click();
-  }
-});
+qInput.addEventListener("keydown", (e) => { if(e.key === "Enter") btnSearch.click(); });
 
 btnClearResults.addEventListener("click", () => {
   lastResults = [];
   resultsBox.innerHTML = `<div class="emptyHint">Henüz arama yapılmadı.</div>`;
 });
-
 btnOpenSelected.addEventListener("click", () => {
   if(!lastResults.length) return toast("Önce ara.");
   lastResults.forEach(r => openUrl(r.url));
 });
 
-/* -------------------- FAVORITES -------------------- */
+/* FAVORITES */
 async function loadFavorites(){
   if(!currentUser) return;
   const snap = await getDocs(collection(db, "users", currentUser.uid, "favorites"));
@@ -402,13 +374,28 @@ function sortFavorites(list){
   const mode = sortFav.value;
   const copy = [...list];
 
-  const getLast = (f) => (typeof f.lastPrice === "number" ? f.lastPrice : Infinity);
+  const priceOrNull = (f) => (typeof f.lastPrice === "number" ? f.lastPrice : null);
 
-  if(mode === "lastPriceAsc") copy.sort((a,b)=> getLast(a)-getLast(b));
-  if(mode === "lastPriceDesc") copy.sort((a,b)=> getLast(b)-getLast(a));
+  const cmpNullLastAsc = (a,b) => {
+    const pa = priceOrNull(a), pb = priceOrNull(b);
+    if(pa == null && pb == null) return 0;
+    if(pa == null) return 1;      // null sona
+    if(pb == null) return -1;     // null sona
+    return pa - pb;
+  };
+
+  const cmpNullLastDesc = (a,b) => {
+    const pa = priceOrNull(a), pb = priceOrNull(b);
+    if(pa == null && pb == null) return 0;
+    if(pa == null) return 1;      // null sona
+    if(pb == null) return -1;     // null sona
+    return pb - pa;               // pahalı→ucuz
+  };
+
+  if(mode === "lastPriceAsc") copy.sort(cmpNullLastAsc);
+  if(mode === "lastPriceDesc") copy.sort(cmpNullLastDesc);
   if(mode === "nameAsc") copy.sort((a,b)=> (a.title||"").localeCompare(b.title||"", "tr"));
   if(mode === "siteAsc") copy.sort((a,b)=> (a.siteName||"").localeCompare(b.siteName||"", "tr"));
-
   return copy;
 }
 
@@ -425,7 +412,6 @@ async function addPrice(favId){
   const data = snap.data();
   const hist = Array.isArray(data.priceHistory) ? data.priceHistory : [];
   const ts = Date.now();
-
   hist.push({ ts, price: Math.round(n) });
 
   await updateDoc(ref, {
@@ -446,18 +432,20 @@ function drawMiniSpark(canvas, history){
   ctx.clearRect(0,0,w,h);
 
   if(!history || history.length < 2){
-    ctx.globalAlpha = 0.5;
-    ctx.fillText("Grafik için en az 2 fiyat kaydı", 8, h/2);
+    ctx.globalAlpha = 0.6;
+    ctx.font = "12px system-ui";
+    ctx.fillText("Grafik için en az 2 fiyat kaydı", 10, h/2);
     ctx.globalAlpha = 1;
     return;
   }
+
   const prices = history.map(x => x.price);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
-  const pad = 6;
+  const pad = 8;
   const span = (max - min) || 1;
 
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
   history.forEach((p, i) => {
     const x = pad + (i * (w - pad*2)) / (history.length - 1);
@@ -482,7 +470,7 @@ function drawBigChart(history){
 
   if(!history || history.length < 2){
     chartHint.textContent = "Grafik için en az 2 fiyat kaydı gerekli.";
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.7;
     ctx.font = "18px system-ui";
     ctx.fillText("Grafik için en az 2 fiyat kaydı gerekli.", 22, 60);
     ctx.globalAlpha = 1;
@@ -490,14 +478,13 @@ function drawBigChart(history){
   }
 
   chartHint.textContent = "Noktaya dokun: tarih + fiyat";
-
   const pad = 42;
+
   const prices = history.map(x => x.price);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   const span = (max - min) || 1;
 
-  // eksen yazıları
   ctx.globalAlpha = 0.75;
   ctx.font = "14px system-ui";
   ctx.fillText(formatTRY(max), 10, pad);
@@ -510,26 +497,19 @@ function drawBigChart(history){
     return { x, y, ...p };
   });
 
-  // çizgi
   ctx.lineWidth = 3;
   ctx.beginPath();
-  points.forEach((p, i) => {
-    if(i === 0) ctx.moveTo(p.x, p.y);
-    else ctx.lineTo(p.x, p.y);
-  });
+  points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
   ctx.stroke();
 
-  // noktalar
   points.forEach(p => {
     ctx.beginPath();
     ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
     ctx.fill();
   });
 
-  // tooltip
   const showTip = (x,y) => {
-    let best = null;
-    let bd = Infinity;
+    let best = null, bd = Infinity;
     for(const p of points){
       const d = Math.hypot(p.x - x, p.y - y);
       if(d < bd){ bd = d; best = p; }
@@ -539,11 +519,10 @@ function drawBigChart(history){
     const dt = new Date(best.ts);
     const label = `${dt.toLocaleDateString("tr-TR")} • ${formatTRY(best.price)}`;
 
-    // tooltip box
+    // redraw clean
     ctx.clearRect(0,0,W,H);
-    // redraw
     drawBigChart(history);
-    // overlay tooltip
+
     const tw = ctx.measureText(label).width + 20;
     const th = 34;
     const tx = Math.min(best.x + 10, W - tw - 10);
@@ -567,12 +546,8 @@ function drawBigChart(history){
   chartCanvas.onpointerdown = chartCanvas.onpointermove;
 }
 
-btnCloseChart.addEventListener("click", () => {
-  chartModal.classList.add("hidden");
-});
-chartModal.querySelector(".modalBackdrop").addEventListener("click", () => {
-  chartModal.classList.add("hidden");
-});
+btnCloseChart.addEventListener("click", () => chartModal.classList.add("hidden"));
+chartModal.querySelector(".modalBackdrop").addEventListener("click", () => chartModal.classList.add("hidden"));
 
 async function deleteFav(favId){
   if(!confirm("Favoriden silinsin mi?")) return;
@@ -594,7 +569,6 @@ function renderFavorites(){
   list.forEach(f => {
     const card = document.createElement("div");
     card.className = "favItem";
-
     const last = typeof f.lastPrice === "number" ? f.lastPrice : null;
 
     card.innerHTML = `
@@ -603,7 +577,6 @@ function renderFavorites(){
           <div class="favName">${f.title || "Ürün"}</div>
           <div class="favMeta">${f.siteName || ""}</div>
         </div>
-
         <div class="favBadges">
           <div class="badgePrice">${last == null ? "Fiyat yok" : formatTRY(last)}</div>
         </div>
@@ -635,16 +608,10 @@ function renderFavorites(){
   });
 }
 
-btnRefreshFav.addEventListener("click", async () => {
-  await loadFavorites();
-  renderFavorites();
-});
+btnRefreshFav.addEventListener("click", async () => { await loadFavorites(); renderFavorites(); });
+sortFav.addEventListener("change", () => renderFavorites());
 
-sortFav.addEventListener("change", () => {
-  renderFavorites();
-});
-
-/* -------------------- NOTIFICATIONS (%5+ DROP) -------------------- */
+/* NOTIFICATIONS */
 async function ensureNotificationPermission(){
   if(!("Notification" in window)) return false;
   if(Notification.permission === "granted") return true;
@@ -652,20 +619,16 @@ async function ensureNotificationPermission(){
   const p = await Notification.requestPermission();
   return p === "granted";
 }
-
 function sendLocalNotification(title, body){
   if(!("Notification" in window)) return;
   if(Notification.permission !== "granted") return;
   new Notification(title, { body });
 }
-
 btnEnableNotif.addEventListener("click", async () => {
   const ok = await ensureNotificationPermission();
   toast(ok ? "Bildirim açık" : "Bildirim kapalı");
 });
-
 async function checkDropsOnOpen(){
-  // Favorilerin son 2 fiyatına bak: %5+ düşüş var mı?
   if(!favorites.length) return;
 
   const hits = [];
@@ -675,17 +638,13 @@ async function checkDropsOnOpen(){
     const prev = h[h.length - 2]?.price;
     const cur = h[h.length - 1]?.price;
     const drop = percentDrop(prev, cur);
-    if(drop >= 5){
-      hits.push({ f, drop: Math.round(drop) });
-    }
+    if(drop >= 5) hits.push({ f, drop: Math.round(drop) });
   }
-
   if(!hits.length) return;
 
   const ok = await ensureNotificationPermission();
   if(!ok) return;
 
-  // 1 bildirimde özet
   const first = hits[0];
   const body =
     hits.length === 1
@@ -695,12 +654,20 @@ async function checkDropsOnOpen(){
   sendLocalNotification("fiyattakip: İndirim Uyarısı", body);
 }
 
-/* -------------------- HELP MODAL -------------------- */
+/* HELP MODAL */
 btnHelper.addEventListener("click", () => helpModal.classList.remove("hidden"));
 btnCloseHelp.addEventListener("click", () => helpModal.classList.add("hidden"));
 helpModal.querySelector(".modalBackdrop").addEventListener("click", () => helpModal.classList.add("hidden"));
 
-/* -------------------- AUTH STATE -------------------- */
+/* INIT */
+function init(){
+  setAuthMode("signin");
+  renderSiteChips();
+  loadRecent();
+}
+init();
+
+/* AUTH STATE */
 onAuthStateChanged(auth, async (user) => {
   currentUser = user || null;
 
@@ -720,15 +687,5 @@ onAuthStateChanged(auth, async (user) => {
   await loadFavorites();
   renderResults();
   renderFavorites();
-
-  // uygulama açılınca %5+ kontrol (demo)
   checkDropsOnOpen();
 });
-
-/* -------------------- INIT -------------------- */
-function init(){
-  setAuthMode("signin");
-  renderSiteChips();
-  loadRecent();
-}
-init();
