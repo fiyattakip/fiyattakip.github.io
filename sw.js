@@ -1,10 +1,7 @@
-/* =========================================
-   fiyattakip - sw.js (FULL)
-   Cache-first + hızlı güncelleme
-   ========================================= */
+const CACHE_VERSION = "fiyattakip-v9"; // her değişiklikte v10, v11 yap
+const CACHE_NAME = CACHE_VERSION;
 
-const CACHE_VERSION = "fiyattakip-v8"; // ✅ değişiklik yaptıkça v9, v10 diye artır
-const CORE_ASSETS = [
+const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
@@ -15,64 +12,42 @@ const CORE_ASSETS = [
   "./icon-512.png"
 ];
 
-// Install: core dosyaları cache'e al
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => {})
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
+  self.skipWaiting();
 });
 
-// Activate: eski cache'leri temizle
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(
-      keys.map((k) => (k !== CACHE_VERSION ? caches.delete(k) : Promise.resolve()))
-    );
+    await Promise.all(keys.map((k) => (k !== CACHE_NAME ? caches.delete(k) : null)));
     await self.clients.claim();
   })());
 });
 
-// Fetch: aynı domainde cache-first, ağ varsa güncelle
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-
-  // Sadece GET yakala
-  if (req.method !== "GET") return;
-
   const url = new URL(req.url);
 
-  // Cross-origin (firebase, google vs) -> network
-  if (url.origin !== self.location.origin) {
-    return; // tarayıcı normal network yapsın
-  }
+  // Firebase/CDN gibi dış kaynakları cacheleme (sorun çıkarmasın)
+  if (url.origin !== location.origin) return;
 
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE_VERSION);
+    const cached = await caches.match(req);
+    if (cached) return cached;
 
-    // Cache'ten dön (varsa)
-    const cached = await cache.match(req);
-    if (cached) {
-      // arka planda güncelle (stale-while-revalidate)
-      event.waitUntil((async () => {
-        try {
-          const fresh = await fetch(req);
-          if (fresh && fresh.ok) await cache.put(req, fresh.clone());
-        } catch (e) {}
-      })());
-      return cached;
-    }
-
-    // Cache'te yoksa network'ten al
     try {
-      const fresh = await fetch(req);
-      if (fresh && fresh.ok) await cache.put(req, fresh.clone());
-      return fresh;
+      const res = await fetch(req);
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(req, res.clone());
+      return res;
     } catch (e) {
-      // offline fallback: ana sayfa varsa onu döndür
-      const fallback = await cache.match("./index.html");
-      if (fallback) return fallback;
+      // offline fallback
+      if (req.mode === "navigate") {
+        return caches.match("./index.html");
+      }
       throw e;
     }
   })());
