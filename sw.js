@@ -1,5 +1,4 @@
-// sw.js
-const CACHE = "fiyattakip-v7";
+const CACHE = "fiyattakip-v10";
 const ASSETS = [
   "./",
   "./index.html",
@@ -26,19 +25,15 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  const req = e.request;
-  const url = new URL(req.url);
-
-  // sadece same-origin dosyaları cachele
+  const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
 
   e.respondWith(
-    caches.match(req).then(cached => {
+    caches.match(e.request).then(cached => {
       if (cached) return cached;
-
-      return fetch(req).then(res => {
+      return fetch(e.request).then(res => {
         const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy));
+        caches.open(CACHE).then(c => c.put(e.request, copy));
         return res;
       }).catch(() => caches.match("./index.html"));
     })
