@@ -493,3 +493,21 @@ body{
   .hero h1{font-size:40px}
   .btnPrimary{min-width:86px}
 }
+
+
+/* ===== AI Panel (Gemini) ===== */
+.aiToggleRow{ margin-top:10px; display:flex; justify-content:flex-start; }
+.aiPanel{ margin-top:12px; border:1px solid rgba(0,0,0,.10); border-radius:18px; background:rgba(255,255,255,.78); overflow:hidden; }
+.aiPanel.hidden{ display:none; }
+.aiPanelHead{ display:flex; align-items:center; justify-content:space-between; padding:12px 12px; border-bottom:1px solid rgba(0,0,0,.08); }
+.aiTitle{ font-weight:900; }
+.aiPanelBody{ padding:12px; }
+.aiLbl{ display:block; font-weight:800; margin:10px 0 6px; }
+.aiKeyRow{ display:flex; gap:10px; align-items:center; }
+.aiKeyRow .input{ flex:1; }
+.aiActions{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
+.aiOut{ margin-top:12px; padding:12px; border-radius:14px; border:1px dashed rgba(0,0,0,.14); background:rgba(255,255,255,.72); font-weight:700; color:#24314d; white-space:pre-wrap; word-break:break-word; }
+@media (max-width:520px){
+  .aiKeyRow{ flex-direction:column; align-items:stretch; }
+  .aiActions{ flex-direction:column; }
+}

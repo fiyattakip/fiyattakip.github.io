@@ -607,17 +607,173 @@ function setAISettings(obj){
   localStorage.setItem("fiyattakip_ai", JSON.stringify(obj));
 }
 
-btnAI.addEventListener("click", ()=>{
-  const s = getAISettings();
-  const provider = prompt("AI Provider (openai/gemini). Şimdilik demo:", s.provider||"openai");
-  if (!provider) return;
 
-  const key = prompt("API Key (cihazında saklanır):", s.key||"");
-  if (!key) {
-    showToast("API key girilmedi. (Demo)");
+// ===== AI Panel (Gemini only, no model seçimi) =====
+const GEMINI_LS_KEY = "fiyattakip_gemini_key";
+let lastAISuggestion = "";
+
+function openAIPanel(){
+  if (!aiPanel) return;
+  aiPanel.classList.remove("hidden");
+  // key kayıtlıysa key inputu boş bırak (görünmesin), ama gerekiyorsa kullanıcı tekrar girebilir
+  if (localStorage.getItem(GEMINI_LS_KEY) && aiKeyEl) aiKeyEl.value = "";
+}
+function closeAIPanel(){
+  if (!aiPanel) return;
+  aiPanel.classList.add("hidden");
+}
+
+function toggleAIPanel(){
+  if (!aiPanel) return;
+  if (aiPanel.classList.contains("hidden")) openAIPanel();
+  else closeAIPanel();
+}
+
+// Topbar AI + Arama altı AI butonu aynı paneli açar
+btnAI?.addEventListener("click", toggleAIPanel);
+btnAIToggle?.addEventListener("click", toggleAIPanel);
+btnAIClose?.addEventListener("click", closeAIPanel);
+
+// İlk yüklemede: key varsa bir daha sorma (sadece boş bırak)
+if (aiOutEl){
+  const hasKey = !!localStorage.getItem(GEMINI_LS_KEY);
+  aiOutEl.textContent = hasKey ? "Hazır ✅ (API Key kayıtlı). Ürünü yazıp AI çalıştır." : "API Key girip Kaydet'e bas.";
+}
+
+btnAISaveKey?.addEventListener("click", ()=>{
+  const key = (aiKeyEl?.value || "").trim();
+  if (!key){
+    showToast("API Key boş.");
     return;
   }
-  setAISettings({ provider, key });
+  localStorage.setItem(GEMINI_LS_KEY, key);
+  showToast("API Key kaydedildi.");
+  if (aiKeyEl) aiKeyEl.value = "";
+  if (aiOutEl) aiOutEl.textContent = "Hazır ✅ (API Key kayıtlı). Ürünü yazıp AI çalıştır.";
+});
+
+async function fileToBase64NoPrefix(file){
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i=0;i<bytes.length;i+=chunk){
+    bin += String.fromCharCode(...bytes.subarray(i,i+chunk));
+  }
+  return btoa(bin);
+}
+
+async function geminiSuggestQuery({ apiKey, text, imageFile }){
+  const url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent";
+
+  // Prompt: tek satır, arama kelimesi
+  const sys = `Görev: E-ticaret sitelerinde arama yapmak için kullanıcı metnini en doğru arama anahtar kelimesine çevir.
+Kurallar:
+- Sadece TEK SATIR çıktı ver.
+- Marka/model/kapasite/renk gibi önemli bilgileri koru.
+- Gereksiz kelimeleri çıkar.
+- Türkçe karakterleri koru.
+- Eğer görsel verildiyse, görseldeki ürün adını/modelini çıkarıp tek satır olarak yaz.`;
+
+  const parts = [{ text: sys + "\n\nKullanıcı girdisi: " + text }];
+
+  if (imageFile){
+    const b64 = await fileToBase64NoPrefix(imageFile);
+    parts.push({
+      inline_data: {
+        mime_type: imageFile.type || "image/jpeg",
+        data: b64
+      }
+    });
+  }
+
+  const body = {
+    contents: [{ parts }]
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json().catch(()=> ({}));
+  if (!res.ok){
+    const msg = data?.error?.message || ("Gemini hata: HTTP " + res.status);
+    throw new Error(msg);
+  }
+
+  const out = (data?.candidates?.[0]?.content?.parts || [])
+    .map(p=>p?.text)
+    .filter(Boolean)
+    .join("")
+    .trim();
+
+  return out.replace(/\s+/g," ").slice(0,180);
+}
+
+btnAIRun?.addEventListener("click", async ()=>{
+  const storedKey = localStorage.getItem(GEMINI_LS_KEY);
+  const key = (storedKey || (aiKeyEl?.value || "")).trim();
+  if (!key){
+    showToast("Gemini API Key gir.");
+    openAIPanel();
+    return;
+  }
+
+  // Key yeni girildiyse kaydet
+  if (!storedKey && (aiKeyEl?.value || "").trim()){
+    localStorage.setItem(GEMINI_LS_KEY, key);
+    if (aiKeyEl) aiKeyEl.value = "";
+  }
+
+  const text = (aiPromptEl?.value || qEl?.value || "").trim();
+  if (!text){
+    showToast("AI için ürün yaz.");
+    return;
+  }
+
+  const imageFile = aiImageEl?.files?.[0] || null;
+
+  try{
+    btnAIRun.disabled = true;
+    if (aiOutEl) aiOutEl.textContent = "AI düşünüyor…";
+
+    const suggestion = await geminiSuggestQuery({ apiKey: key, text, imageFile });
+    lastAISuggestion = suggestion;
+
+    if (aiOutEl){
+      aiOutEl.textContent = suggestion ? ("✅ Öneri: " + suggestion) : "Boş sonuç geldi. Tekrar dene.";
+    }
+
+    // otomatik arama kutusuna yaz + aramayı çalıştır
+    if (suggestion && qEl){
+      qEl.value = suggestion;
+      btnSearch?.click();
+    }
+
+  }catch(e){
+    if (aiOutEl) aiOutEl.textContent = "Hata: " + (e?.message || e);
+  }finally{
+    btnAIRun.disabled = false;
+  }
+});
+
+btnAIUse?.addEventListener("click", ()=>{
+  const suggestion = (lastAISuggestion || "").trim();
+  if (!suggestion){
+    showToast("Önce AI çalıştır.");
+    return;
+  }
+  if (qEl){
+    qEl.value = suggestion;
+    showToast("Arama kutusuna yazıldı.");
+  }
+});
+
   alert("AI (demo): API KEY alanı cihazında saklandı. Sonraki adımda entegrasyon eklenir.");
 });
 

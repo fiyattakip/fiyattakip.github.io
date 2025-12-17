@@ -1,4 +1,4 @@
-const CACHE_VERSION = "fiyattakip-v10"; // <- güncelledikçe v11, v12 yap
+const CACHE_VERSION = "fiyattakip-v13"; // <- güncelledikçe v11, v12 yap
 const ASSETS = [
   "./",
   "./index.html",
