@@ -65,41 +65,6 @@
         <button id="btnSearch" class="btnPrimary">Ara</button>
       </div>
 
-
-      <div class="aiToggleRow">
-        <button id="btnAIToggle" class="btnGhost" type="button">✨ AI Arama</button>
-      </div>
-
-      <div id="aiPanel" class="aiPanel hidden">
-        <div class="aiPanelHead">
-          <div class="aiTitle">Gemini AI Arama</div>
-          <button id="btnAIClose" class="iconBtn" type="button" title="Kapat" aria-label="Kapat">✕</button>
-        </div>
-
-        <div class="aiPanelBody">
-          <div class="aiGrid">
-            <label class="aiLbl">Gemini API Key (1 kez girilir)</label>
-            <div class="aiKeyRow">
-              <input id="aiKey" class="input" type="password" placeholder="API Key" autocomplete="off" />
-              <button id="btnAISaveKey" class="btnPrimary" type="button">Kaydet</button>
-            </div>
-
-            <label class="aiLbl">AI araması</label>
-            <input id="aiPrompt" class="input" placeholder="Ürünü anlat (ör: xiaomi pad 7 256gb gri)" autocomplete="off" />
-
-            <label class="aiLbl">Görsel (opsiyonel)</label>
-            <input id="aiImage" class="input" type="file" accept="image/*" />
-
-            <div class="aiActions">
-              <button id="btnAIRun" class="btnPrimary" type="button">AI ile en doğru aramayı bul</button>
-              <button id="btnAIUse" class="btnGhost" type="button">Sonucu arama kutusuna yaz</button>
-            </div>
-
-            <div id="aiOut" class="aiOut">AI sonucu burada görünecek.</div>
-          </div>
-        </div>
-      </div>
-
       <div class="subRow">
         <div class="hint">Arama satırları — Her satır: seçili sitede arama açar + “Favori” kaydedilir.</div>
         <div class="subActions">
