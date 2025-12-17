@@ -3,165 +3,182 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#e9eefb" />
+  <meta name="theme-color" content="#3b5bfd" />
   <title>fiyattakip</title>
 
   <link rel="manifest" href="./manifest.json" />
-  <link rel="stylesheet" href="./styles.css?v=20251217-1" />
-</head>
+  <link rel="stylesheet" href="./styles.css" />
 
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+</head>
 <body>
+  <!-- Topbar -->
   <header class="topbar">
     <div class="brand">
-      <div class="appicon" aria-hidden="true">📊</div>
-      <div class="brandtxt">
-        <div class="brandname">fiyattakip</div>
-        <div class="brandsub">Fiyat takip & favoriler</div>
+      <img class="brandIcon" src="./icon-192.png" alt="fiyattakip">
+      <div class="brandText">
+        <div class="brandName">fiyattakip</div>
+        <div class="brandSub">Fiyat takip & favoriler</div>
       </div>
     </div>
 
-    <div class="topactions">
-      <button id="btnNotify" class="chip" type="button" title="Bildirim">🔔</button>
-      <button id="btnAISettings" class="chip" type="button" title="AI Ayarları">✨</button>
-      <button id="btnLogout" class="chip danger" type="button">Çıkış</button>
+    <div class="topActions">
+      <button id="btnBell" class="iconBtn" title="Bildirimleri aç/kapat" aria-label="Bildirimler">
+        <!-- bell -->
+        <svg viewBox="0 0 24 24" class="ico"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 1 0-4 0v1.29A7 7 0 0 0 5 11v5l-2 2v1h20v-1l-2-2Z"/></svg>
+      </button>
+
+      <button id="btnAI" class="iconBtn" title="AI Arama (demo)" aria-label="AI">
+        <!-- spark -->
+        <svg viewBox="0 0 24 24" class="ico"><path d="M12 2l1.2 5.2L18 9l-4.8 1.8L12 16l-1.2-5.2L6 9l4.8-1.8L12 2Zm7 9l.7 3 3 1.1-3 1.1-.7 3-.7-3-3-1.1 3-1.1.7-3ZM4.2 13l.9 3.9L9 18.3l-3.9 1.4L4.2 23l-.9-3.3L-.6 18.3l3.9-1.4.9-3.9Z"/></svg>
+      </button>
+
+      <button id="btnLogout" class="btnDanger" title="Çıkış">
+        Çıkış
+      </button>
     </div>
   </header>
 
-  <!-- Auth overlay -->
-  <div id="authOverlay" class="overlay">
-    <div class="modal">
-      <div class="modalhead">
-        <div class="brand small">
-          <div class="appicon">📊</div>
-          <div class="brandtxt">
-            <div class="brandname">fiyattakip</div>
-            <div class="brandsub">Giriş yap / kayıt ol</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="tabs">
-        <button id="tabLogin" class="tab active" type="button">Giriş</button>
-        <button id="tabRegister" class="tab" type="button">Kayıt</button>
-      </div>
-
-      <label class="lbl">Email</label>
-      <input id="authEmail" class="input" type="email" autocomplete="email" placeholder="ornek@mail.com" />
-
-      <label class="lbl">Şifre</label>
-      <div class="pwrow">
-        <input id="authPass" class="input" type="password" autocomplete="current-password" placeholder="••••••••" />
-        <button id="togglePw" class="pweye" type="button">👁️</button>
-      </div>
-
-      <div id="registerRepeat" class="hidden">
-        <label class="lbl">Şifre (tekrar)</label>
-        <div class="pwrow">
-          <input id="authPass2" class="input" type="password" autocomplete="new-password" placeholder="••••••••" />
-          <button id="togglePw2" class="pweye" type="button">👁️</button>
-        </div>
-      </div>
-
-      <button id="btnAuthPrimary" class="btn primary big" type="button">Giriş Yap</button>
-
-      <button id="btnGoogle" class="btn ghost big" type="button">G Google ile devam et</button>
-
-      <div id="authMsg" class="msg"></div>
-    </div>
-  </div>
-
-  <main class="container">
-    <section class="card">
-      <div class="cardhead">
+  <!-- Giriş yokken içerik HİÇ görünmesin -->
+  <main id="appMain" class="container hidden">
+    <!-- Hero -->
+    <section class="card hero">
+      <div class="heroLeft">
         <h1>Fiyat Karşılaştır</h1>
-        <div class="pill">Site içi “ucuzdan”</div>
+        <p>
+          Ürün adını yaz, seçtiğin sitelerde arama açar.
+          <b>(Uygulama içinden direkt fiyat çekmek CORS/captcha yüzünden yok.)</b>
+        </p>
       </div>
-
-      <p class="muted">
-        Ürün adını yaz, seçtiğin sitelerde arama açar.
-        (Uygulama içinden direkt fiyat çekmek CORS/captcha yüzünden yok.)
-      </p>
-
-      <div class="sites">
-        <label class="sitechip"><input type="checkbox" class="sitecb" value="trendyol" checked> Trendyol</label>
-        <label class="sitechip"><input type="checkbox" class="sitecb" value="hepsiburada" checked> Hepsiburada</label>
-        <label class="sitechip"><input type="checkbox" class="sitecb" value="n11" checked> N11</label>
-        <label class="sitechip"><input type="checkbox" class="sitecb" value="amazontr" checked> Amazon TR</label>
-        <label class="sitechip"><input type="checkbox" class="sitecb" value="pazarama" checked> Pazarama</label>
-        <label class="sitechip"><input type="checkbox" class="sitecb" value="cicek" checked> ÇiçekSepeti</label>
-        <label class="sitechip"><input type="checkbox" class="sitecb" value="idefix" checked> idefix</label>
-      </div>
-
-      <!-- Search row: Ara + AI side by side -->
-      <div class="search-row">
-        <input id="q" class="input" type="text" placeholder="Ürün adını yazın..." autocomplete="off" />
-        <div class="search-actions">
-          <button id="btnSearch" class="btn primary" type="button">Ara</button>
-          <button id="btnAI" class="btn ai" type="button" title="AI Arama">AI</button>
-        </div>
-      </div>
-
-      <!-- AI panel under normal search -->
-      <div id="aiPanel" class="ai-panel hidden">
-        <div class="ai-panel-head">
-          <div class="ai-title">AI ile aramayı düzelt (Gemini)</div>
-          <button id="btnAIClose" class="ai-close" type="button">×</button>
-        </div>
-
-        <div class="ai-panel-body">
-          <input id="geminiKey" class="input" type="password" placeholder="Gemini API Key (buraya yapıştır)" autocomplete="off" />
-          <div class="ai-panel-actions">
-            <button id="btnAISave" class="btn" type="button">Kaydet</button>
-            <button id="btnAIRun" class="btn primary" type="button">AI ile düzelt</button>
-          </div>
-          <div id="aiStatus" class="ai-status"></div>
-        </div>
-      </div>
-
-      <div class="hint">
-        Arama satırları — Her satır: seçili sitede arama açar + “Favori” hatırlanır.
-      </div>
-
-      <div class="row2">
-        <button id="btnClearSearch" class="btn" type="button">Temizle</button>
-        <button id="btnOpenSelected" class="btn ghost" type="button">Seçili Siteleri Aç</button>
-      </div>
-
-      <div id="searchRows" class="searchrows empty">
-        Henüz arama yapılmadı.
+      <div class="heroRight">
+        <span class="pill">Site içi “ucuzdan”</span>
       </div>
     </section>
 
+    <!-- Search -->
     <section class="card">
-      <div class="favhead">
-        <div>
-          <h2>❤️ Favoriler</h2>
-          <div class="muted small">
-            Linkler gizli. Site butonları + Copy Link var. Uygulama açılınca %5+ düşüşte bildirim (demo).
-          </div>
+      <div class="sitePills" id="sitePills"></div>
+
+      <div class="searchRow">
+        <input id="q" class="input" placeholder="Ürün adını yazın..." autocomplete="off" />
+        <button id="btnSearch" class="btnPrimary">Ara</button>
+      </div>
+
+      <div class="subRow">
+        <div class="hint">Arama satırları — Her satır: seçili sitede arama açar + “Favori” kaydedilir.</div>
+        <div class="subActions">
+          <button id="btnClear" class="btnGhost">Temizle</button>
+          <button id="btnOpenSelected" class="btnGhost">Seçili Siteleri Aç</button>
         </div>
-        <button id="btnRefreshFav" class="btn ghost" type="button">Yenile</button>
       </div>
 
-      <div class="favtoolbar">
-        <select id="sortSelect" class="select">
-          <option value="last_desc">Sırala: Son fiyat (Pahalı→Ucuz)</option>
-          <option value="last_asc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
-          <option value="name_asc">Sırala: Ürün adı (A→Z)</option>
-          <option value="site_asc">Sırala: Site</option>
-        </select>
+      <div id="searchResults" class="listBox emptyBox">Henüz arama yapılmadı.</div>
+    </section>
 
-        <button id="btnExport" class="btn" type="button">Dışa Aktar</button>
-        <button id="btnImport" class="btn" type="button">İçe Aktar</button>
-        <input id="importFile" type="file" accept="application/json" class="hidden" />
+    <!-- Favorites -->
+    <section class="card favCard">
+      <div class="favHeader">
+        <div>
+          <div class="favTitle">
+            <span class="heart">❤</span> Favoriler
+          </div>
+          <div class="favSub">Linkler gizli. Site butonları + Copy Link var. Uygulama açılınca %5+ düşüş kontrolü.</div>
+        </div>
+
+        <div class="favHeaderRight">
+          <select id="favSort" class="select">
+            <option value="price_asc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
+            <option value="price_desc">Sırala: Son fiyat (Pahalı→Ucuz)</option>
+            <option value="newest">Sırala: En yeni</option>
+            <option value="site">Sırala: Site</option>
+          </select>
+          <button id="btnRefreshFav" class="btnGhost">Yenile</button>
+        </div>
       </div>
 
-      <div id="favList" class="favlist empty">Favori yok.</div>
+      <div id="favList" class="favList emptyBox">Favori yok.</div>
     </section>
   </main>
 
-  <footer class="footspace"></footer>
+  <!-- AUTH MODAL -->
+  <div id="authWrap" class="modalwrap hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modalTop">
+        <div class="brand mini">
+          <img class="brandIcon" src="./icon-192.png" alt="fiyattakip">
+          <div class="brandText">
+            <div class="brandName">fiyattakip</div>
+            <div class="brandSub">Giriş yap / kayıt ol</div>
+          </div>
+        </div>
+      </div>
 
-  <script type="module" src="./app.js?v=20251217-1"></script>
+      <div class="seg">
+        <button id="tabLogin" class="segBtn active">Giriş</button>
+        <button id="tabRegister" class="segBtn">Kayıt</button>
+      </div>
+
+      <div class="form">
+        <label class="lbl">Email</label>
+        <input id="email" class="input" type="email" placeholder="mail@ornek.com" />
+
+        <label class="lbl">Şifre</label>
+        <div class="pwRow">
+          <input id="pass" class="input" type="password" placeholder="••••••••" />
+          <button id="togglePw" class="iconBtn sm" title="Göster/Gizle">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M12 5c5.5 0 10 5.2 10 7s-4.5 7-10 7S2 14.8 2 12s4.5-7 10-7Zm0 2c-3.7 0-6.9 3.2-7.9 5 1 1.8 4.2 5 7.9 5s6.9-3.2 7.9-5c-1-1.8-4.2-5-7.9-5Zm0 2.2A2.8 2.8 0 1 1 12 14.8a2.8 2.8 0 0 1 0-5.6Z"/></svg>
+          </button>
+        </div>
+
+        <div id="pass2Wrap" class="hidden">
+          <label class="lbl">Şifre (tekrar)</label>
+          <div class="pwRow">
+            <input id="pass2" class="input" type="password" placeholder="••••••••" />
+            <button id="togglePw2" class="iconBtn sm" title="Göster/Gizle">
+              <svg viewBox="0 0 24 24" class="ico"><path d="M12 5c5.5 0 10 5.2 10 7s-4.5 7-10 7S2 14.8 2 12s4.5-7 10-7Zm0 2c-3.7 0-6.9 3.2-7.9 5 1 1.8 4.2 5 7.9 5s6.9-3.2 7.9-5c-1-1.8-4.2-5-7.9-5Zm0 2.2A2.8 2.8 0 1 1 12 14.8a2.8 2.8 0 0 1 0-5.6Z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button id="btnAuthMain" class="btnPrimary wide">Giriş Yap</button>
+
+        <button id="btnGoogle" class="btnGhost wide">
+          <span class="gDot">G</span>
+          Google ile devam et
+        </button>
+
+        <div id="authError" class="errorBox hidden"></div>
+        <div class="smallNote">
+          Not: Google girişinde “unauthorized-domain” görürsen Firebase → Authentication → Settings → Authorized domains kısmına
+          <b>fiyattakip.github.io</b> eklemelisin.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Big Chart Modal -->
+  <div id="chartWrap" class="modalwrap hidden" role="dialog" aria-modal="true">
+    <div class="modal big">
+      <div class="bigTop">
+        <div id="bigTitle" class="bigTitle">Grafik</div>
+        <button id="btnCloseChart" class="iconBtn" title="Kapat" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z"/></svg>
+        </button>
+      </div>
+      <div class="bigBody">
+        <canvas id="bigCanvas" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- App -->
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
