@@ -1,209 +1,184 @@
-// ai.js – FINAL (auto-model + cache + no UI model field)
-// API Key AES-GCM ile cihazda şifreli saklanır.
+// ai.js
+// API key cihazda ŞİFRELİ saklanır (AES-GCM).
+// PIN/Şifre localStorage’a yazılmaz. İstersen “bu oturum hatırla” ile RAM’de tutulur.
 
-const LS_CFG = "fiyattakip_ai_cfg_final";
-const LS_MODEL_CACHE = "fiyattakip_ai_model_cache_v1";
-const MODEL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
+const LS_CFG = "fiyattakip_ai_cfg_v2";   // provider/model + encrypted blobs
 
+// Oturum belleği (sayfa kapanınca gider)
 let sessionPin = null;
 
-/* ================= UTIL ================= */
-const te = s => new TextEncoder().encode(s);
-const td = b => new TextDecoder().decode(b);
+function te(str){ return new TextEncoder().encode(str); }
+function td(buf){ return new TextDecoder().decode(buf); }
 
-const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
-const unb64 = str => Uint8Array.from(atob(str), c => c.charCodeAt(0)).buffer;
-
-function now() { return Date.now(); }
-
-function readModelCache() {
-  try { return JSON.parse(localStorage.getItem(LS_MODEL_CACHE) || "{}"); }
-  catch { return {}; }
+function b64(buf){
+  const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(buf.buffer);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
 }
-function writeModelCache(cache) {
-  localStorage.setItem(LS_MODEL_CACHE, JSON.stringify(cache));
+function unb64(s){
+  const bin = atob(s);
+  const bytes = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
 }
 
-/* ================= CRYPTO ================= */
-async function deriveKey(pin, saltB64) {
-  const salt = saltB64 ? unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+async function deriveKeyFromPin(pin, saltB64){
+  const salt = saltB64 ? unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16)).buffer;
   const baseKey = await crypto.subtle.importKey("raw", te(pin), "PBKDF2", false, ["deriveKey"]);
   const key = await crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 120000, hash: "SHA-256" },
+    { name:"PBKDF2", salt, iterations: 120000, hash:"SHA-256" },
     baseKey,
-    { name: "AES-GCM", length: 256 },
+    { name:"AES-GCM", length:256 },
     false,
-    ["encrypt", "decrypt"]
+    ["encrypt","decrypt"]
   );
   return { key, saltB64: saltB64 || b64(salt) };
 }
 
-async function encrypt(pin, text) {
+async function encryptString(pin, plain){
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const { key, saltB64 } = await deriveKey(pin);
-  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, te(text));
+  const { key, saltB64 } = await deriveKeyFromPin(pin, null);
+  const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, te(plain));
   return { saltB64, ivB64: b64(iv), ctB64: b64(ct) };
 }
 
-async function decrypt(pin, blob) {
-  const { key } = await deriveKey(pin, blob.saltB64);
-  const iv = unb64(blob.ivB64);
+async function decryptString(pin, blob){
+  const { key } = await deriveKeyFromPin(pin, blob.saltB64);
+  const iv = new Uint8Array(unb64(blob.ivB64));
   const ct = unb64(blob.ctB64);
-  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, ct);
   return td(pt);
 }
 
-/* ================= CONFIG ================= */
-export function saveAIConfig({ provider, apiKey, pin, rememberPin }) {
-  if (!provider || !apiKey || !pin) throw new Error("Eksik bilgi");
+export function getSessionPin(){ return sessionPin; }
+export function setSessionPin(pin){ sessionPin = pin || null; }
+export function clearSessionPin(){ sessionPin = null; }
 
-  return encrypt(pin, apiKey).then(enc => {
-    localStorage.setItem(LS_CFG, JSON.stringify({ provider, keyEnc: enc }));
-    if (rememberPin) sessionPin = pin;
-  });
+export function loadAIConfig(){
+  try {
+    const cfg = JSON.parse(localStorage.getItem(LS_CFG) || "{}");
+    return {
+      provider: cfg.provider || "openai",
+      model: cfg.model || "gpt-4.1-mini",
+      keyEnc: cfg.keyEnc || null, // {saltB64, ivB64, ctB64}
+    };
+  } catch {
+    return { provider:"openai", model:"gpt-4.1-mini", keyEnc:null };
+  }
 }
 
-export function loadAIConfig() {
-  return JSON.parse(localStorage.getItem(LS_CFG) || "{}");
+export function hasAIConfig(){
+  const cfg = loadAIConfig();
+  return !!(cfg.keyEnc && cfg.provider && cfg.model);
 }
 
-export function clearAIConfig() {
+export async function saveAIConfigEncrypted({ provider, model, apiKey, pin, rememberPin=false }){
+  if (!apiKey?.trim()) throw new Error("API key boş.");
+  if (!pin?.trim()) throw new Error("PIN/Şifre boş. (Anahtar şifreli saklanacak.)");
+  const keyEnc = await encryptString(pin, apiKey.trim());
+  const cfg = { provider, model, keyEnc };
+  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+  if (rememberPin) sessionPin = pin;
+  return cfg;
+}
+
+export function clearAIConfig(){
   localStorage.removeItem(LS_CFG);
   sessionPin = null;
 }
 
-export function clearModelCache() {
-  localStorage.removeItem(LS_MODEL_CACHE);
-}
-
-/* ================= AUTO MODEL PICK ================= */
-
-// Öncelik listeleri (isim değişse bile /models’den kontrol edilip bulunursa seçilir)
-const OPENAI_PREF = [
-  "gpt-4.1-mini",
-  "gpt-4.1",
-  "gpt-4o-mini",
-  "gpt-4o"
-];
-
-const GEMINI_PREF = [
-  "gemini-2.0-flash",
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-pro-latest",
-  "gemini-1.0-pro"
-];
-
-async function pickOpenAIModel(apiKey) {
-  const cache = readModelCache();
-  const c = cache.openai;
-  if (c && c.model && (now() - c.ts) < MODEL_CACHE_TTL_MS) return c.model;
-
-  // Model listesini çek
-  const res = await fetch("https://api.openai.com/v1/models", {
-    headers: { "Authorization": `Bearer ${apiKey}` }
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || "OpenAI model listesi alınamadı");
-
-  const ids = new Set((data.data || []).map(m => m.id));
-
-  // Öncelik listemizden ilk mevcut olanı seç
-  let chosen = OPENAI_PREF.find(id => ids.has(id));
-
-  // Hiçbiri yoksa: GPT ile başlayan herhangi birini seç (son çare)
-  if (!chosen) {
-    const any = [...ids].find(x => x.startsWith("gpt-"));
-    if (!any) throw new Error("OpenAI: Uygun model bulunamadı");
-    chosen = any;
-  }
-
-  cache.openai = { model: chosen, ts: now() };
-  writeModelCache(cache);
-  return chosen;
-}
-
-async function pickGeminiModel(apiKey) {
-  const cache = readModelCache();
-  const c = cache.gemini;
-  if (c && c.model && (now() - c.ts) < MODEL_CACHE_TTL_MS) return c.model;
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || "Gemini model listesi alınamadı");
-
-  // Google: models: [{ name:"models/gemini-1.5-flash", supportedGenerationMethods:[...] }, ...]
-  const models = (data.models || [])
-    .filter(m => (m.supportedGenerationMethods || []).includes("generateContent"))
-    .map(m => (m.name || "").replace("models/", "")); // -> "gemini-1.5-flash" vs
-
-  const set = new Set(models);
-
-  // Öncelik listemizden mevcut olanı seç
-  let chosen = GEMINI_PREF.find(id => set.has(id));
-
-  // Yoksa "gemini" içeren herhangi birini seç
-  if (!chosen) {
-    const any = models.find(x => x.includes("gemini"));
-    if (!any) throw new Error("Gemini: Uygun model bulunamadı");
-    chosen = any;
-  }
-
-  cache.gemini = { model: chosen, ts: now() };
-  writeModelCache(cache);
-  return chosen;
-}
-
-/* ================= CALLERS ================= */
-
-async function callOpenAI(apiKey, model, prompt) {
-  const res = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      input: prompt
-    })
-  });
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || "OpenAI hata");
-  return data.output_text || data.output?.[0]?.content?.[0]?.text || "";
-}
-
-async function callGemini(apiKey, model, prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-  });
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || "Gemini hata");
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-}
-
-/* ================= PUBLIC RUN ================= */
-
-export async function runAI({ prompt, pin }) {
+export async function decryptApiKeyWithPin(pin){
   const cfg = loadAIConfig();
-  if (!cfg.provider || !cfg.keyEnc) throw new Error("AI ayarları yok");
-
-  const realPin = pin || sessionPin;
-  if (!realPin) throw new Error("PIN gerekli");
-
-  const apiKey = await decrypt(realPin, cfg.keyEnc);
-
-  if (cfg.provider === "openai") {
-    const model = await pickOpenAIModel(apiKey);
-    return callOpenAI(apiKey, model, prompt);
+  if (!cfg.keyEnc) throw new Error("AI key kayıtlı değil.");
+  if (!pin?.trim()) throw new Error("PIN gerekli.");
+  try{
+    return await decryptString(pin, cfg.keyEnc);
+  }catch{
+    throw new Error("PIN yanlış veya şifreli veri bozulmuş.");
   }
+}
 
-  // gemini
-  const model = await pickGeminiModel(apiKey);
-  return callGemini(apiKey, model, prompt);
+function pickTextFromOpenAIResponses(data){
+  if (typeof data?.output_text === "string" && data.output_text.trim()) return data.output_text.trim();
+  const out = data?.output;
+  if (Array.isArray(out)){
+    for (const item of out){
+      const c = item?.content;
+      if (Array.isArray(c)){
+        for (const part of c){
+          if (typeof part?.text === "string" && part.text.trim()) return part.text.trim();
+        }
+      }
+    }
+  }
+  return "";
+}
+
+async function callOpenAI({ apiKey, model, prompt, timeoutMs=30000 }){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+  try{
+    const res = await fetch("https://api.openai.com/v1/responses", {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":`Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        input: prompt
+      }),
+      signal: ctrl.signal
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok){
+      const msg = data?.error?.message || JSON.stringify(data);
+      throw new Error(`OpenAI hata: ${res.status} ${msg}`);
+    }
+    const text = pickTextFromOpenAIResponses(data);
+    if (!text) throw new Error("OpenAI cevap boş/okunamadı.");
+    return text;
+  } finally { clearTimeout(t); }
+}
+
+async function callGemini({ apiKey, model, prompt, timeoutMs=30000 }){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  try{
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      }),
+      signal: ctrl.signal
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok){
+      const msg = data?.error?.message || JSON.stringify(data);
+      throw new Error(`Gemini hata: ${res.status} ${msg}`);
+    }
+    const text = (data?.candidates?.[0]?.content?.parts || [])
+      .map(p=>p?.text).filter(Boolean).join("").trim();
+    if (!text) throw new Error("Gemini cevap boş.");
+    return text;
+  } finally { clearTimeout(t); }
+}
+
+// Dışarıdan çağıracağın fonksiyon: PIN’i sorup AI çalıştırma
+export async function runAI({ prompt, pin, provider, model }){
+  const cfg = loadAIConfig();
+  const prov = provider || cfg.provider;
+  const mod = model || cfg.model;
+
+  const thePin = pin || sessionPin;
+  if (!thePin) throw new Error("PIN gerekli. (AI Ayarları’ndan gir)");
+  const apiKey = await decryptApiKeyWithPin(thePin);
+
+  if (prov === "gemini"){
+    return await callGemini({ apiKey, model: mod, prompt });
+  }
+  return await callOpenAI({ apiKey, model: mod, prompt });
 }
