@@ -1,57 +1,123 @@
-const CACHE_VERSION = "fiyattakip-v12";
-const ASSETS = [
+/* sw.js — FINAL (cache + update fix) */
+
+const CACHE_VERSION = "v21"; // <- HER GÜNCELLEMEDE 1 arttır (v22, v23...)
+const APP_CACHE = `fiyattakip-app-${CACHE_VERSION}`;
+const RUNTIME_CACHE = `fiyattakip-runtime-${CACHE_VERSION}`;
+
+// Cache'e ilk yükte koymak istediklerin (minimum tut)
+const PRECACHE_URLS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./firebase.js",
   "./ai.js",
   "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
 ];
 
+// ---- INSTALL: precache ----
 self.addEventListener("install", (event) => {
-  event.waitUntil((async ()=>{
-    const cache = await caches.open(CACHE_VERSION);
-    await cache.addAll(ASSETS);
-    self.skipWaiting();
-  })());
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(APP_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)).catch(() => {})
+  );
 });
 
+// ---- ACTIVATE: old caches cleanup ----
 self.addEventListener("activate", (event) => {
-  event.waitUntil((async ()=>{
+  event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.map(k => (k !== CACHE_VERSION) ? caches.delete(k) : Promise.resolve()));
-    self.clients.claim();
+    await Promise.all(
+      keys
+        .filter(k => k.startsWith("fiyattakip-") && !k.includes(CACHE_VERSION))
+        .map(k => caches.delete(k))
+    );
+    await self.clients.claim();
   })());
 });
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  const url = new URL(req.url);
+// Helpers
+function isHTML(request) {
+  return request.mode === "navigate" ||
+    (request.headers.get("accept") || "").includes("text/html");
+}
 
-  // Firebase/Google cacheleme (özellikle auth scriptleri)
-  if (url.hostname.includes("googleapis.com") || url.hostname.includes("gstatic.com") || url.hostname.includes("firebaseapp.com")) {
+function isStaticAsset(url) {
+  return (
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".json") ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".jpg") ||
+    url.pathname.endsWith(".jpeg") ||
+    url.pathname.endsWith(".webp") ||
+    url.pathname.endsWith(".svg") ||
+    url.pathname.endsWith(".ico")
+  );
+}
+
+// Network-first for HTML (update hızlı gelsin)
+async function networkFirst(request) {
+  const cache = await caches.open(APP_CACHE);
+  try {
+    const fresh = await fetch(request, { cache: "no-store" });
+    if (fresh && fresh.ok) cache.put(request, fresh.clone());
+    return fresh;
+  } catch {
+    const cached = await cache.match(request);
+    return cached || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
+  }
+}
+
+// Stale-while-revalidate for static assets
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cached = await cache.match(request);
+
+  const fetchPromise = fetch(request).then((fresh) => {
+    if (fresh && fresh.ok) cache.put(request, fresh.clone());
+    return fresh;
+  }).catch(() => null);
+
+  return cached || (await fetchPromise) || new Response("", { status: 504 });
+}
+
+// Default: cache-first fallback
+async function cacheFirst(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  try {
+    const fresh = await fetch(request);
+    if (fresh && fresh.ok) cache.put(request, fresh.clone());
+    return fresh;
+  } catch {
+    return new Response("", { status: 504 });
+  }
+}
+
+// ---- FETCH routing ----
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  const url = new URL(request.url);
+
+  // Only handle same-origin (GitHub pages vs)
+  if (url.origin !== self.location.origin) return;
+
+  // HTML -> network-first
+  if (isHTML(request)) {
+    event.respondWith(networkFirst(request));
     return;
   }
 
-  if (req.method !== "GET") return;
+  // static assets -> stale-while-revalidate
+  if (isStaticAsset(url)) {
+    event.respondWith(staleWhileRevalidate(request));
+    return;
+  }
 
-  event.respondWith((async ()=>{
-    const cache = await caches.open(CACHE_VERSION);
-    const cached = await cache.match(req);
-    if (cached) return cached;
-
-    try{
-      const res = await fetch(req);
-      if (res && res.ok && (req.destination === "document" || req.destination === "script" || req.destination === "style" || req.destination === "image")) {
-        cache.put(req, res.clone());
-      }
-      return res;
-    }catch{
-      if (req.destination === "document") return cache.match("./index.html");
-      throw new Error("offline");
-    }
-  })());
+  // others -> cache-first
+  event.respondWith(cacheFirst(request));
 });
