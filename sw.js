@@ -1,10 +1,11 @@
-const CACHE_VERSION = "fiyattakip-v10"; // <- güncelledikçe v11, v12 yap
+const CACHE_VERSION = "fiyattakip-v12";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./firebase.js",
+  "./ai.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
@@ -30,12 +31,11 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Firebase / Google endpoints cacheleme
+  // Firebase/Google cacheleme (özellikle auth scriptleri)
   if (url.hostname.includes("googleapis.com") || url.hostname.includes("gstatic.com") || url.hostname.includes("firebaseapp.com")) {
     return;
   }
 
-  // Sadece GET
   if (req.method !== "GET") return;
 
   event.respondWith((async ()=>{
@@ -45,16 +45,12 @@ self.addEventListener("fetch", (event) => {
 
     try{
       const res = await fetch(req);
-      // html/js/css gibi dosyaları cachele
       if (res && res.ok && (req.destination === "document" || req.destination === "script" || req.destination === "style" || req.destination === "image")) {
         cache.put(req, res.clone());
       }
       return res;
     }catch{
-      // offline fallback
-      if (req.destination === "document") {
-        return cache.match("./index.html");
-      }
+      if (req.destination === "document") return cache.match("./index.html");
       throw new Error("offline");
     }
   })());
