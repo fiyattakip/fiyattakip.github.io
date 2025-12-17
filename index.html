@@ -25,18 +25,14 @@
 
     <div class="topActions">
       <button id="btnBell" class="iconBtn" title="Bildirimleri aç/kapat" aria-label="Bildirimler">
-        <!-- bell -->
         <svg viewBox="0 0 24 24" class="ico"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 1 0-4 0v1.29A7 7 0 0 0 5 11v5l-2 2v1h20v-1l-2-2Z"/></svg>
       </button>
 
-      <button id="btnAI" class="iconBtn" title="AI Arama (demo)" aria-label="AI">
-        <!-- spark -->
+      <button id="btnAI" class="iconBtn" title="AI Arama" aria-label="AI">
         <svg viewBox="0 0 24 24" class="ico"><path d="M12 2l1.2 5.2L18 9l-4.8 1.8L12 16l-1.2-5.2L6 9l4.8-1.8L12 2Zm7 9l.7 3 3 1.1-3 1.1-.7 3-.7-3-3-1.1 3-1.1.7-3ZM4.2 13l.9 3.9L9 18.3l-3.9 1.4L4.2 23l-.9-3.3L-.6 18.3l3.9-1.4.9-3.9Z"/></svg>
       </button>
 
-      <button id="btnLogout" class="btnDanger" title="Çıkış">
-        Çıkış
-      </button>
+      <button id="btnLogout" class="btnDanger" title="Çıkış">Çıkış</button>
     </div>
   </header>
 
@@ -66,7 +62,7 @@
       </div>
 
       <div class="subRow">
-        <div class="hint">Arama satırları — Her satır: seçili sitede arama açar + “Favori” kaydedilir.</div>
+        <div class="hint">Her satır: site aramasını açar + o satırı favoriye ekler.</div>
         <div class="subActions">
           <button id="btnClear" class="btnGhost">Temizle</button>
           <button id="btnOpenSelected" class="btnGhost">Seçili Siteleri Aç</button>
@@ -80,10 +76,8 @@
     <section class="card favCard">
       <div class="favHeader">
         <div>
-          <div class="favTitle">
-            <span class="heart">❤</span> Favoriler
-          </div>
-          <div class="favSub">Linkler gizli. Site butonları + Copy Link var. Uygulama açılınca %5+ düşüş kontrolü.</div>
+          <div class="favTitle"><span class="heart">❤</span> Favoriler</div>
+          <div class="favSub">Linkler gizli. Site Aç + Copy Link var. Uygulama açılınca %5+ düşüş kontrolü.</div>
         </div>
 
         <div class="favHeaderRight">
@@ -149,9 +143,73 @@
         </button>
 
         <div id="authError" class="errorBox hidden"></div>
+
         <div class="smallNote">
-          Not: Google girişinde “unauthorized-domain” görürsen Firebase → Authentication → Settings → Authorized domains kısmına
-          <b>fiyattakip.github.io</b> eklemelisin.
+          Google girişinde “unauthorized-domain” görürsen Firebase → Authentication → Settings → Authorized domains:
+          <b>fiyattakip.github.io</b> ekle.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI MODAL -->
+  <div id="aiWrap" class="modalwrap hidden" role="dialog" aria-modal="true">
+    <div class="modal big">
+      <div class="bigTop">
+        <div class="bigTitle">AI Arama Ayarları</div>
+        <button id="btnCloseAI" class="iconBtn" title="Kapat" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z"/></svg>
+        </button>
+      </div>
+
+      <div class="bigBody">
+        <div class="aiGrid">
+          <div class="aiCard">
+            <div class="aiRow">
+              <label class="lbl">Sağlayıcı</label>
+              <select id="aiProvider" class="select">
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </div>
+
+            <div class="aiRow">
+              <label class="lbl">Model</label>
+              <input id="aiModel" class="input" placeholder="OpenAI: gpt-4.1-mini | Gemini: gemini-1.5-flash" />
+            </div>
+
+            <div class="aiRow">
+              <label class="lbl">API Key</label>
+              <input id="aiKey" class="input" type="password" placeholder="Buraya yapıştır (şifreli saklanır)" />
+              <div class="smallNote">Bu anahtar PIN ile şifrelenip cihazda saklanır. PIN cihazda saklanmaz.</div>
+            </div>
+
+            <div class="aiRow">
+              <label class="lbl">PIN / Şifre</label>
+              <input id="aiPin" class="input" type="password" placeholder="PIN belirle (unutma!)" />
+              <div class="aiChecks">
+                <label class="chk"><input id="aiRememberPin" type="checkbox" /> Bu oturum PIN’i hatırla</label>
+              </div>
+            </div>
+
+            <div class="aiBtns">
+              <button id="btnSaveAI" class="btnPrimary">Kaydet</button>
+              <button id="btnClearAI" class="btnGhost">AI Ayarlarını Sil</button>
+            </div>
+
+            <div id="aiStatus" class="hint"></div>
+          </div>
+
+          <div class="aiCard">
+            <label class="lbl">AI ile Aramayı Düzelt</label>
+            <div class="hint">Örn: “xiaomi pad 7 256gb” için doğru anahtar kelime öner, kısa liste.</div>
+            <input id="aiPrompt" class="input" placeholder="AI'ye sorulacak metin..." />
+            <div class="aiBtns">
+              <button id="btnRunAI" class="btnPrimary">Çalıştır</button>
+              <button id="btnUseAIText" class="btnGhost">Sonucu Aramaya Yaz</button>
+            </div>
+            <pre id="aiOut" class="aiOut">—</pre>
+          </div>
         </div>
       </div>
     </div>
@@ -178,7 +236,6 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <!-- App -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
