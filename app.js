@@ -14,18 +14,20 @@ import {
   serverTimestamp, updateDoc, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-/* =========================
-   PWA SW
-========================= */
+import {
+  loadAIConfig, hasAIConfig,
+  saveAIConfigEncrypted, clearAIConfig,
+  runAI, setSessionPin, getSessionPin
+} from "./ai.js";
+
+/* PWA SW */
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try { await navigator.serviceWorker.register("./sw.js"); } catch {}
   });
 }
 
-/* =========================
-   DOM
-========================= */
+/* DOM */
 const appMain = document.getElementById("appMain");
 
 const authWrap = document.getElementById("authWrap");
@@ -58,19 +60,35 @@ const btnRefreshFav = document.getElementById("btnRefreshFav");
 
 const toast = document.getElementById("toast");
 
+/* Chart Modal */
 const chartWrap = document.getElementById("chartWrap");
 const btnCloseChart = document.getElementById("btnCloseChart");
 const bigTitle = document.getElementById("bigTitle");
 const bigCanvas = document.getElementById("bigCanvas");
 
-/* =========================
-   State
-========================= */
-let mode = "login"; // login | register
-let currentUser = null;
-let favCache = [];  // loaded favorites
-let notifLog = [];  // simple in-memory log (also persisted in localStorage)
+/* AI Modal */
+const aiWrap = document.getElementById("aiWrap");
+const btnCloseAI = document.getElementById("btnCloseAI");
+const aiProvider = document.getElementById("aiProvider");
+const aiModel = document.getElementById("aiModel");
+const aiKey = document.getElementById("aiKey");
+const aiPin = document.getElementById("aiPin");
+const aiRememberPin = document.getElementById("aiRememberPin");
+const btnSaveAI = document.getElementById("btnSaveAI");
+const btnClearAI = document.getElementById("btnClearAI");
+const aiStatus = document.getElementById("aiStatus");
+const aiPrompt = document.getElementById("aiPrompt");
+const btnRunAI = document.getElementById("btnRunAI");
+const btnUseAIText = document.getElementById("btnUseAIText");
+const aiOut = document.getElementById("aiOut");
 
+/* State */
+let mode = "login";
+let currentUser = null;
+let favCache = [];
+let notifLog = [];
+
+/* Sites */
 const SITES = [
   { key:"trendyol", name:"Trendyol", build:(q)=>`https://www.trendyol.com/sr?q=${encodeURIComponent(q)}&sst=PRICE_BY_ASC` },
   { key:"hepsiburada", name:"Hepsiburada", build:(q)=>`https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}&sorting=priceAsc` },
@@ -80,65 +98,46 @@ const SITES = [
   { key:"ciceksepeti", name:"ÇiçekSepeti", build:(q)=>`https://www.ciceksepeti.com/arama?query=${encodeURIComponent(q)}&orderby=price_asc` },
   { key:"idefix", name:"idefix", build:(q)=>`https://www.idefix.com/arama/?q=${encodeURIComponent(q)}&s=price-asc` },
 ];
+const selectedSites = new Set(SITES.map(s=>s.key));
 
-const selectedSites = new Set(SITES.map(s=>s.key)); // default all selected
-
-/* =========================
-   Helpers
-========================= */
+/* Helpers */
 function showToast(msg){
   toast.textContent = msg;
   toast.classList.remove("hidden");
   clearTimeout(showToast._t);
   showToast._t = setTimeout(()=>toast.classList.add("hidden"), 2200);
 }
+function setAuthError(msg){ authError.textContent = msg; authError.classList.remove("hidden"); }
+function clearAuthError(){ authError.classList.add("hidden"); authError.textContent = ""; }
+function openAuthModal(){ authWrap.classList.remove("hidden"); }
+function closeAuthModal(){ authWrap.classList.add("hidden"); }
 
-function setAuthError(msg){
-  authError.textContent = msg;
-  authError.classList.remove("hidden");
-}
+function openAIModal(){ aiWrap.classList.remove("hidden"); }
+function closeAIModal(){ aiWrap.classList.add("hidden"); }
 
-function clearAuthError(){
-  authError.classList.add("hidden");
-  authError.textContent = "";
-}
-
-function openAuthModal(){
-  authWrap.classList.remove("hidden");
-}
-function closeAuthModal(){
-  authWrap.classList.add("hidden");
-}
-
-function isMobile(){
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
+function isMobile(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
 
 function fmtTRY(n){
   if (n == null || Number.isNaN(Number(n))) return "Fiyat yok";
-  try {
-    return new Intl.NumberFormat("tr-TR", { style:"currency", currency:"TRY", maximumFractionDigits:0 }).format(Number(n));
-  } catch {
-    return `${Number(n)} ₺`;
-  }
+  try { return new Intl.NumberFormat("tr-TR", { style:"currency", currency:"TRY", maximumFractionDigits:0 }).format(Number(n)); }
+  catch { return `${Number(n)} ₺`; }
 }
-
-function nowISO(){
-  return new Date().toISOString();
-}
-
+function nowISO(){ return new Date().toISOString(); }
 function safeNum(v){
   const n = Number(String(v).replace(/[^\d.,]/g,"").replace(",","."));
   return Number.isFinite(n) ? n : null;
 }
-
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;").replaceAll("<","&lt;")
+    .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
 function favDocId(siteKey, queryText){
   return `${siteKey}__${queryText.trim().toLowerCase()}`.replace(/[^\w\-_.]+/g,"_");
 }
 
-/* =========================
-   Notifications
-========================= */
+/* Notifications */
 function loadNotifLog(){
   try { notifLog = JSON.parse(localStorage.getItem("fiyattakip_notifs")||"[]"); } catch { notifLog=[]; }
 }
@@ -148,26 +147,19 @@ function pushNotif(title, body){
   notifLog = notifLog.slice(0, 30);
   localStorage.setItem("fiyattakip_notifs", JSON.stringify(notifLog));
 }
-
 async function ensureNotifPermission(){
-  if (!("Notification" in window)) {
-    showToast("Tarayıcı bildirim desteklemiyor.");
-    return false;
-  }
+  if (!("Notification" in window)) { showToast("Tarayıcı bildirim desteklemiyor."); return false; }
   if (Notification.permission === "granted") return true;
   const res = await Notification.requestPermission();
   return res === "granted";
 }
-
 function fireBrowserNotif(title, body){
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   try { new Notification(title, { body }); } catch {}
 }
 
-/* =========================
-   UI: Sites
-========================= */
+/* UI: Sites */
 function renderSitePills(){
   sitePills.innerHTML = "";
   for (const s of SITES){
@@ -183,9 +175,7 @@ function renderSitePills(){
   }
 }
 
-/* =========================
-   Search rows
-========================= */
+/* Search rows */
 function renderSearchRows(queryText){
   const q = queryText.trim();
   if (!q){
@@ -195,23 +185,16 @@ function renderSearchRows(queryText){
   }
 
   const selected = SITES.filter(s=>selectedSites.has(s.key));
-
-  // Eğer aynı site+query favoride varsa son fiyatı gösterip listeyi ucuzdan pahalıya dizelim
   const rows = selected.map(s=>{
     const existing = favCache.find(f=>f.siteKey===s.key && f.queryLower===q.toLowerCase());
-    return {
-      site:s,
-      url:s.build(q),
-      fav: existing || null,
-      lastPrice: existing?.lastPrice ?? null
-    };
+    return { site:s, url:s.build(q), fav: existing || null, lastPrice: existing?.lastPrice ?? null };
   });
 
   rows.sort((a,b)=>{
-    const ap = a.lastPrice, bp = b.lastPrice;
-    if (ap == null && bp == null) return a.site.name.localeCompare(b.site.name);
-    if (ap == null) return 1;
-    if (bp == null) return -1;
+    const ap=a.lastPrice, bp=b.lastPrice;
+    if (ap==null && bp==null) return a.site.name.localeCompare(b.site.name);
+    if (ap==null) return 1;
+    if (bp==null) return -1;
     return ap - bp; // ucuzdan
   });
 
@@ -223,8 +206,7 @@ function renderSearchRows(queryText){
     item.className = "item";
 
     const priceHtml = (r.lastPrice!=null)
-      ? `<div class="pricePill"><span>Son</span> ${fmtTRY(r.lastPrice)}</div>`
-      : "";
+      ? `<div class="pricePill"><span>Son</span> ${fmtTRY(r.lastPrice)}</div>` : "";
 
     const favOn = !!r.fav;
 
@@ -252,66 +234,43 @@ function renderSearchRows(queryText){
     item.querySelector(".btnFav").addEventListener("click", async ()=>{
       if (!currentUser) return;
 
-      if (favOn){
-        // Favoriden kaldır
-        await removeFavorite(r.site.key, q);
-      } else {
-        // SADECE bu satırı favorile (hepsini değil!)
-        await addFavorite(r.site.key, r.site.name, q, r.url);
-      }
-      await loadFavorites();       // cache güncelle
-      renderSearchRows(qEl.value); // UI güncelle
+      if (favOn) await removeFavorite(r.site.key, q);
+      else await addFavorite(r.site.key, r.site.name, q, r.url);
+
+      await loadFavorites();
+      renderSearchRows(qEl.value);
     });
 
     searchResults.appendChild(item);
   }
 }
 
-function escapeHtml(s){
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-/* =========================
-   Firestore: Favorites
-========================= */
-function favCol(){
-  return collection(db, "users", currentUser.uid, "favorites");
-}
+/* Firestore: Favorites */
+function favCol(){ return collection(db, "users", currentUser.uid, "favorites"); }
 
 async function addFavorite(siteKey, siteName, queryText, url){
   const id = favDocId(siteKey, queryText);
   const ref = doc(db, "users", currentUser.uid, "favorites", id);
 
   const existing = await getDoc(ref);
-  if (existing.exists()){
-    showToast("Zaten favoride.");
-    return;
-  }
+  if (existing.exists()){ showToast("Zaten favoride."); return; }
 
-  const data = {
-    siteKey,
-    siteName,
+  await setDoc(ref, {
+    siteKey, siteName,
     query: queryText.trim(),
     queryLower: queryText.trim().toLowerCase(),
     url,
     createdAt: serverTimestamp(),
     lastPrice: null,
-    history: [] // [{t: ISO, p: number}]
-  };
+    history: []
+  }, { merge:false });
 
-  await setDoc(ref, data, { merge:false });
   showToast("Favoriye eklendi.");
 }
 
 async function removeFavorite(siteKey, queryText){
   const id = favDocId(siteKey, queryText);
-  const ref = doc(db, "users", currentUser.uid, "favorites", id);
-  await deleteDoc(ref);
+  await deleteDoc(doc(db, "users", currentUser.uid, "favorites", id));
   showToast("Favoriden kaldırıldı.");
 }
 
@@ -324,18 +283,13 @@ async function addPriceToFavorite(favId, price){
   const history = Array.isArray(d.history) ? d.history.slice() : [];
   history.push({ t: nowISO(), p: price });
 
-  await updateDoc(ref, {
-    lastPrice: price,
-    history
-  });
+  await updateDoc(ref, { lastPrice: price, history });
 }
 
 async function loadFavorites(){
   if (!currentUser) return;
 
   const sort = favSort.value;
-
-  // Firestore sıralama yerine local sort (çünkü price null vs)
   const qy = query(favCol(), orderBy("queryLower", "asc"));
   const snaps = await getDocs(qy);
 
@@ -354,7 +308,6 @@ async function loadFavorites(){
     };
   });
 
-  // Sort
   favCache.sort((a,b)=>{
     if (sort==="price_asc"){
       if (a.lastPrice==null && b.lastPrice==null) return a.siteName.localeCompare(b.siteName);
@@ -368,9 +321,7 @@ async function loadFavorites(){
       if (b.lastPrice==null) return -1;
       return b.lastPrice - a.lastPrice;
     }
-    if (sort==="newest"){
-      return b.createdAtMs - a.createdAtMs;
-    }
+    if (sort==="newest") return b.createdAtMs - a.createdAtMs;
     if (sort==="site"){
       const s = a.siteName.localeCompare(b.siteName);
       if (s!==0) return s;
@@ -383,10 +334,7 @@ async function loadFavorites(){
   checkDropsOnLoad();
 }
 
-/* =========================
-   %5 drop check (demo)
-   - son iki fiyatı kıyaslar
-========================= */
+/* %5 drop check */
 function checkDropsOnLoad(){
   for (const f of favCache){
     const h = f.history || [];
@@ -405,38 +353,22 @@ function checkDropsOnLoad(){
   }
 }
 
-/* =========================
-   Charts
-========================= */
-const chartMap = new Map(); // favId -> Chart instance
+/* Charts */
+const chartMap = new Map();
 let bigChart = null;
 
 function buildChart(canvas, fav){
   const h = fav.history || [];
   const labels = h.map(x=> new Date(x.t).toLocaleDateString("tr-TR"));
   const data = h.map(x=> x.p);
-
   const ctx = canvas.getContext("2d");
   return new Chart(ctx, {
     type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "Fiyat (₺)",
-        data,
-        tension: 0.25,
-        pointRadius: 3
-      }]
-    },
+    data: { labels, datasets: [{ label:"Fiyat (₺)", data, tension:0.25, pointRadius:3 }] },
     options: {
       responsive:true,
-      plugins:{
-        legend:{ display:false }
-      },
-      scales:{
-        x:{ ticks:{ maxRotation:0 } },
-        y:{ beginAtZero:false }
-      }
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ ticks:{ maxRotation:0 } }, y:{ beginAtZero:false } }
     }
   });
 }
@@ -444,26 +376,16 @@ function buildChart(canvas, fav){
 function openBigChart(fav){
   bigTitle.textContent = `${fav.siteName} • ${fav.query}`;
   chartWrap.classList.remove("hidden");
-
-  // destroy old
-  if (bigChart){
-    bigChart.destroy();
-    bigChart = null;
-  }
+  if (bigChart){ bigChart.destroy(); bigChart=null; }
   bigChart = buildChart(bigCanvas, fav);
 }
 
 btnCloseChart.addEventListener("click", ()=>{
   chartWrap.classList.add("hidden");
-  if (bigChart){
-    bigChart.destroy();
-    bigChart = null;
-  }
+  if (bigChart){ bigChart.destroy(); bigChart=null; }
 });
 
-/* =========================
-   Favorites UI
-========================= */
+/* Favorites UI */
 function renderFavorites(){
   if (!favCache.length){
     favList.className = "favList emptyBox";
@@ -477,7 +399,6 @@ function renderFavorites(){
   for (const f of favCache){
     const el = document.createElement("div");
     el.className = "favItem";
-
     const priceText = f.lastPrice != null ? fmtTRY(f.lastPrice) : "Fiyat yok";
 
     el.innerHTML = `
@@ -490,7 +411,7 @@ function renderFavorites(){
       </div>
 
       <div class="favBtns">
-        <button class="btnOpen"> ${escapeHtml(f.siteName)} Aç</button>
+        <button class="btnOpen">${escapeHtml(f.siteName)} Aç</button>
         <button class="btnCopy">Copy Link</button>
         <button class="btnAddPrice">Fiyat ekle</button>
         <button class="btnDelete">Sil</button>
@@ -502,41 +423,29 @@ function renderFavorites(){
       </div>
     `;
 
-    // Open
-    el.querySelector(".btnOpen").addEventListener("click", ()=>{
-      window.open(f.url, "_blank", "noopener");
-    });
+    el.querySelector(".btnOpen").addEventListener("click", ()=> window.open(f.url, "_blank", "noopener"));
 
-    // Copy
     el.querySelector(".btnCopy").addEventListener("click", async ()=>{
-      try{
-        await navigator.clipboard.writeText(f.url);
-        showToast("Link kopyalandı.");
-      }catch{
-        prompt("Link kopyala:", f.url);
-      }
+      try{ await navigator.clipboard.writeText(f.url); showToast("Link kopyalandı."); }
+      catch{ prompt("Link kopyala:", f.url); }
     });
 
-    // Add price
     el.querySelector(".btnAddPrice").addEventListener("click", async ()=>{
       const v = prompt("Fiyat (₺) gir:", f.lastPrice ?? "");
       if (v == null) return;
       const p = safeNum(v);
-      if (p == null) { showToast("Geçersiz fiyat."); return; }
-
+      if (p == null){ showToast("Geçersiz fiyat."); return; }
       await addPriceToFavorite(f.id, p);
-      await loadFavorites(); // re-render + drop check
+      await loadFavorites();
       showToast("Fiyat eklendi.");
     });
 
-    // Delete
     el.querySelector(".btnDelete").addEventListener("click", async ()=>{
       if (!confirm("Favoriyi silmek istiyor musun?")) return;
       await deleteDoc(doc(db, "users", currentUser.uid, "favorites", f.id));
       await loadFavorites();
     });
 
-    // Chart render
     const chartArea = el.querySelector(".chartArea");
     const h = f.history || [];
     if (h.length < 2){
@@ -546,7 +455,6 @@ function renderFavorites(){
       canvas.height = 120;
       chartArea.appendChild(canvas);
 
-      // destroy existing for same id
       if (chartMap.has(f.id)){
         try { chartMap.get(f.id).destroy(); } catch {}
         chartMap.delete(f.id);
@@ -556,10 +464,7 @@ function renderFavorites(){
     }
 
     el.querySelector(".btnBig").addEventListener("click", ()=>{
-      if ((f.history||[]).length < 2){
-        showToast("Grafik için en az 2 fiyat lazım.");
-        return;
-      }
+      if ((f.history||[]).length < 2){ showToast("Grafik için en az 2 fiyat lazım."); return; }
       openBigChart(f);
     });
 
@@ -567,17 +472,12 @@ function renderFavorites(){
   }
 }
 
-/* =========================
-   Open Selected Sites
-   - Eğer favorilerde aynı query+site varsa (son fiyat var) onu ucuzdan pahalı açar
-   - Yoksa seçili siteleri sırayla açar
-========================= */
+/* Open Selected Sites */
 function openSelectedSites(queryText){
   const q = queryText.trim();
   if (!q) return;
 
   const selected = SITES.filter(s=>selectedSites.has(s.key));
-
   const rows = selected.map(s=>{
     const existing = favCache.find(f=>f.siteKey===s.key && f.queryLower===q.toLowerCase());
     return { site:s, url:s.build(q), lastPrice: existing?.lastPrice ?? null };
@@ -588,42 +488,13 @@ function openSelectedSites(queryText){
     if (ap==null && bp==null) return 0;
     if (ap==null) return 1;
     if (bp==null) return -1;
-    return ap-bp; // ucuzdan pahalı
+    return ap-bp;
   });
 
-  for (const r of rows){
-    window.open(r.url, "_blank", "noopener");
-  }
+  for (const r of rows) window.open(r.url, "_blank", "noopener");
 }
 
-/* =========================
-   AI button (safe input 방식)
-   - kullanıcı kendi API key'ini LOCAL olarak saklar (sadece cihazında)
-========================= */
-function getAISettings(){
-  try { return JSON.parse(localStorage.getItem("fiyattakip_ai")||"{}"); } catch { return {}; }
-}
-function setAISettings(obj){
-  localStorage.setItem("fiyattakip_ai", JSON.stringify(obj));
-}
-
-btnAI.addEventListener("click", ()=>{
-  const s = getAISettings();
-  const provider = prompt("AI Provider (openai/gemini). Şimdilik demo:", s.provider||"openai");
-  if (!provider) return;
-
-  const key = prompt("API Key (cihazında saklanır):", s.key||"");
-  if (!key) {
-    showToast("API key girilmedi. (Demo)");
-    return;
-  }
-  setAISettings({ provider, key });
-  alert("AI (demo): API KEY alanı cihazında saklandı. Sonraki adımda entegrasyon eklenir.");
-});
-
-/* =========================
-   Auth UI events
-========================= */
+/* AUTH UI */
 function setMode(m){
   mode = m;
   clearAuthError();
@@ -639,16 +510,11 @@ function setMode(m){
     btnAuthMain.textContent = "Hesap Oluştur";
   }
 }
-
 tabLogin.addEventListener("click", ()=>setMode("login"));
 tabRegister.addEventListener("click", ()=>setMode("register"));
 
-togglePw.addEventListener("click", ()=>{
-  passEl.type = (passEl.type==="password") ? "text" : "password";
-});
-togglePw2.addEventListener("click", ()=>{
-  pass2El.type = (pass2El.type==="password") ? "text" : "password";
-});
+togglePw.addEventListener("click", ()=> passEl.type = (passEl.type==="password") ? "text" : "password");
+togglePw2.addEventListener("click", ()=> pass2El.type = (pass2El.type==="password") ? "text" : "password");
 
 btnAuthMain.addEventListener("click", async ()=>{
   clearAuthError();
@@ -658,10 +524,7 @@ btnAuthMain.addEventListener("click", async ()=>{
   try{
     if (mode==="register"){
       const pass2 = pass2El.value;
-      if (pass !== pass2) {
-        setAuthError("Şifreler aynı değil.");
-        return;
-      }
+      if (pass !== pass2){ setAuthError("Şifreler aynı değil."); return; }
       await createUserWithEmailAndPassword(auth, email, pass);
       showToast("Hesap oluşturuldu.");
     } else {
@@ -676,43 +539,25 @@ btnAuthMain.addEventListener("click", async ()=>{
 btnGoogle.addEventListener("click", async ()=>{
   clearAuthError();
   try{
-    // Mobilde popup sıkıntı, redirect daha sağlam
-    if (isMobile()){
-      await signInWithRedirect(auth, googleProvider);
-    } else {
-      await signInWithPopup(auth, googleProvider);
-    }
+    if (isMobile()) await signInWithRedirect(auth, googleProvider);
+    else await signInWithPopup(auth, googleProvider);
   }catch(e){
     setAuthError(prettyAuthError(e));
   }
 });
 
 btnLogout.addEventListener("click", async ()=>{
-  try{
-    await signOut(auth);
-    showToast("Çıkış yapıldı.");
-  }catch{}
+  try{ await signOut(auth); showToast("Çıkış yapıldı."); }catch{}
 });
 
-/* Redirect result catch */
+/* Redirect result */
 getRedirectResult(auth).catch(()=>{});
 
-/* =========================
-   Main UI events
-========================= */
+/* Main UI events */
 renderSitePills();
 
-btnSearch.addEventListener("click", async ()=>{
-  const q = qEl.value.trim();
-  renderSearchRows(q);
-});
-
-qEl.addEventListener("keydown", (e)=>{
-  if (e.key==="Enter"){
-    e.preventDefault();
-    btnSearch.click();
-  }
-});
+btnSearch.addEventListener("click", ()=> renderSearchRows(qEl.value));
+qEl.addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ e.preventDefault(); btnSearch.click(); } });
 
 btnClear.addEventListener("click", ()=>{
   qEl.value = "";
@@ -720,26 +565,109 @@ btnClear.addEventListener("click", ()=>{
   searchResults.textContent = "Henüz arama yapılmadı.";
 });
 
-btnOpenSelected.addEventListener("click", ()=>{
-  openSelectedSites(qEl.value);
-});
+btnOpenSelected.addEventListener("click", ()=> openSelectedSites(qEl.value));
+favSort.addEventListener("change", ()=> loadFavorites());
+btnRefreshFav.addEventListener("click", ()=> loadFavorites());
 
-favSort.addEventListener("change", ()=>loadFavorites());
-btnRefreshFav.addEventListener("click", ()=>loadFavorites());
-
-/* Bell: request permission + show toast */
 btnBell.addEventListener("click", async ()=>{
   const ok = await ensureNotifPermission();
-  if (ok) showToast("Bildirimler açık.");
-  else showToast("Bildirim izni verilmedi.");
+  showToast(ok ? "Bildirimler açık." : "Bildirim izni verilmedi.");
 });
 
-/* =========================
-   Auth state: içerik gizleme (senin istediğin)
-========================= */
-loadNotifLog();
+/* AI Modal wiring */
+function fillAIUIFromConfig(){
+  const cfg = loadAIConfig();
+  aiProvider.value = cfg.provider || "openai";
+  aiModel.value = cfg.model || (cfg.provider==="gemini" ? "gemini-1.5-flash" : "gpt-4.1-mini");
+  aiKey.value = "";
+  aiPin.value = "";
+  aiRememberPin.checked = !!getSessionPin();
+  aiOut.textContent = "—";
+  aiStatus.textContent = hasAIConfig() ? "AI ayarları kayıtlı. Çalıştırmak için PIN girmen yeter." : "AI ayarları yok. Key + PIN ile kaydet.";
+}
 
-// İlk anda: içerik kesin görünmesin
+btnAI.addEventListener("click", ()=>{
+  fillAIUIFromConfig();
+  openAIModal();
+});
+
+btnCloseAI.addEventListener("click", ()=> closeAIModal());
+
+btnSaveAI.addEventListener("click", async ()=>{
+  aiStatus.textContent = "";
+  try{
+    const provider = aiProvider.value;
+    const model = aiModel.value.trim() || (provider==="gemini" ? "gemini-1.5-flash" : "gpt-4.1-mini");
+    const key = aiKey.value.trim();
+    const pin = aiPin.value;
+    const remember = aiRememberPin.checked;
+
+    await saveAIConfigEncrypted({ provider, model, apiKey:key, pin, rememberPin: remember });
+    aiKey.value = ""; aiPin.value = "";
+    aiStatus.textContent = "Kaydedildi. (Key şifreli saklandı.)";
+    showToast("AI ayarları kaydedildi.");
+  }catch(e){
+    aiStatus.textContent = e?.message || String(e);
+  }
+});
+
+btnClearAI.addEventListener("click", ()=>{
+  if (!confirm("AI ayarlarını silmek istiyor musun?")) return;
+  clearAIConfig();
+  fillAIUIFromConfig();
+  showToast("AI ayarları silindi.");
+});
+
+btnRunAI.addEventListener("click", async ()=>{
+  aiStatus.textContent = "";
+  aiOut.textContent = "Çalışıyor...";
+  try{
+    const cfg = loadAIConfig();
+    const provider = aiProvider.value || cfg.provider;
+    const model = (aiModel.value.trim() || cfg.model);
+
+    // PIN: önce input, yoksa oturumda varsa kullan
+    let pin = aiPin.value;
+    if (!pin && getSessionPin()) pin = null; // runAI session pin’i kullanacak
+    if (!pin && !getSessionPin()){
+      // Kullanıcı PIN girmediyse sor
+      const asked = prompt("PIN / Şifre gir (AI anahtarı çözmek için):");
+      if (!asked) throw new Error("PIN girilmedi.");
+      pin = asked;
+      if (aiRememberPin.checked) setSessionPin(pin);
+    } else {
+      if (aiRememberPin.checked && pin) setSessionPin(pin);
+    }
+
+    const q = qEl.value.trim();
+    const userPrompt = (aiPrompt.value.trim())
+      ? aiPrompt.value.trim()
+      : `Ürün: ${q || "—"}
+Görev: Bu ürünü aramak için en iyi 6-10 anahtar kelime öner. Kısa madde madde yaz. Türkçe.`;
+
+    const out = await runAI({ prompt: userPrompt, pin, provider, model });
+    aiOut.textContent = out;
+    aiStatus.textContent = "Tamam.";
+  }catch(e){
+    aiOut.textContent = "—";
+    aiStatus.textContent = e?.message || String(e);
+  }
+});
+
+btnUseAIText.addEventListener("click", ()=>{
+  const t = aiOut.textContent.trim();
+  if (!t || t==="—") { showToast("Kullanılacak AI sonucu yok."); return; }
+  // En basit: ilk satırı/öneriyi aramaya yaz
+  const first = t.split("\n").map(x=>x.replace(/^[-•\d.\)\s]+/,"").trim()).find(Boolean);
+  if (!first){ showToast("AI sonucu okunamadı."); return; }
+  qEl.value = first;
+  closeAIModal();
+  renderSearchRows(qEl.value);
+  showToast("AI önerisi aramaya yazıldı.");
+});
+
+/* Auth state: giriş yokken içerik görünmesin */
+loadNotifLog();
 appMain.classList.add("hidden");
 openAuthModal();
 
@@ -749,20 +677,14 @@ onAuthStateChanged(auth, async (user)=>{
   if (currentUser){
     closeAuthModal();
     appMain.classList.remove("hidden");
-    // favorileri çek
     await loadFavorites();
-    // varsa arama ekranını da güncelle (q doluysa)
     if (qEl.value.trim()) renderSearchRows(qEl.value.trim());
   } else {
-    // giriş yoksa: içerik HİÇ görünmesin
     appMain.classList.add("hidden");
     openAuthModal();
   }
 });
 
-/* =========================
-   Auth error text
-========================= */
 function prettyAuthError(e){
   const msg = String(e?.message || e || "");
 
@@ -770,16 +692,10 @@ function prettyAuthError(e){
     return "Google giriş hatası: unauthorized-domain. Firebase → Authentication → Settings → Authorized domains kısmına fiyattakip.github.io ekle.";
   }
   if (msg.includes("auth/api-key-not-valid")){
-    return "Firebase: api-key-not-valid. Yanlış projeye ait config kullanıyor olabilirsin veya eski cache var. sw.js cache version artır + site verisini temizle.";
+    return "Firebase: api-key-not-valid. Eski cache olabilir. sw.js CACHE_VERSION artır + site verisini temizle.";
   }
-  if (msg.includes("auth/invalid-credential")){
-    return "Hatalı giriş bilgisi.";
-  }
-  if (msg.includes("auth/email-already-in-use")){
-    return "Bu email zaten kayıtlı.";
-  }
-  if (msg.includes("auth/weak-password")){
-    return "Şifre çok zayıf. Daha güçlü bir şifre gir.";
-  }
+  if (msg.includes("auth/invalid-credential")) return "Hatalı giriş bilgisi.";
+  if (msg.includes("auth/email-already-in-use")) return "Bu email zaten kayıtlı.";
+  if (msg.includes("auth/weak-password")) return "Şifre çok zayıf. Daha güçlü bir şifre gir.";
   return "Hata: " + msg;
-                  }
+    }
