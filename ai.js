@@ -1,10 +1,4 @@
-// ai.js
-// API key cihazda ŞİFRELİ saklanır (AES-GCM).
-// PIN/Şifre localStorage’a yazılmaz. İstersen “bu oturum hatırla” ile RAM’de tutulur.
-
-const LS_CFG = "fiyattakip_ai_cfg_v2";   // provider/model + encrypted blobs
-
-// Oturum belleği (sayfa kapanınca gider)
+const LS_CFG = "fiyattakip_ai_cfg_v2";
 let sessionPin = null;
 
 function te(str){ return new TextEncoder().encode(str); }
@@ -59,12 +53,12 @@ export function loadAIConfig(){
   try {
     const cfg = JSON.parse(localStorage.getItem(LS_CFG) || "{}");
     return {
-      provider: cfg.provider || "openai",
-      model: cfg.model || "gpt-4.1-mini",
-      keyEnc: cfg.keyEnc || null, // {saltB64, ivB64, ctB64}
+      provider: cfg.provider || "gemini",
+      model: cfg.model || "gemini-1.5-flash",
+      keyEnc: cfg.keyEnc || null
     };
   } catch {
-    return { provider:"openai", model:"gpt-4.1-mini", keyEnc:null };
+    return { provider:"gemini", model:"gemini-1.5-flash", keyEnc:null };
   }
 }
 
@@ -75,7 +69,7 @@ export function hasAIConfig(){
 
 export async function saveAIConfigEncrypted({ provider, model, apiKey, pin, rememberPin=false }){
   if (!apiKey?.trim()) throw new Error("API key boş.");
-  if (!pin?.trim()) throw new Error("PIN/Şifre boş. (Anahtar şifreli saklanacak.)");
+  if (!pin?.trim()) throw new Error("PIN/Şifre boş.");
   const keyEnc = await encryptString(pin, apiKey.trim());
   const cfg = { provider, model, keyEnc };
   localStorage.setItem(LS_CFG, JSON.stringify(cfg));
@@ -99,47 +93,21 @@ export async function decryptApiKeyWithPin(pin){
   }
 }
 
-function pickTextFromOpenAIResponses(data){
-  if (typeof data?.output_text === "string" && data.output_text.trim()) return data.output_text.trim();
-  const out = data?.output;
-  if (Array.isArray(out)){
-    for (const item of out){
-      const c = item?.content;
-      if (Array.isArray(c)){
-        for (const part of c){
-          if (typeof part?.text === "string" && part.text.trim()) return part.text.trim();
-        }
-      }
-    }
-  }
-  return "";
+export function exportEncryptedConfigBlob(){
+  const cfg = loadAIConfig();
+  return {
+    provider: cfg.provider,
+    model: cfg.model,
+    keyEnc: cfg.keyEnc || null,
+    ts: Date.now()
+  };
 }
 
-async function callOpenAI({ apiKey, model, prompt, timeoutMs=30000 }){
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
-  try{
-    const res = await fetch("https://api.openai.com/v1/responses", {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":`Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        input: prompt
-      }),
-      signal: ctrl.signal
-    });
-    const data = await res.json().catch(()=>({}));
-    if (!res.ok){
-      const msg = data?.error?.message || JSON.stringify(data);
-      throw new Error(`OpenAI hata: ${res.status} ${msg}`);
-    }
-    const text = pickTextFromOpenAIResponses(data);
-    if (!text) throw new Error("OpenAI cevap boş/okunamadı.");
-    return text;
-  } finally { clearTimeout(t); }
+export function importEncryptedConfigBlob(blob){
+  if (!blob || !blob.provider || !blob.model) throw new Error("Geçersiz AI blob.");
+  const cfg = { provider: blob.provider, model: blob.model, keyEnc: blob.keyEnc || null };
+  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+  return cfg;
 }
 
 async function callGemini({ apiKey, model, prompt, timeoutMs=30000 }){
@@ -150,9 +118,7 @@ async function callGemini({ apiKey, model, prompt, timeoutMs=30000 }){
     const res = await fetch(url, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      }),
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       signal: ctrl.signal
     });
     const data = await res.json().catch(()=>({}));
@@ -167,18 +133,17 @@ async function callGemini({ apiKey, model, prompt, timeoutMs=30000 }){
   } finally { clearTimeout(t); }
 }
 
-// Dışarıdan çağıracağın fonksiyon: PIN’i sorup AI çalıştırma
 export async function runAI({ prompt, pin, provider, model }){
   const cfg = loadAIConfig();
   const prov = provider || cfg.provider;
   const mod = model || cfg.model;
 
   const thePin = pin || sessionPin;
-  if (!thePin) throw new Error("PIN gerekli. (AI Ayarları’ndan gir)");
+  if (!thePin) throw new Error("PIN gerekli. (AI Ayarları'ndan gir)");
   const apiKey = await decryptApiKeyWithPin(thePin);
 
   if (prov === "gemini"){
     return await callGemini({ apiKey, model: mod, prompt });
   }
-  return await callOpenAI({ apiKey, model: mod, prompt });
+  return await callGemini({ apiKey, model: mod, prompt });
 }
