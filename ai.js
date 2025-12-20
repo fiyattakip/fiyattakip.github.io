@@ -1,3 +1,6 @@
+// ai.js
+// API key cihazda ŞİFRELİ saklanır (AES-GCM). PIN localStorage'a yazılmaz.
+
 const LS_CFG = "fiyattakip_ai_cfg_v2";
 let sessionPin = null;
 
@@ -55,7 +58,7 @@ export function loadAIConfig(){
     return {
       provider: cfg.provider || "gemini",
       model: cfg.model || "gemini-1.5-flash",
-      keyEnc: cfg.keyEnc || null
+      keyEnc: cfg.keyEnc || null,
     };
   } catch {
     return { provider:"gemini", model:"gemini-1.5-flash", keyEnc:null };
@@ -93,24 +96,7 @@ export async function decryptApiKeyWithPin(pin){
   }
 }
 
-export function exportEncryptedConfigBlob(){
-  const cfg = loadAIConfig();
-  return {
-    provider: cfg.provider,
-    model: cfg.model,
-    keyEnc: cfg.keyEnc || null,
-    ts: Date.now()
-  };
-}
-
-export function importEncryptedConfigBlob(blob){
-  if (!blob || !blob.provider || !blob.model) throw new Error("Geçersiz AI blob.");
-  const cfg = { provider: blob.provider, model: blob.model, keyEnc: blob.keyEnc || null };
-  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
-  return cfg;
-}
-
-async function callGemini({ apiKey, model, prompt, timeoutMs=30000 }){
+async function callGeminiText({ apiKey, model, prompt, timeoutMs=30000 }){
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), timeoutMs);
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -118,7 +104,39 @@ async function callGemini({ apiKey, model, prompt, timeoutMs=30000 }){
     const res = await fetch(url, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      }),
+      signal: ctrl.signal
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok){
+      const msg = data?.error?.message || JSON.stringify(data);
+      throw new Error(`Gemini hata: ${res.status} ${msg}`);
+    }
+    const text = (data?.candidates?.[0]?.content?.parts || [])
+      .map(p=>p?.text).filter(Boolean).join("").trim();
+    if (!text) throw new Error("Gemini cevap boş.");
+    return text;
+  } finally { clearTimeout(t); }
+}
+
+async function callGeminiVision({ apiKey, model, prompt, imageBase64, mimeType="image/jpeg", timeoutMs=45000 }){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  try{
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType, data: imageBase64 } }
+          ]
+        }]
+      }),
       signal: ctrl.signal
     });
     const data = await res.json().catch(()=>({}));
@@ -139,11 +157,18 @@ export async function runAI({ prompt, pin, provider, model }){
   const mod = model || cfg.model;
 
   const thePin = pin || sessionPin;
-  if (!thePin) throw new Error("PIN gerekli. (AI Ayarları'ndan gir)");
+  if (!thePin) throw new Error("PIN gerekli.");
   const apiKey = await decryptApiKeyWithPin(thePin);
 
-  if (prov === "gemini"){
-    return await callGemini({ apiKey, model: mod, prompt });
-  }
-  return await callGemini({ apiKey, model: mod, prompt });
+  if (prov !== "gemini") throw new Error("Bu sürümde sadece Gemini aktif.");
+  return await callGeminiText({ apiKey, model: mod, prompt });
+}
+
+export async function runAIVision({ prompt, pin, imageBase64, mimeType="image/jpeg", model }){
+  const cfg = loadAIConfig();
+  const mod = model || cfg.model || "gemini-1.5-flash";
+  const thePin = pin || sessionPin;
+  if (!thePin) throw new Error("PIN gerekli.");
+  const apiKey = await decryptApiKeyWithPin(thePin);
+  return await callGeminiVision({ apiKey, model: mod, prompt, imageBase64, mimeType });
 }
