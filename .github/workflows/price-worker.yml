@@ -1,0 +1,31 @@
+name: Price Worker
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/20 * * * *" # 20 dakikada bir
+
+jobs:
+  run-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install worker deps
+        working-directory: worker
+        run: npm ci
+
+      - name: Run worker
+        working-directory: worker
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: node index.js
