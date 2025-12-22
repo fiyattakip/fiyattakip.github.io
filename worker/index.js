@@ -309,3 +309,9 @@ run().catch((e) => {
   console.error("Worker fatal:", e);
   process.exit(1);
 });
+await db.collection("worker_test").add({
+  test: true,
+  createdAt: admin.firestore.Timestamp.now()
+});
+
+console.log("🔥 TEST WRITE OK");
