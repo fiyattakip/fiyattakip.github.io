@@ -13,7 +13,6 @@
   <link rel="apple-touch-icon" href="./icon-192.png" />
 </head>
 <body>
-  <!-- Topbar -->
   <header class="topbar">
     <div class="brand">
       <img class="brandIcon" src="./icon-192.png" alt="fiyattakip">
@@ -24,50 +23,37 @@
     </div>
 
     <div class="topActions">
-      <button id="btnInstall" class="btnGhost" title="Ana ekrana ekle" style="display:none">Yükle</button>
-
-      <button id="btnCacheClear" class="btnGhost" title="Cache temizle">
-        Cache Temizle
-      </button>
-
-      <button id="btnBell" class="iconBtn" title="Bildirimleri aç/kapat" aria-label="Bildirimler">
+      <button id="btnBell" class="iconBtn" title="Bildirimleri aç" aria-label="Bildirimler">
         <svg viewBox="0 0 24 24" class="ico"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 1 0-4 0v1.29A7 7 0 0 0 5 11v5l-2 2v1h20v-1l-2-2Z"/></svg>
       </button>
 
-      <button id="btnLogout" class="btnDanger" title="Çıkış">
-        Çıkış
+      <button id="btnAISettings" class="iconBtn" title="AI Ayarları" aria-label="AI Ayarları">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.12.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.72 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.22 1.12-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
       </button>
+
+      <button id="btnLogout" class="btnDanger" title="Çıkış">Çıkış</button>
     </div>
   </header>
 
-  <!-- Giriş yokken içerik HİÇ görünmesin -->
   <main id="appMain" class="container hidden">
-
-    <!-- HERO -->
     <section class="card hero">
       <div class="heroLeft">
         <h1>Fiyat Takip</h1>
-        <p>
-          Normal arama + AI arama + görsel arama.
-          Favorilere ekle → <b>20 dk</b> aralıklarla otomatik fiyat denemesi + <b>%10+ düşüşte bildirim</b>.
-        </p>
+        <p>Normal arama + AI arama + Görsel arama. Favoriye ekle → otomatik takip → %10+ düşüş bildirimi.</p>
       </div>
       <div class="heroRight">
-        <span class="pill">20 dk otomatik dene</span>
+        <span class="pill">%10+ düşüş bildirimi</span>
       </div>
     </section>
 
-    <!-- SEARCH: AI + NORMAL -->
     <section class="card">
-
-      <div class="seg small">
-        <button id="tabNormal" class="segBtn active">Normal Arama</button>
-        <button id="tabAIText" class="segBtn">AI Arama</button>
-        <button id="tabAIVisual" class="segBtn">Görsel / Kamera</button>
+      <div class="tabsRow">
+        <button class="tabBtn active" data-tab="normal">Normal</button>
+        <button class="tabBtn" data-tab="ai">AI Arama</button>
+        <button class="tabBtn" data-tab="visual">Görsel</button>
       </div>
 
-      <!-- Normal -->
-      <div id="panelNormal">
+      <div id="tab_normal" class="tabPanel">
         <div class="sitePills" id="sitePills"></div>
 
         <div class="searchRow">
@@ -76,79 +62,49 @@
         </div>
 
         <div class="subRow">
-          <div class="hint">Her satır: seçili sitede arama açar + istersen Favori kaydedersin.</div>
+          <div class="hint">Satırlar: siteyi açar + favori ekler.</div>
           <div class="subActions">
             <button id="btnClear" class="btnGhost">Temizle</button>
-            <button id="btnOpenSelected" class="btnGhost">Seçili Siteleri Aç</button>
+            <button id="btnOpenSelected" class="btnGhost">Seçilileri Aç</button>
           </div>
         </div>
 
         <div id="searchResults" class="listBox emptyBox">Henüz arama yapılmadı.</div>
       </div>
 
-      <!-- AI Text -->
-      <div id="panelAIText" class="hidden">
-        <div class="hint" style="margin-bottom:10px">
-          AI arama: Gemini ile ürün önerileri + linkler. (AI anahtarı cihazında şifreli saklanır.)
-        </div>
-
+      <div id="tab_ai" class="tabPanel hidden">
         <div class="searchRow">
-          <input id="aiQ" class="input" placeholder="AI ile arat (örn: 8GB DDR4 3200 en uygun)" autocomplete="off" />
+          <input id="aiQ" class="input" placeholder="AI ile ürün yaz (örn: 8gb ddr4 ram)" autocomplete="off"/>
           <button id="btnAISearch" class="btnPrimary">AI Ara</button>
         </div>
-
-        <div class="subRow">
-          <div class="hint">AI ayarları: aşağıdaki butondan API key ekle.</div>
-          <div class="subActions">
-            <button id="btnAISettings" class="btnGhost">AI Ayarları</button>
-          </div>
-        </div>
-
-        <div id="aiResults" class="listBox emptyBox">Henüz AI arama yapılmadı.</div>
+        <div id="aiResults" class="listBox emptyBox">AI araması yapılmadı.</div>
       </div>
 
-      <!-- AI Visual -->
-      <div id="panelAIVisual" class="hidden">
-        <div class="hint" style="margin-bottom:10px">
-          Kamera/galeri ile görsel yükle → Gemini görselden ürün tanımlar ve arama önerisi verir.
+      <div id="tab_visual" class="tabPanel hidden">
+        <div class="searchRow">
+          <input id="imgFile" class="input" type="file" accept="image/*" />
+          <button id="btnVisual" class="btnPrimary">Analiz</button>
         </div>
-
-        <div class="subRow" style="margin-top:0">
-          <div class="subActions">
-            <input id="imgPicker" type="file" accept="image/*" capture="environment" class="btnGhost fileBtn">
-            <button id="btnAIVision" class="btnPrimary">Görseli Analiz Et</button>
-            <button id="btnAISettings2" class="btnGhost">AI Ayarları</button>
-          </div>
-        </div>
-
-        <div id="aiVisionBox" class="listBox emptyBox">Henüz görsel seçilmedi.</div>
+        <div id="visualResults" class="listBox emptyBox">Görsel analiz yapılmadı.</div>
       </div>
     </section>
 
-    <!-- FAVORITES -->
     <section class="card favCard">
       <div class="favHeader">
         <div>
-          <div class="favTitle">
-            <span class="heart">❤</span> Favoriler
-          </div>
-          <div class="favSub">
-            Otomatik fiyat denemesi: <b>20 dk</b>. Çekim başarısız olursa “Linki aç” bildirimi gelir.
-            Linki açınca <b>Tekrar Dene (Şimdi)</b> ile anında tekrar dener.
-          </div>
+          <div class="favTitle"><span class="heart">❤</span> Favoriler</div>
+          <div class="favSub">20 dk otomatik kontrol. Engel olursa: Link Aç → Tekrar dene.</div>
         </div>
 
         <div class="favHeaderRight">
           <select id="favSort" class="select">
-            <option value="price_asc">Sırala: Son fiyat (Ucuz→Pahalı)</option>
-            <option value="price_desc">Sırala: Son fiyat (Pahalı→Ucuz)</option>
-            <option value="newest">Sırala: En yeni</option>
-            <option value="site">Sırala: Site</option>
+            <option value="price_asc">Son fiyat (Ucuz→Pahalı)</option>
+            <option value="price_desc">Son fiyat (Pahalı→Ucuz)</option>
+            <option value="newest">En yeni</option>
+            <option value="site">Site</option>
           </select>
-
-          <button id="btnBackup" class="btnGhost">Yedek Al</button>
-          <button id="btnRestore" class="btnGhost">Yedek Yükle</button>
           <button id="btnRefreshFav" class="btnGhost">Yenile</button>
+          <button id="btnClearCache" class="btnGhost">Cache Temizle</button>
         </div>
       </div>
 
@@ -156,7 +112,7 @@
     </section>
   </main>
 
-  <!-- AUTH MODAL -->
+  <!-- AUTH -->
   <div id="authWrap" class="modalwrap hidden" role="dialog" aria-modal="true">
     <div class="modal">
       <div class="modalTop">
@@ -197,43 +153,57 @@
         </div>
 
         <button id="btnAuthMain" class="btnPrimary wide">Giriş Yap</button>
-
-        <button id="btnGoogle" class="btnGhost wide">
-          <span class="gDot">G</span>
-          Google ile devam et
-        </button>
+        <button id="btnGoogle" class="btnGhost wide"><span class="gDot">G</span> Google ile devam et</button>
 
         <div id="authError" class="errorBox hidden"></div>
-        <div class="smallNote">
-          Google girişinde login ekranında kalıyorsa genelde <b>Authorized domains</b> eksiktir.
-          Firebase → Authentication → Settings → Authorized domains içine:
-          <b>fiyattakip.github.io</b> (ve kendi domainin) ekle.
-        </div>
       </div>
     </div>
   </div>
 
-  <!-- TOAST -->
-  <div id="toast" class="toast hidden"></div>
-
-  <!-- Big Chart Modal -->
-  <div id="chartWrap" class="modalwrap hidden" role="dialog" aria-modal="true">
-    <div class="modal big">
-      <div class="bigTop">
-        <div id="bigTitle" class="bigTitle">Grafik</div>
-        <button id="btnCloseChart" class="iconBtn" title="Kapat" aria-label="Kapat">
+  <!-- AI SETTINGS -->
+  <div id="aiWrap" class="modalwrap hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modalTop">
+        <div class="brand mini">
+          <div class="brandText">
+            <div class="brandName">AI Ayarları</div>
+            <div class="brandSub">Gemini / OpenAI</div>
+          </div>
+        </div>
+        <button id="btnCloseAI" class="iconBtn" title="Kapat" aria-label="Kapat">
           <svg viewBox="0 0 24 24" class="ico"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z"/></svg>
         </button>
       </div>
-      <div class="bigBody">
-        <canvas id="bigCanvas" height="220"></canvas>
+
+      <div class="form">
+        <label class="lbl">Provider</label>
+        <select id="aiProvider" class="select">
+          <option value="gemini">Gemini</option>
+          <option value="openai">OpenAI</option>
+        </select>
+
+        <label class="lbl">Model</label>
+        <input id="aiModel" class="input" placeholder="gemini-2.5-flash" />
+
+        <label class="lbl">API Key</label>
+        <input id="aiKey" class="input" placeholder="AI key..." />
+
+        <label class="lbl">PIN</label>
+        <input id="aiPin" class="input" type="password" placeholder="PIN..." />
+
+        <div class="subRow" style="margin-top:6px">
+          <div class="hint">Oturum hatırla: tekrar PIN sormaz.</div>
+          <label class="hint"><input id="aiRemember" type="checkbox"> Oturum hatırla</label>
+        </div>
+
+        <button id="btnSaveAI" class="btnPrimary wide">Kaydet</button>
+        <button id="btnClearAI" class="btnGhost wide">Sıfırla</button>
+        <div id="aiMsg" class="smallNote"></div>
       </div>
     </div>
   </div>
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
+  <div id="toast" class="toast hidden"></div>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
