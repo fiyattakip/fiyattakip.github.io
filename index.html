@@ -11,6 +11,9 @@
 
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -26,11 +29,12 @@
       <button id="btnBell" class="iconBtn" title="Bildirimleri aç" aria-label="Bildirimler">
         <svg viewBox="0 0 24 24" class="ico"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.71V3a2 2 0 1 0-4 0v1.29A7 7 0 0 0 5 11v5l-2 2v1h20v-1l-2-2Z"/></svg>
       </button>
-
-      <button id="btnAISettings" class="iconBtn" title="AI Ayarları" aria-label="AI Ayarları">
-        <svg viewBox="0 0 24 24" class="ico"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.12.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.72 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.22 1.12-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
+      <button id="btnInstall" class="iconBtn" title="Yükle" aria-label="Yükle" style="display:none">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M12 16 7 11h3V4h4v7h3l-5 5Zm-7 4v-2h14v2H5Z"/></svg>
       </button>
-
+      <button id="btnCacheClear" class="iconBtn" title="Cache temizle" aria-label="Cache temizle">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M6 19a2 2 0 0 0 2 2h10v-2H8V7H6v12Zm3-4h12V3H9v12Zm2-10h8v8h-8V5Z"/></svg>
+      </button>
       <button id="btnLogout" class="btnDanger" title="Çıkış">Çıkış</button>
     </div>
   </header>
@@ -48,12 +52,13 @@
 
     <section class="card">
       <div class="tabsRow">
-        <button class="tabBtn active" data-tab="normal">Normal</button>
-        <button class="tabBtn" data-tab="ai">AI Arama</button>
-        <button class="tabBtn" data-tab="visual">Görsel</button>
+        <button id="tabNormal" class="tabBtn active">Normal</button>
+        <button id="tabAIText" class="tabBtn">AI Arama</button>
+        <button id="tabAIVisual" class="tabBtn">Görsel</button>
       </div>
 
-      <div id="tab_normal" class="tabPanel">
+      <!-- NORMAL -->
+      <div id="panelNormal" class="tabPanel">
         <div class="sitePills" id="sitePills"></div>
 
         <div class="searchRow">
@@ -72,20 +77,25 @@
         <div id="searchResults" class="listBox emptyBox">Henüz arama yapılmadı.</div>
       </div>
 
-      <div id="tab_ai" class="tabPanel hidden">
+      <!-- AI TEXT -->
+      <div id="panelAIText" class="tabPanel hidden">
         <div class="searchRow">
-          <input id="aiQ" class="input" placeholder="AI ile ürün yaz (örn: 8gb ddr4 ram)" autocomplete="off"/>
+          <input id="aiQ" class="input" placeholder="AI ile ürün yaz (örn: 8gb ddr4 ram)" autocomplete="off" />
           <button id="btnAISearch" class="btnPrimary">AI Ara</button>
+          <button id="btnAISettings" class="btnGhost">AI Ayar</button>
         </div>
         <div id="aiResults" class="listBox emptyBox">AI araması yapılmadı.</div>
       </div>
 
-      <div id="tab_visual" class="tabPanel hidden">
+      <!-- AI VISUAL -->
+      <div id="panelAIVisual" class="tabPanel hidden">
         <div class="searchRow">
-          <input id="imgFile" class="input" type="file" accept="image/*" />
-          <button id="btnVisual" class="btnPrimary">Analiz</button>
+          <input id="imgPicker" class="input" type="file" accept="image/*" />
+          <button id="btnAIVision" class="btnPrimary">Analiz</button>
+          <button id="btnAISettings2" class="btnGhost">AI Ayar</button>
         </div>
-        <div id="visualResults" class="listBox emptyBox">Görsel analiz yapılmadı.</div>
+
+        <div id="aiVisionBox" class="listBox emptyBox">Görsel analiz yapılmadı.</div>
       </div>
     </section>
 
@@ -104,7 +114,6 @@
             <option value="site">Site</option>
           </select>
           <button id="btnRefreshFav" class="btnGhost">Yenile</button>
-          <button id="btnClearCache" class="btnGhost">Cache Temizle</button>
         </div>
       </div>
 
@@ -123,6 +132,7 @@
             <div class="brandSub">Giriş yap / kayıt ol</div>
           </div>
         </div>
+        <button id="btnAuthCacheClear" class="btnGhost sm">Cache Temizle</button>
       </div>
 
       <div class="seg">
@@ -153,21 +163,23 @@
         </div>
 
         <button id="btnAuthMain" class="btnPrimary wide">Giriş Yap</button>
-        <button id="btnGoogle" class="btnGhost wide"><span class="gDot">G</span> Google ile devam et</button>
+        <button id="btnGoogle" class="btnGhost wide">
+          <span class="g">G</span> Google ile devam et
+        </button>
 
         <div id="authError" class="errorBox hidden"></div>
       </div>
     </div>
   </div>
 
-  <!-- AI SETTINGS -->
+  <!-- AI SETTINGS (Gemini only) -->
   <div id="aiWrap" class="modalwrap hidden" role="dialog" aria-modal="true">
     <div class="modal">
       <div class="modalTop">
         <div class="brand mini">
           <div class="brandText">
             <div class="brandName">AI Ayarları</div>
-            <div class="brandSub">Gemini / OpenAI</div>
+            <div class="brandSub">Sadece Gemini (gemini-2.5-flash)</div>
           </div>
         </div>
         <button id="btnCloseAI" class="iconBtn" title="Kapat" aria-label="Kapat">
@@ -176,16 +188,7 @@
       </div>
 
       <div class="form">
-        <label class="lbl">Provider</label>
-        <select id="aiProvider" class="select">
-          <option value="gemini">Gemini</option>
-          <option value="openai">OpenAI</option>
-        </select>
-
-        <label class="lbl">Model</label>
-        <input id="aiModel" class="input" placeholder="gemini-2.5-flash" />
-
-        <label class="lbl">API Key</label>
+        <label class="lbl">API Key (Google AI Studio)</label>
         <input id="aiKey" class="input" placeholder="AI key..." />
 
         <label class="lbl">PIN</label>
@@ -199,6 +202,26 @@
         <button id="btnSaveAI" class="btnPrimary wide">Kaydet</button>
         <button id="btnClearAI" class="btnGhost wide">Sıfırla</button>
         <div id="aiMsg" class="smallNote"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHART MODAL -->
+  <div id="chartWrap" class="modalwrap hidden">
+    <div class="modal big">
+      <div class="modalTop">
+        <div class="brand mini">
+          <div class="brandText">
+            <div id="bigTitle" class="brandName">Fiyat Grafiği</div>
+            <div class="brandSub">Son kayıtlar</div>
+          </div>
+        </div>
+        <button id="btnCloseChart" class="iconBtn" title="Kapat">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z"/></svg>
+        </button>
+      </div>
+      <div class="pad">
+        <canvas id="bigCanvas" height="180"></canvas>
       </div>
     </div>
   </div>
