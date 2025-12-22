@@ -5,12 +5,12 @@ import { getMessaging } from "https://www.gstatic.com/firebasejs/10.12.5/firebas
 import { getFunctions } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBcXkVFQzB2XtxO7wqnbXhzM1Io54zCsBI",
+  authDomain: "fiyattakip-ttoxub.firebaseapp.com",
+  projectId: "fiyattakip-ttoxub",
+  storageBucket: "fiyattakip-ttoxub.firebasestorage.app",
+  messagingSenderId: "105868725844",
+  appId: "1:105868725844:web:fc04f5a08e708916e727c1"
 };
 
 export const app = initializeApp(firebaseConfig);
