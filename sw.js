@@ -1,4 +1,4 @@
-const CACHE_VERSION = "fiyattakip-v30";
+const CACHE = "fiyattakip-cache-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,47 +6,42 @@ const ASSETS = [
   "./app.js",
   "./ai.js",
   "./firebase.js",
-  "./sw.js",
-  "./firebase-messaging-sw.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil((async ()=>{
-    const cache = await caches.open(CACHE_VERSION);
-    await cache.addAll(ASSETS);
+self.addEventListener("install", (e)=>{
+  e.waitUntil((async ()=>{
+    const c = await caches.open(CACHE);
+    await c.addAll(ASSETS).catch(()=>{});
     self.skipWaiting();
   })());
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil((async ()=>{
+self.addEventListener("activate", (e)=>{
+  e.waitUntil((async ()=>{
     const keys = await caches.keys();
-    await Promise.all(keys.map(k => (k !== CACHE_VERSION) ? caches.delete(k) : Promise.resolve()));
+    await Promise.all(keys.map(k=> (k===CACHE?null:caches.delete(k))));
     self.clients.claim();
   })());
 });
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
+self.addEventListener("fetch", (e)=>{
+  const req = e.request;
   if (req.method !== "GET") return;
 
-  event.respondWith((async ()=>{
-    const cache = await caches.open(CACHE_VERSION);
-    const cached = await cache.match(req);
+  e.respondWith((async ()=>{
+    const cached = await caches.match(req);
     if (cached) return cached;
 
     try{
       const res = await fetch(req);
-      if (res && res.ok && (req.destination === "document" || req.destination === "script" || req.destination === "style" || req.destination === "image")) {
-        cache.put(req, res.clone());
-      }
+      const c = await caches.open(CACHE);
+      c.put(req, res.clone()).catch(()=>{});
       return res;
     }catch{
-      if (req.destination === "document") return cache.match("./index.html");
-      throw new Error("offline");
+      return cached || new Response("offline", { status:503 });
     }
   })());
 });
