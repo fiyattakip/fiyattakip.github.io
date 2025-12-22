@@ -1,12 +1,13 @@
-const CACHE_VERSION = "fiyattakip-v11";
+const CACHE_VERSION = "fiyattakip-v30";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./firebase.js",
   "./ai.js",
+  "./firebase.js",
   "./sw.js",
+  "./firebase-messaging-sw.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
@@ -30,13 +31,6 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  const url = new URL(req.url);
-
-  // Firebase / Google endpoints cacheleme
-  if (url.hostname.includes("googleapis.com") || url.hostname.includes("gstatic.com") || url.hostname.includes("firebaseapp.com")) {
-    return;
-  }
-
   if (req.method !== "GET") return;
 
   event.respondWith((async ()=>{
