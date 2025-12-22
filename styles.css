@@ -1,5 +1,3 @@
-/* SENİN styles.css DOSYASI — AYNEN KALSIN */
-/* ... (senin attığın CSS'in tamamını buraya koy) ... */
 :root{
   --bg1:#eef2ff;
   --bg2:#f7f9ff;
@@ -13,6 +11,9 @@
   --good:#e9f8f1;
   --goodInk:#146c43;
 
+  --warn:#fff6df;
+  --warnInk:#7a5b00;
+
   --danger:#fde8ef;
   --dangerInk:#8a1538;
 
@@ -24,7 +25,7 @@
 html,body{height:100%}
 body{
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
   color:var(--ink);
   background: radial-gradient(1200px 900px at 10% 10%, var(--bg1), transparent 55%),
               radial-gradient(1200px 900px at 90% 0%, #e9f2ff, transparent 50%),
@@ -48,7 +49,6 @@ body{
   backdrop-filter: blur(10px);
   border-bottom:1px solid var(--line);
 }
-
 .brand{
   display:flex; align-items:center; gap:10px;
   padding:10px 12px;
@@ -95,7 +95,6 @@ body{
   display:flex; flex-direction:column;
   gap:14px;
 }
-
 .card{
   background:rgba(255,255,255,.86);
   border:1px solid var(--line);
@@ -104,9 +103,21 @@ body{
   padding:16px;
 }
 
-.hero{display:flex; gap:16px; align-items:flex-start; justify-content:space-between}
-.hero h1{margin:0 0 8px;font-size:44px;line-height:1.0;letter-spacing:-.7px}
-.hero p{margin:0;color:var(--muted);font-size:15px;max-width:56ch}
+.hero{
+  display:flex; gap:16px; align-items:flex-start; justify-content:space-between;
+}
+.hero h1{
+  margin:0 0 8px;
+  font-size:44px;
+  line-height:1.0;
+  letter-spacing:-.7px;
+}
+.hero p{
+  margin:0;
+  color:var(--muted);
+  font-size:15px;
+  max-width:56ch;
+}
 .pill{
   display:inline-flex;
   align-items:center;
@@ -118,7 +129,11 @@ body{
   font-weight:800;
 }
 
-.sitePills{display:flex; flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.sitePills{
+  display:flex; flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:12px;
+}
 .sitePill{
   display:inline-flex; align-items:center; gap:10px;
   padding:10px 14px;
@@ -129,10 +144,16 @@ body{
   user-select:none;
   font-weight:800;
 }
-.dot{width:10px;height:10px;border-radius:999px;background:#2440ff;opacity:.35}
+.dot{
+  width:10px;height:10px;border-radius:999px;
+  background:#2440ff;
+  opacity:.35;
+}
 .sitePill.active .dot{opacity:1}
 
-.searchRow{display:flex; gap:12px; align-items:center}
+.searchRow{
+  display:flex; gap:12px; align-items:center;
+}
 .input{
   width:100%;
   height:52px;
@@ -165,24 +186,22 @@ body{
   cursor:pointer;
   font-weight:800;
 }
-
-.aiRow{
-  margin-top:10px;
+.subRow{
   display:flex;
-  flex-direction:column;
+  align-items:center;
+  justify-content:space-between;
   gap:10px;
-  padding:12px;
-  border-radius:18px;
-  border:1px dashed rgba(15,23,42,.14);
-  background:rgba(255,255,255,.70);
+  margin-top:12px;
 }
-.aiRow2{display:flex;gap:10px;flex-wrap:wrap}
-
-.subRow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
 .hint{color:var(--muted); font-size:13px}
 .subActions{display:flex;gap:10px;flex-wrap:wrap}
 
-.listBox{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.listBox{
+  margin-top:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
 .emptyBox{
   padding:16px;
   border-radius:18px;
@@ -202,10 +221,24 @@ body{
   background:rgba(255,255,255,.75);
 }
 .itemLeft{min-width:0}
-.siteName{font-weight:950;font-size:18px;letter-spacing:-.2px;margin-bottom:2px}
-.queryText{color:var(--muted);font-weight:700;font-size:14px}
-.itemRight{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-
+.siteName{
+  font-weight:950;
+  font-size:18px;
+  letter-spacing:-.2px;
+  margin-bottom:2px;
+}
+.queryText{
+  color:var(--muted);
+  font-weight:700;
+  font-size:14px;
+}
+.itemRight{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
 .btnOpen{
   height:44px;
   padding:0 16px;
@@ -225,16 +258,12 @@ body{
   color:#1e2a66;
   font-weight:900;
   cursor:pointer;
-  display:flex; align-items:center; gap:10px;
 }
-.btnFav .miniIco{width:18px;height:18px;fill:#1e2a66}
 .btnFav.on{
   border-color:rgba(210,27,95,.18);
   background: linear-gradient(180deg, #ffe7ef, #ffdde9);
   color:#7a0d31;
 }
-.btnFav.on .miniIco{fill:#7a0d31}
-
 .pricePill{
   height:44px;
   padding:0 14px;
@@ -243,14 +272,26 @@ body{
   background:rgba(255,255,255,.9);
   display:flex; align-items:center; gap:10px;
   font-weight:900;
+  color:#0b1220;
 }
 .pricePill span{color:var(--muted);font-weight:800}
 
-.favHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.favTitle{font-size:36px;font-weight:950;letter-spacing:-.6px;line-height:1.0}
+.favCard{padding:16px}
+.favHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.favTitle{
+  font-size:36px;
+  font-weight:950;
+  letter-spacing:-.6px;
+  line-height:1.0;
+}
 .favSub{margin-top:6px;color:var(--muted);font-weight:700}
 .favHeaderRight{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-
 .select{
   height:44px;
   border-radius:16px;
@@ -261,46 +302,62 @@ body{
 }
 
 .favList{margin-top:12px;display:flex;flex-direction:column;gap:12px}
-.favItem{border:1px dashed rgba(15,23,42,.16);background:rgba(255,255,255,.80);border-radius:22px;padding:14px}
-.favTop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.favName{font-weight:950;font-size:20px;letter-spacing:-.25px}
+.favItem{
+  border:1px dashed rgba(15,23,42,.16);
+  background:rgba(255,255,255,.80);
+  border-radius:22px;
+  padding:14px;
+}
+.favTop{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; flex-wrap:wrap;
+}
+.favName{
+  font-weight:950;
+  font-size:20px;
+  letter-spacing:-.25px;
+}
 .favMeta{color:var(--muted);font-weight:700;font-size:13px;margin-top:2px}
-.favPrice{padding:10px 12px;border-radius:16px;border:1px solid var(--line);background:rgba(241,245,255,.85);font-weight:950}
-
-.favBtns{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
-.btnCopy{
-  height:44px;padding:0 16px;border-radius:16px;border:1px solid var(--line);
-  background:rgba(255,255,255,.92);font-weight:900;cursor:pointer;
+.favPrice{
+  padding:10px 12px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:rgba(241,245,255,.85);
+  font-weight:950;
+}
+.favBtns{
+  margin-top:10px;
+  display:flex; gap:10px; flex-wrap:wrap;
+}
+.btnCopy,.btnAddPrice,.btnDelete{
+  height:44px;
+  padding:0 16px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.92);
+  font-weight:900;
+  cursor:pointer;
+}
+.btnAddPrice{
+  border:1px solid rgba(122,91,0,.16);
+  background:linear-gradient(180deg, var(--warn), #fff1c8);
+  color:var(--warnInk);
 }
 .btnDelete{
-  height:44px;padding:0 16px;border-radius:16px;border:1px solid rgba(138,21,56,.16);
+  border:1px solid rgba(138,21,56,.16);
   background:linear-gradient(180deg, var(--danger), #ffdbe7);
-  color:var(--dangerInk);font-weight:950;cursor:pointer;
-}
-
-.aiCommentBox{
-  margin-top:10px;padding:12px;border-radius:18px;border:1px dashed rgba(15,23,42,.14);
-  background:rgba(255,255,255,.72);
-}
-.aiCommentTop{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-.aiCommentText{color:var(--muted);font-weight:700;font-size:13px;margin-top:8px;white-space:pre-wrap}
-
-.chartBox{
-  margin-top:12px;padding:12px;border-radius:18px;border:1px dashed rgba(15,23,42,.14);
-  background:rgba(255,255,255,.72);
-}
-.chartHint{
-  color:var(--muted);font-weight:700;font-size:13px;padding:8px 10px;border-radius:14px;
-  border:1px dashed rgba(15,23,42,.14);background:rgba(255,255,255,.70);
-}
-.btnBig{
-  margin-top:10px;height:44px;width:100%;border-radius:16px;border:1px solid var(--line);
-  background:rgba(255,255,255,.9);font-weight:950;cursor:pointer;
+  color:var(--dangerInk);
 }
 
 .modalwrap{
-  position:fixed;inset:0;background:rgba(11,18,32,.80);
-  display:flex;align-items:center;justify-content:center;padding:18px;z-index:50;
+  position:fixed;
+  inset:0;
+  background:rgba(11,18,32,.80);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:50;
 }
 .modal{
   width:min(520px, 92vw);
@@ -310,7 +367,6 @@ body{
   box-shadow: 0 20px 60px rgba(0,0,0,.22);
   padding:16px;
 }
-.modal.big{width:min(760px, 94vw)}
 .modalTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 
 .seg{display:flex;gap:10px;margin:12px 0 14px}
@@ -327,10 +383,12 @@ body{
 .lbl{font-weight:900;margin-top:6px}
 .pwRow{display:flex;gap:10px;align-items:center}
 .errorBox{
-  padding:12px 14px;border-radius:18px;
+  padding:12px 14px;
+  border-radius:18px;
   background: linear-gradient(180deg, #ffd9e6, #ffe7ef);
   border:1px solid rgba(138,21,56,.18);
-  color:var(--dangerInk);font-weight:900;
+  color:var(--dangerInk);
+  font-weight:900;
 }
 .smallNote{color:var(--muted);font-size:12px;font-weight:700;margin-top:6px}
 .gDot{
@@ -345,50 +403,24 @@ body{
   font-weight:900;z-index:60;
 }
 
-.bigTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.bigTitle{font-weight:950;font-size:18px}
-.bigBody{padding:10px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.72)}
-
-.settingsGrid{
-  display:grid;grid-template-columns:repeat(2, minmax(0,1fr));
-  gap:12px;
+/* Tabs modern küçük */
+.tabsRow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tabBtn{
+  height:38px;padding:0 14px;border-radius:999px;
+  border:1px solid rgba(15,23,42,.12);
+  background:rgba(255,255,255,.82);
+  font-weight:900;cursor:pointer;font-size:13px
 }
-.settingsCard{
-  border:1px dashed rgba(15,23,42,.14);
-  background:rgba(255,255,255,.76);
-  border-radius:18px;
-  padding:12px;
+.tabBtn.active{
+  border-color: rgba(59,91,253,.28);
+  background: linear-gradient(180deg, #eef3ff, #e8efff);
+  color:#1f2a62;
 }
-.setTitle{font-weight:950}
-.setValue{margin-top:8px;font-weight:900}
-.setHint{margin-top:8px;font-size:12px}
+.tabPanel{margin-top:6px}
 
 @media (max-width:520px){
   .hero{flex-direction:column}
   .hero h1{font-size:40px}
   .btnPrimary{min-width:86px}
-  .settingsGrid{grid-template-columns:1fr}
+  .tabBtn{height:36px;padding:0 12px;font-size:12px}
 }
-
-
-/* EKLER (en alta ekle) */
-.seg.small .segBtn{height:44px}
-.fileBtn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  height:44px;
-  padding:0 14px;
-  border-radius:16px;
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.88);
-  font-weight:800;
-  cursor:pointer;
-}
-
-
-
-
-
-
-
