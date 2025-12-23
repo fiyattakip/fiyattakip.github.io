@@ -30,28 +30,11 @@ function toast(msg){
   toastTimer = setTimeout(()=> hide(t), 2200);
 }
 
-function esc(s) {
+function esc(s){
   if (s === null || s === undefined) return "";
-  return String(s).replace(/[&<>"']/g, m => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[m]));
-} 
+  return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+}[m])); }
 function encQ(s){ return encodeURIComponent((s||"").trim()); }
-
-function hashId(str){
-  // FNV-1a 32bit -> hex (Firestore doc id için güvenli)
-  let h = 0x811c9dc5;
-  for (let i=0; i<str.length; i++){
-    h ^= str.charCodeAt(i);
-    h = (h + (h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24)) >>> 0;
-  }
-  return ("fav_" + h.toString(16)).padEnd(12, "0");
-}
-
 
 function openUrl(url){
   window.open(url, "_blank", "noopener,noreferrer");
@@ -431,21 +414,7 @@ function userFavCol(){
 
 async function addFavorite({ title, siteId, siteName, query, url }){
   if (!currentUser) return toast("Giriş gerekli.");
-
-  // Aynı ürün/sorgu tekrar eklenmesin diye deterministik doc id
-  const keySrc = `${siteId}|${(url || "").trim()}|${(query || title || "").trim()}`;
-  const favId = hashId(keySrc);
-
-  const ref = doc(db, "users", currentUser.uid, "favorites", favId);
-  const existing = await getDoc(ref);
-  if (existing.exists()){
-    toast("Zaten favoride.");
-    return;
-  }
-
-  const nowMs = Date.now();
-  await setDoc(ref, {
-    uid: currentUser.uid,
+  await addDoc(userFavCol(), {
     title,
     siteId,
     siteName,
@@ -457,14 +426,31 @@ async function addFavorite({ title, siteId, siteName, query, url }){
     lastCheckedAt: null,
     error: null,
     priceHistory: [], // [{t: timestamp(ms), p: number}]
+
+    // AI yorum alanları
     aiComment: null,
-    createdAtMs: nowMs,
-    updatedAtMs: nowMs,
+    aiSummary: null,
+    aiPros: [],
+    aiCons: [],
+    aiRating: null,        // 0-10
+    aiWhoFor: null,        // kime uygun
+    aiAlternatives: [],    // alternatifler
+
+    // Bildirim ayarları
+    dropMode: "pct",       // "pct" | "tl" | "target"
+    dropThresholdPct: 10,  // %
+    dropThresholdTl: 0,    // TL
+    targetPrice: null,     // TL
+    notifyCooldownHours: 24,
+
+    // Bildirim tekrar kontrolü
+    lastNotifiedAtMs: 0,      // son bildirilen fiyat noktasının t değeri
+    lastNotifiedRealMs: 0,    // gerçek zaman (Date.now)
+    lastNotifiedPrice: null,
+
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-
-  toast("Favoriye eklendi.");
 }
 
 async function removeFavorite(docId){
@@ -576,8 +562,267 @@ function openGraph(fav){
 }
 $("closeGraph").addEventListener("click", ()=> hide($("graphModal")));
 
+$("closeAiComment").addEventListener("click", ()=> hide($("aiCommentModal")));
+
+/* Notifications (price drop) */
+async function ensureNotifPermission(){
+  if (!("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") return false;
+  try{
+    const p = await Notification.requestPermission();
+    return p === "granted";
+  }catch{
+    return false;
+  }
+}
+
+async function showLocalNotification(title, body, url){
+  const ok = await ensureNotifPermission();
+  if (!ok) return;
+  try{
+    const reg = await navigator.serviceWorker?.getRegistration?.();
+    if (reg?.showNotification){
+      await reg.showNotification(title, {
+        body,
+        icon: "./icon-192.png",
+        badge: "./icon-192.png",
+        data: { url }
+      });
+      return;
+    }
+  }catch{}
+  // fallback
+  try{ new Notification(title, { body }); }catch{}
+}
+
+/* AI Comment Modal */
+function setList(el, items){
+  el.innerHTML = "";
+  (items || []).slice(0, 8).forEach(x=>{
+    const li = document.createElement("li");
+    li.textContent = String(x);
+    el.appendChild(li);
+  });
+}
+
+function renderGraphOnCanvas(canvasEl, pts){
+  const rect = canvasEl.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvasEl.width = Math.floor(rect.width * dpr);
+  canvasEl.height = Math.floor(420 * dpr);
+  const ctx = canvasEl.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  drawGraph(canvasEl, pts);
+}
+
+function openAiCommentModal(fav){
+  $("aiCommentTitle").textContent = fav.title || fav.query || "AI Ürün Yorumu";
+  $("aiCommentMeta").textContent = `${fav.siteName || ""} • Son kontrol: ${fav.lastCheckedAt || "—"}`;
+
+  $("aiCommentSummary").textContent = fav.aiSummary || "—";
+  setList($("aiCommentPros"), fav.aiPros || []);
+  setList($("aiCommentCons"), fav.aiCons || []);
+
+  // Yeni alanlar
+  if ($("aiCommentRating")) $("aiCommentRating").textContent =
+    (fav.aiRating !== null && fav.aiRating !== undefined && fav.aiRating !== "") ? `${fav.aiRating}/10` : "—";
+  if ($("aiCommentWhoFor")) $("aiCommentWhoFor").textContent = fav.aiWhoFor || "—";
+  if ($("aiCommentAlts")) setList($("aiCommentAlts"), fav.aiAlternatives || []);
+
+  $("aiCommentFull").textContent = fav.aiComment || "—";
+
+  const ptsAll = (fav.priceHistory || [])
+    .map(x=>({ t: Number(x.t||0), p: Number(x.p||0) }))
+    .filter(x=>Number.isFinite(x.t) && Number.isFinite(x.p) && x.t>0)
+    .sort((a,b)=>a.t-b.t);
+
+  const nowT = Date.now();
+  const c = $("aiGraphCanvas");
+
+  function filterPts(ms){
+    if (!ms) return ptsAll;
+    const start = nowT - ms;
+    return ptsAll.filter(p=>p.t >= start);
+  }
+
+  function setRange(ms){
+    fav._aiGraphRangeMs = ms;
+    const pts = filterPts(ms);
+
+    $("aiGraphHint").textContent = pts.length ? `Nokta: ${pts.length}` : "Bu aralıkta veri yok.";
+    const minP = pts.length ? Math.min(...pts.map(x=>x.p)) : null;
+    if ($("aiMinInfo")) $("aiMinInfo").textContent =
+      (minP!==null && Number.isFinite(minP)) ? `Min: ${minP.toLocaleString("tr-TR")} TL` : "Min: —";
+
+    // render after visible for correct size
+    setTimeout(()=> renderGraphOnCanvas(c, pts), 0);
+
+    // active btn
+    const btns = [
+      ["aiRange7", 7*24*3600*1000],
+      ["aiRange30", 30*24*3600*1000],
+      ["aiRange180", 180*24*3600*1000],
+      ["aiRangeAll", 0],
+    ];
+    btns.forEach(([id,val])=>{
+      const b = $(id);
+      if (!b) return;
+      b.classList.toggle("primary", val===ms);
+    });
+  }
+
+  // bind buttons
+  if ($("aiRange7")) $("aiRange7").onclick = ()=> setRange(7*24*3600*1000);
+  if ($("aiRange30")) $("aiRange30").onclick = ()=> setRange(30*24*3600*1000);
+  if ($("aiRange180")) $("aiRange180").onclick = ()=> setRange(180*24*3600*1000);
+  if ($("aiRangeAll")) $("aiRangeAll").onclick = ()=> setRange(0);
+
+  show($("aiCommentModal"));
+
+  const mode = fav.dropMode || "pct";
+  const thPct = Number.isFinite(Number(fav.dropThresholdPct)) ? Number(fav.dropThresholdPct) : 10;
+  const thTl = Number.isFinite(Number(fav.dropThresholdTl)) ? Number(fav.dropThresholdTl) : 0;
+  const target = Number.isFinite(Number(fav.targetPrice)) ? Number(fav.targetPrice) : null;
+  const cooldown = Number.isFinite(Number(fav.notifyCooldownHours)) ? Number(fav.notifyCooldownHours) : 24;
+
+  let thText = "";
+  if (mode==="pct") thText = `%${thPct}`;
+  else if (mode==="tl") thText = `${thTl.toLocaleString("tr-TR")} TL`;
+  else thText = (target!==null) ? `≤ ${target.toLocaleString("tr-TR")} TL` : "—";
+
+  $("aiThresholdInfo").innerHTML = `Bildirim: <b>${mode==="pct"?"% düşüş":(mode==="tl"?"TL düşüş":"Hedef fiyat")}</b> • Eşik: <b>${thText}</b> • Cooldown: <b>${cooldown}s</b>`;
+
+  // initial range: default 6 ay
+  setRange(fav._aiGraphRangeMs ?? (180*24*3600*1000));
+}
+
+async function genAiReview(fav){
+  const title = fav.title || fav.query || "";
+  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
+  const site = fav.siteName || "";
+  const prompt =
+`Ürün: ${title}
+Site: ${site}
+Fiyat: ${price}
+
+Türkçe yanıt ver ve SADECE JSON döndür:
+{
+  "summary": "1-2 cümle özet",
+  "pros": ["en fazla 3 madde"],
+  "cons": ["en fazla 3 madde"],
+  "rating": 0-10 arası sayı (tahmini, emin değilsen null),
+  "whoFor": "kime uygun? 1-2 cümle",
+  "alternatives": ["en fazla 3 alternatif (genel tip olabilir)"],
+  "full": "4-6 cümle detaylı yorum"
+}
+
+Not: Bilmediğin noktada uydurma yapma, null / 'Bilinmiyor' de.`;
+
+  const raw = await geminiText(prompt);
+  // JSON parse safe
+  const txt = raw.trim();
+  let j = null;
+  try{
+    j = JSON.parse(txt);
+  }catch{
+    // JSON dışında geldiyse toparla
+    j = { summary: txt.split("
+")[0].slice(0,180), pros: [], cons: [], full: txt, rating: null, whoFor: null, alternatives: [] };
+  }
+  const summary = String(j.summary || "").trim() || (String(j.full||"").split(".")[0] + ".");
+  const pros = Array.isArray(j.pros) ? j.pros.map(x=>String(x)).filter(Boolean).slice(0,3) : [];
+  const cons = Array.isArray(j.cons) ? j.cons.map(x=>String(x)).filter(Boolean).slice(0,3) : [];
+  const rating = (j.rating===null || j.rating===undefined || j.rating==="") ? null : Number(j.rating);
+  const whoFor = (j.whoFor===null || j.whoFor===undefined) ? null : String(j.whoFor).trim();
+  const alternatives = Array.isArray(j.alternatives) ? j.alternatives.map(x=>String(x)).filter(Boolean).slice(0,3) : [];
+  const full = String(j.full || "").trim() || String(raw || "").trim();
+  return { summary, pros, cons, full, rating: Number.isFinite(rating) ? Math.max(0, Math.min(10, rating)) : null, whoFor, alternatives };
+}
+
+
 /* Render favorites */
 let favCache = [];
+
+// Price-drop notification guard (avoid repeat)
+const _seenPricePoint = new Map(); // favId -> lastPointT
+
+async function checkDropAlerts(list){
+  if (!currentUser) return;
+  if (!Array.isArray(list)) return;
+  for (const f of list){
+    const pts = Array.isArray(f.priceHistory) ? f.priceHistory : [];
+    if (pts.length < 2) continue;
+    const a = pts[pts.length - 1];
+    const b = pts[pts.length - 2];
+    const lastT = Number(a?.t || 0);
+    const lastP = Number(a?.p);
+    const prevP = Number(b?.p);
+    if (!Number.isFinite(lastT) || lastT<=0) continue;
+    if (!Number.isFinite(lastP) || !Number.isFinite(prevP) || prevP<=0) continue;
+
+    // if we already processed this point in this session
+    if (_seenPricePoint.get(f.id) === lastT) continue;
+    _seenPricePoint.set(f.id, lastT);
+
+    const mode = f.dropMode || "pct";
+    const thPct = Number.isFinite(Number(f.dropThresholdPct)) ? Number(f.dropThresholdPct) : 10;
+    const thTl  = Number.isFinite(Number(f.dropThresholdTl)) ? Number(f.dropThresholdTl) : 0;
+    const target = Number.isFinite(Number(f.targetPrice)) ? Number(f.targetPrice) : null;
+    const cooldownH = Number.isFinite(Number(f.notifyCooldownHours)) ? Number(f.notifyCooldownHours) : 24;
+
+    const dropPct = ((prevP - lastP) / prevP) * 100;
+    const dropTl  = (prevP - lastP);
+
+    // Aynı fiyat noktası için tekrar bildirim atma
+    if (Number(f.lastNotifiedAtMs || 0) === lastT) continue;
+
+    // Cooldown: son bildirimden sonra belirli süre geçmeden atma
+    const lastReal = Number(f.lastNotifiedRealMs || 0);
+    const cooldownMs = Math.max(0, cooldownH) * 3600 * 1000;
+    if (cooldownMs > 0 && lastReal > 0 && (Date.now() - lastReal) < cooldownMs) continue;
+
+    let shouldNotify = false;
+    let reason = "";
+
+    if (mode === "pct"){
+      if (dropPct >= thPct){
+        shouldNotify = true;
+        reason = `−%${dropPct.toFixed(1)}`;
+      }
+    }else if (mode === "tl"){
+      if (dropTl >= thTl){
+        shouldNotify = true;
+        reason = `−${dropTl.toLocaleString("tr-TR")} TL`;
+      }
+    }else{
+      // target price
+      if (target !== null && Number.isFinite(target) && lastP <= target){
+        // sadece hedefi ilk kez kırınca (prev > target)
+        if (prevP > target){
+          shouldNotify = true;
+          reason = `Hedef altı`;
+        }
+      }
+    }
+
+    if (shouldNotify){
+      const title = `Fiyat düştü: ${f.title || f.query || "Ürün"}`;
+      const body = `${prevP.toLocaleString("tr-TR")} → ${lastP.toLocaleString("tr-TR")} TL  (${reason})`;
+      await showLocalNotification(title, body, f.url || "./");
+      try{
+        const ref = doc(db, "users", currentUser.uid, "favorites", f.id);
+        await updateDoc(ref, {
+          lastNotifiedAtMs: lastT,
+          lastNotifiedPrice: lastP,
+          lastNotifiedRealMs: Date.now(),
+          updatedAt: serverTimestamp()
+        });
+      }catch{}
+    }
+  }
+}
+
 
 function renderFavorites(){
   const mode = $("favSort").value;
@@ -592,7 +837,40 @@ function renderFavorites(){
     const errBadge = f.error ? `<span class="badgeErr">Hata: ${esc(f.error)}</span>` : `<span class="badgeOk">OK</span>`;
     const price = formatPrice(f.lastPrice);
     const meta = `${esc(f.siteName || "")} • Son kontrol: ${esc(f.lastCheckedAt || "—")}`;
-    const ai = f.aiComment ? `<div class="aiBubble">${esc(f.aiComment)}<small>Güncellendi: ${esc(f.aiCommentAt || "—")}</small></div>` : "";
+    const ai = f.aiComment ? `<div class="aiBubble">
+      <div style="font-weight:950;margin-bottom:4px">AI Yorum</div>
+      <div>${esc(f.aiSummary || (f.aiComment||"").slice(0,140))}</div>
+      <div class="smallNote" style="margin-top:6px;display:flex;gap:10px;align-items:center">
+        <span>Güncellendi: ${esc(f.aiCommentAt || "—")}</span>
+        <button class="pill" style="padding:6px 10px" data-aiview="${esc(f.id)}">Devamını gör</button>
+      </div>
+    </div>` : "";
+
+    const mode = f.dropMode || "pct";
+    const thPct = Number.isFinite(Number(f.dropThresholdPct)) ? Number(f.dropThresholdPct) : 10;
+    const thTl = Number.isFinite(Number(f.dropThresholdTl)) ? Number(f.dropThresholdTl) : 0;
+    const target = (f.targetPrice===null || f.targetPrice===undefined) ? "" : String(f.targetPrice);
+    const cooldown = Number.isFinite(Number(f.notifyCooldownHours)) ? Number(f.notifyCooldownHours) : 24;
+
+    const thRow = `
+      <div class="thRow">
+        <span class="smallNote" style="font-weight:900">Bildirim</span>
+
+        <select data-thmode="${esc(f.id)}">
+          <option value="pct" ${mode==="pct"?"selected":""}>% düşüş</option>
+          <option value="tl" ${mode==="tl"?"selected":""}>TL düşüş</option>
+          <option value="target" ${mode==="target"?"selected":""}>Hedef fiyat</option>
+        </select>
+
+        <input type="number" min="0" step="1" value="${mode==="pct"?thPct:(mode==="tl"?thTl:target)}" data-thval="${esc(f.id)}" />
+
+        <span class="smallNote">Cooldown (s)</span>
+        <input type="number" min="0" step="1" value="${cooldown}" data-thcool="${esc(f.id)}" />
+
+        <button class="btnMini primary" data-thsave="${esc(f.id)}">Kaydet</button>
+      </div>
+    `;
+
     return `
       <div class="favItem" data-id="${esc(f.id)}">
         <div class="favTop">
@@ -604,6 +882,8 @@ function renderFavorites(){
         </div>
 
         ${ai}
+
+        ${thRow}
 
         <div class="favBtns">
           <button class="btnOpen" data-openfav="${esc(f.id)}">Siteyi Aç</button>
@@ -660,11 +940,75 @@ function renderFavorites(){
     b.addEventListener("click", async ()=>{
       const id = b.getAttribute("data-aicom");
       const f = favCache.find(x=>x.id===id);
+      if (!f) return;
       try{
-        const t = await genAiComment(f);
+        // varsa direkt aç
+        if (f.aiComment){
+          openAiCommentModal(f);
+          return;
+        }
+        const r = await genAiReview(f);
         const ref = doc(db, "users", currentUser.uid, "favorites", id);
-        await updateDoc(ref, { aiComment: t, aiCommentAt: nowIso(), updatedAt: serverTimestamp() });
-        toast("AI yorum eklendi.");
+        await updateDoc(ref, {
+          aiComment: r.full,
+          aiSummary: r.summary,
+          aiPros: r.pros,
+          aiCons: r.cons,
+          aiRating: r.rating,
+          aiWhoFor: r.whoFor,
+          aiAlternatives: r.alternatives,
+          aiCommentAt: nowIso(),
+          updatedAt: serverTimestamp()
+        });
+        // cache güncellensin diye beklemeden modal açalım
+        openAiCommentModal({ ...f, aiComment: r.full, aiSummary: r.summary, aiPros: r.pros, aiCons: r.cons, aiRating: r.rating, aiWhoFor: r.whoFor, aiAlternatives: r.alternatives });
+        toast("AI yorum hazır.");
+      }catch(e){
+        toast(e?.message || String(e));
+      }
+    });
+  });
+
+  $("favList").querySelectorAll("[data-aiview]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const id = b.getAttribute("data-aiview");
+      const f = favCache.find(x=>x.id===id);
+      if (f) openAiCommentModal(f);
+    });
+  });
+
+  $("favList").querySelectorAll("[data-thsave]").forEach(b=>{
+    b.addEventListener("click", async ()=>{
+      const id = b.getAttribute("data-thsave");
+
+      const modeEl = $("favList").querySelector(`[data-thmode="${CSS.escape(id)}"]`);
+      const valEl  = $("favList").querySelector(`[data-thval="${CSS.escape(id)}"]`);
+      const coolEl = $("favList").querySelector(`[data-thcool="${CSS.escape(id)}"]`);
+
+      const mode = (modeEl?.value || "pct");
+      const rawVal = Number(valEl?.value);
+      const rawCool = Number(coolEl?.value);
+
+      const payload = { dropMode: mode, updatedAt: serverTimestamp() };
+
+      if (mode === "pct"){
+        const th = Number.isFinite(rawVal) ? Math.min(90, Math.max(1, rawVal)) : 10;
+        payload.dropThresholdPct = th;
+      }else if (mode === "tl"){
+        const th = Number.isFinite(rawVal) ? Math.max(0, rawVal) : 0;
+        payload.dropThresholdTl = th;
+      }else{
+        // target
+        const t = Number.isFinite(rawVal) ? Math.max(0, rawVal) : null;
+        payload.targetPrice = t;
+      }
+
+      payload.notifyCooldownHours = Number.isFinite(rawCool) ? Math.max(0, rawCool) : 24;
+
+      try{
+        const ref = doc(db, "users", currentUser.uid, "favorites", id);
+        await updateDoc(ref, payload);
+        toast("Bildirim ayarı kaydedildi.");
       }catch(e){
         toast(e?.message || String(e));
       }
@@ -701,7 +1045,7 @@ onAuthStateChanged(auth, async (u)=>{
   $("logoutBtn").style.display = "";
 
   // listen favorites
-  const qFav = query(userFavCol());
+  const qFav = query(userFavCol(), orderBy("createdAt","desc"));
   unsubFav = onSnapshot(qFav, (snap)=>{
     const list = [];
     snap.forEach(d=>{
@@ -709,11 +1053,11 @@ onAuthStateChanged(auth, async (u)=>{
       list.push({
         id: d.id,
         ...data,
-        _created: (typeof data?.createdAtMs === "number" ? data.createdAtMs : (data?.createdAt?.toMillis ? data.createdAt.toMillis() : 0))
+        _created: data?.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
       });
     });
-    list.sort((a,b)=>(b._created||0)-(a._created||0));
     favCache = list;
     renderFavorites();
+    checkDropAlerts(list);
   });
 });
