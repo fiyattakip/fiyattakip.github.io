@@ -30,7 +30,16 @@ function toast(msg){
   toastTimer = setTimeout(()=> hide(t), 2200);
 }
 
-function esc(s){ const MAP={ "&":"&#38;","<":"&#60;",">":"&#62;",'"':"&#34;","'":"&#39;" }; return (s||"").replace(/[&<>"']/g, m => MAP[m]); }
+function esc(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, m => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[m]));
+} 
 function encQ(s){ return encodeURIComponent((s||"").trim()); }
 
 function hashId(str){
