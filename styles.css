@@ -30,10 +30,12 @@ body{
               linear-gradient(180deg, var(--bg2), #ffffff 70%);
 }
 
+/* Utilities */
 .hidden{display:none !important}
 .wide{width:100%}
 .heart{color:#d21b5f}
 
+/* Topbar */
 .topbar{
   position:sticky; top:0;
   z-index:5;
@@ -75,7 +77,6 @@ body{
 }
 .iconBtn.sm{height:40px;width:40px;border-radius:14px}
 .ico{width:22px;height:22px;fill:#334155}
-.ico.sm{width:18px;height:18px}
 
 .btnDanger{
   height:44px;
@@ -88,6 +89,7 @@ body{
   cursor:pointer;
 }
 
+/* Layout */
 .container{
   width:min(980px, 92vw);
   margin:16px auto 42px;
@@ -103,47 +105,30 @@ body{
   padding:16px;
 }
 
-.modeTabs{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
+/* Tabs */
+.tabsCard{padding:12px}
+.tabs{
+  display:flex; gap:10px; flex-wrap:wrap;
 }
-.modeBtn{
-  height:42px;
-  padding:0 12px;
-  border-radius:14px;
+.tabBtn{
+  display:flex; align-items:center; gap:10px;
+  height:46px;
+  padding:0 14px;
+  border-radius:16px;
   border:1px solid var(--line);
-  background:rgba(255,255,255,.88);
+  background:rgba(255,255,255,.92);
+  font-weight:950;
   cursor:pointer;
-  font-weight:900;
-  display:flex;
-  gap:8px;
-  align-items:center;
 }
-.modeBtn.active{
+.tabBtn.active{
   background: linear-gradient(180deg, #eef3ff, #e8efff);
   border-color: rgba(59,91,253,.22);
   color:#1f2a62;
 }
-.modeBtn.right{margin-left:auto}
-.modeIco{display:inline-grid;place-items:center}
+.tabIco{width:18px;height:18px;fill:#334155}
 
-.sitePills{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px}
-.sitePill{
-  display:inline-flex; align-items:center; gap:10px;
-  padding:10px 14px;
-  border-radius:999px;
-  border:1px solid var(--line);
-  background:linear-gradient(180deg, #f5f7ff, #eef2ff);
-  cursor:pointer;
-  user-select:none;
-  font-weight:800;
-}
-.dot{width:10px;height:10px;border-radius:999px;background:#2440ff;opacity:.35}
-.sitePill.active .dot{opacity:1}
-
-.searchRow,.aiRow,.visionRow{display:flex; gap:12px; align-items:center}
+/* Inputs & buttons */
+.searchRow{display:flex; gap:12px; align-items:center}
 .input{
   width:100%;
   height:52px;
@@ -155,8 +140,6 @@ body{
   font-size:16px;
 }
 .input:focus{border-color:rgba(59,91,253,.45); box-shadow:0 0 0 6px rgba(59,91,253,.10)}
-.file{width:100%}
-
 .btnPrimary{
   height:52px;
   padding:0 18px;
@@ -180,30 +163,38 @@ body{
 }
 
 .subRow{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-top:12px;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; margin-top:12px;
 }
 .hint{color:var(--muted); font-size:13px}
 .subActions{display:flex;gap:10px;flex-wrap:wrap}
 
-.listBox{margin-top:12px; display:flex; flex-direction:column; gap:10px}
+/* Site pills */
+.sitePills{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px}
+.sitePill{
+  display:inline-flex; align-items:center; gap:10px;
+  padding:10px 14px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, #f5f7ff, #eef2ff);
+  cursor:pointer;
+  user-select:none;
+  font-weight:800;
+}
+.dot{width:10px;height:10px;border-radius:999px;background:#2440ff;opacity:.35}
+.sitePill.active .dot{opacity:1}
+
+/* Lists */
+.listBox{margin-top:12px;display:flex;flex-direction:column;gap:10px}
 .emptyBox{
-  padding:16px;
-  border-radius:18px;
+  padding:16px;border-radius:18px;
   border:1px dashed rgba(15,23,42,.18);
   color:rgba(100,116,139,.9);
   background:rgba(255,255,255,.55);
 }
-
 .item{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding:14px;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; padding:14px;
   border-radius:20px;
   border:1px dashed rgba(15,23,42,.16);
   background:rgba(255,255,255,.75);
@@ -211,8 +202,7 @@ body{
 .itemLeft{min-width:0}
 .siteName{font-weight:950;font-size:18px;letter-spacing:-.2px;margin-bottom:2px}
 .queryText{color:var(--muted);font-weight:700;font-size:14px}
-
-.itemRight{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end}
+.itemRight{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 .btnOpen{
   height:44px;padding:0 16px;border-radius:16px;
   border:1px solid rgba(20,108,67,.18);
@@ -224,61 +214,62 @@ body{
   border:1px solid rgba(59,91,253,.18);
   background: linear-gradient(180deg, #eef3ff, #e8efff);
   color:#1e2a66;font-weight:900;cursor:pointer;
-  display:flex; align-items:center; gap:10px;
 }
-.btnFav .miniIco{width:18px;height:18px;fill:#1e2a66}
-.btnFav.on{
-  border-color:rgba(210,27,95,.18);
-  background: linear-gradient(180deg, #ffe7ef, #ffdde9);
-  color:#7a0d31;
-}
-.btnFav.on .miniIco{fill:#7a0d31}
-
-.pricePill{
-  height:44px;
-  padding:0 14px;
-  border-radius:16px;
+.badge{
+  height:26px; display:inline-flex; align-items:center;
+  padding:0 10px; border-radius:999px;
   border:1px solid var(--line);
   background:rgba(255,255,255,.9);
-  display:flex; align-items:center; gap:10px;
-  font-weight:900;
+  font-weight:900; font-size:12px;
   color:#0b1220;
 }
-.pricePill span{color:var(--muted);font-weight:800}
 
+/* AI panels */
+.aiHead{margin-bottom:10px}
+.aiTitle{font-weight:950;font-size:20px}
+.aiSub{color:var(--muted);font-weight:700;font-size:13px;margin-top:4px}
+
+.visionRow{display:flex; gap:12px; align-items:center}
+.file{
+  width:100%;
+  border:1px dashed rgba(15,23,42,.20);
+  border-radius:18px;
+  padding:12px;
+  background:rgba(255,255,255,.75);
+}
+
+/* Favorites */
 .favCard{padding:16px}
-.favHeader{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap}
-.favTitle{font-size:36px;font-weight:950;letter-spacing:-.6px;line-height:1.0}
+.favHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.favTitle{font-size:34px;font-weight:950;letter-spacing:-.6px;line-height:1.0}
 .favSub{margin-top:6px;color:var(--muted);font-weight:700}
 .favHeaderRight{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .select{
   height:44px;border-radius:16px;border:1px solid var(--line);
   background:rgba(255,255,255,.88);padding:0 12px;font-weight:900;
 }
-
 .favList{margin-top:12px;display:flex;flex-direction:column;gap:12px}
-.favItem{border:1px dashed rgba(15,23,42,.16);background:rgba(255,255,255,.80);border-radius:22px;padding:14px}
-.favTop{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
-.favName{font-weight:950;font-size:20px;letter-spacing:-.25px;}
+.favItem{
+  border:1px dashed rgba(15,23,42,.16);
+  background:rgba(255,255,255,.80);
+  border-radius:22px;
+  padding:14px;
+}
+.favTop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.favName{font-weight:950;font-size:20px;letter-spacing:-.25px}
 .favMeta{color:var(--muted);font-weight:700;font-size:13px;margin-top:2px}
 .favPrice{
   padding:10px 12px;border-radius:16px;border:1px solid var(--line);
-  background:rgba(241,245,255,.85);
-  font-weight:950;
+  background:rgba(241,245,255,.85);font-weight:950;
 }
 .favBtns{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
-.btnCopy,.btnAction{
-  height:44px;padding:0 16px;border-radius:16px;border:1px solid var(--line);
-  background:rgba(255,255,255,.92);font-weight:900;cursor:pointer;
-}
-.btnWarn{
+.btnDelete{
   height:44px;padding:0 16px;border-radius:16px;
-  border:1px solid rgba(122,91,0,.16);
-  background:linear-gradient(180deg, var(--warn), #fff1c8);
-  color:var(--warnInk);
-  font-weight:950;
-  cursor:pointer;
+  border:1px solid rgba(138,21,56,.16);
+  background:linear-gradient(180deg, var(--danger), #ffdbe7);
+  color:var(--dangerInk);font-weight:950;cursor:pointer;
 }
+
 .chartBox{
   margin-top:12px;
   padding:12px;
@@ -296,22 +287,18 @@ body{
   background:rgba(255,255,255,.70);
 }
 .btnBig{
-  margin-top:10px;
-  height:44px;
-  width:100%;
-  border-radius:16px;
-  border:1px solid var(--line);
+  margin-top:10px;height:44px;width:100%;
+  border-radius:16px;border:1px solid var(--line);
   background:rgba(255,255,255,.9);
-  font-weight:950;
-  cursor:pointer;
+  font-weight:950;cursor:pointer;
 }
 
+/* Modals */
 .modalwrap{
   position:fixed; inset:0;
   background:rgba(11,18,32,.80);
   display:flex; align-items:center; justify-content:center;
-  padding:18px;
-  z-index:50;
+  padding:18px; z-index:50;
 }
 .modal{
   width:min(520px, 92vw);
@@ -326,14 +313,17 @@ body{
 
 .seg{display:flex;gap:10px;margin:12px 0 14px}
 .segBtn{
-  flex:1;height:46px;border-radius:18px;border:1px solid var(--line);
-  background:rgba(255,255,255,.92);font-weight:950;cursor:pointer;
+  flex:1;height:46px;border-radius:18px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.92);
+  font-weight:950;cursor:pointer;
 }
 .segBtn.active{
   background: linear-gradient(180deg, #eef3ff, #e8efff);
   border-color: rgba(59,91,253,.22);
   color:#1f2a62;
 }
+
 .form{display:flex;flex-direction:column;gap:10px}
 .lbl{font-weight:900;margin-top:6px}
 .pwRow{display:flex;gap:10px;align-items:center}
@@ -341,17 +331,17 @@ body{
   padding:12px 14px;border-radius:18px;
   background: linear-gradient(180deg, #ffd9e6, #ffe7ef);
   border:1px solid rgba(138,21,56,.18);
-  color:var(--dangerInk);
-  font-weight:900;
+  color:var(--dangerInk);font-weight:900;
 }
 .smallNote{color:var(--muted);font-size:12px;font-weight:700;margin-top:6px}
 .gDot{
   width:24px;height:24px;border-radius:999px;
-  display:inline-grid;place-items:center;font-weight:950;
-  background:#fff;border:1px solid var(--line);
+  display:inline-grid;place-items:center;
+  font-weight:950;background:#fff;border:1px solid var(--line);
 }
-.chk{display:flex;gap:10px;align-items:center;color:var(--muted);font-weight:800}
+.checkRow{display:flex;gap:10px;align-items:center;color:var(--muted);font-weight:800;font-size:13px}
 
+/* Toast */
 .toast{
   position:fixed;
   bottom:18px;
@@ -366,11 +356,11 @@ body{
   z-index:60;
 }
 
+/* Big chart */
 .bigTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .bigTitle{font-weight:950;font-size:18px}
 .bigBody{padding:10px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.72)}
 
 @media (max-width:520px){
   .btnPrimary{min-width:86px}
-  .modeBtn.right{margin-left:0}
 }
