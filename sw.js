@@ -1,4 +1,4 @@
-const CACHE = "fiyattakip-cache-v5";
+const CACHE = "fiyattakip-cache-v5-plus2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -38,5 +38,23 @@ self.addEventListener("fetch", (e)=>{
     }catch{
       return cached || new Response("Offline", { status: 503 });
     }
+  })());
+});
+
+
+// Notification click -> open url
+self.addEventListener("notificationclick", (event)=>{
+  event.notification.close();
+  const url = event.notification?.data?.url || "./";
+  event.waitUntil((async ()=>{
+    const allClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of allClients){
+      if (c.url && c.url.includes(self.location.origin)){
+        c.focus();
+        c.navigate(url);
+        return;
+      }
+    }
+    await clients.openWindow(url);
   })());
 });
