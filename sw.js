@@ -1,47 +1,42 @@
-const CACHE = "fiyattakip-cache-v1";
+const CACHE = "fiyattakip-cache-v4";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./firebase.js",
-  "./firebase-config.js",
   "./ai.js",
+  "./firebase.js",
   "./manifest.json",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 self.addEventListener("install", (e)=>{
-  e.waitUntil((async()=>{
-    const c = await caches.open(CACHE);
-    await c.addAll(ASSETS);
-    self.skipWaiting();
-  })());
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e)=>{
-  e.waitUntil((async()=>{
+  e.waitUntil((async ()=>{
     const keys = await caches.keys();
-    await Promise.all(keys.map(k=> k===CACHE ? null : caches.delete(k)));
-    self.clients.claim();
+    await Promise.all(keys.map(k => (k===CACHE ? null : caches.delete(k))));
+    await self.clients.claim();
   })());
 });
 
 self.addEventListener("fetch", (e)=>{
   const req = e.request;
-  if(req.method !== "GET") return;
+  if (req.method !== "GET") return;
 
-  e.respondWith((async()=>{
-    const cached = await caches.match(req);
-    if(cached) return cached;
+  e.respondWith((async ()=>{
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match(req);
+    if (cached) return cached;
     try{
-      const res = await fetch(req);
-      const c = await caches.open(CACHE);
-      c.put(req, res.clone()).catch(()=>{});
-      return res;
+      const fresh = await fetch(req);
+      if (fresh && fresh.ok && fresh.type !== "opaque") cache.put(req, fresh.clone());
+      return fresh;
     }catch{
-      return cached || Response.error();
+      return cached || new Response("Offline", { status: 503 });
     }
   })());
 });
