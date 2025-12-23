@@ -1,4 +1,4 @@
-const CACHE = "fiyattakip-cache-v5";
+const CACHE = "fiyattakip-cache-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -40,3 +40,5 @@ self.addEventListener("fetch", (e)=>{
     }
   })());
 });
+
+// cache bump v9
