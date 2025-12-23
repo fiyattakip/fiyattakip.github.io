@@ -114,20 +114,19 @@ function renderSiteList(targetEl, queryText, extra = {}){
       const site = SITES.find(x=>x.id===id);
       const q = (extra?.hintMap?.[id] || queryText || "").trim();
       try{
-        const res = await addFavorite({
+        const id = await addFavorite({
           title: q || "(boş)",
           siteId: site.id,
           siteName: site.name,
           query: q,
           url: site.build(q),
         });
-        if (!res?.skipped) toast("Favoriye eklendi.");
-      }catch{
-        // addFavorite zaten toast bastı
+        toast("Favoriye eklendi.");
+      }catch(e){
+        toast(e?.message || String(e));
       }
     });
   });
-
 }
 
 /* ---------- Tabs ---------- */
@@ -410,36 +409,42 @@ Eğer ürün belirsizse "UNKNOWN" yaz.`;
 });
 
 /* ---------- Favorites ---------- */
+function favDocId(siteId, query){
+  // deterministic id to prevent duplicates without extra reads
+  const s = `${siteId}|${(query||"").trim().toLowerCase()}`;
+  // simple FNV-1a 32-bit
+  let h = 2166136261;
+  for (let i=0;i<s.length;i++){
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `${siteId}_${(h>>>0).toString(16)}`;
+}
+
+
 function userFavCol(){
   return collection(db, "users", currentUser.uid, "favorites");
 }
 
 async function addFavorite({ title, siteId, siteName, query, url }){
-  if (!currentUser){
-    toast("Favori eklemek için giriş yapmalısın.");
-    openLogin();
-    throw new Error("not-auth");
-  }
+  if (!currentUser) throw new Error("Giriş gerekli.");
 
-  // Aynı site + aynı arama tekrar eklenmesin
-  const qNorm = (query || "").trim().toLowerCase();
-  const exists = (favCache || []).some(f =>
-    String(f.siteId || "").toLowerCase() === String(siteId || "").toLowerCase() &&
-    String((f.query || "")).trim().toLowerCase() === qNorm
-  );
-  if (exists){
-    toast("Zaten favorilerde.");
-    return { skipped: true };
-  }
+  const q = (query || "").trim();
+  if (!q) throw new Error("Arama boş olamaz.");
+
+  const id = favDocId(siteId, q);
+  const ref = doc(db, "users", currentUser.uid, "favorites", id);
 
   const now = Date.now();
   const payload = {
-    uid: currentUser.uid,
-    title,
+    title: title || q,
     siteId,
     siteName,
-    query,
+    query: q,
     url,
+
+    uid: currentUser.uid,
+
     // Worker burayı güncelleyebilir:
     lastPrice: null,
     currency: "TRY",
@@ -447,35 +452,18 @@ async function addFavorite({ title, siteId, siteName, query, url }){
     error: null,
     priceHistory: [], // [{t: timestamp(ms), p: number}]
     aiComment: null,
-    createdAt: now,
-    updatedAt: now,
+
+    createdAtMs: now,
+    updatedAtMs: now,
   };
 
-  try{
-    const ref = await addDoc(userFavCol(), payload);
-
-    // Optimistic UI: liste hemen görünsün (SW/cache, offline vb. durumlarda)
-    try{
-      const item = { id: ref.id, ...payload, _created: payload.createdAt };
-      favCache = [item, ...(favCache || [])];
-      renderFavorites();
-      saveFavFallback();
-    }catch{}
-
-    return { id: ref.id };
-  }catch(e){
-    console.error("addFavorite failed:", e);
-    const code = (e && e.code) ? String(e.code) : "";
-    if (code.includes("permission-denied")) toast("Favori eklenemedi: Firestore izin hatası (rules).");
-    else if (code.includes("failed-precondition")) toast("Favori eklenemedi: Firestore ayarı/indeks problemi.");
-    else if (code.includes("unavailable")) toast("Favori eklenemedi: bağlantı yok.");
-    else toast("Favori eklenemedi.");
-    throw e;
-  }
+  // setDoc with deterministic id: first time creates, next time merges (no duplicates)
+  await setDoc(ref, payload, { merge: true });
+  return id;
 }
 
-
 async function removeFavorite(docId){
+(docId){
   await deleteDoc(doc(db, "users", currentUser.uid, "favorites", docId));
 }
 
@@ -587,30 +575,6 @@ $("closeGraph").addEventListener("click", ()=> hide($("graphModal")));
 /* Render favorites */
 let favCache = [];
 
-function favFallbackKey(){
-  try{
-    const uid = currentUser?.uid || "anon";
-    return `ft_fav_${uid}`;
-  }catch{ return "ft_fav_anon"; }
-}
-function saveFavFallback(){
-  try{
-    localStorage.setItem(favFallbackKey(), JSON.stringify(favCache || []));
-  }catch{}
-}
-function loadFavFallback(){
-  try{
-    const raw = localStorage.getItem(favFallbackKey());
-    if (!raw) return;
-    const arr = JSON.parse(raw);
-    if (Array.isArray(arr)){
-      favCache = arr;
-      renderFavorites();
-    }
-  }catch{}
-}
-
-
 function renderFavorites(){
   const mode = $("favSort").value;
   const list = sortFav(favCache, mode);
@@ -675,7 +639,7 @@ function renderFavorites(){
       // Bu buton worker'ın işi; biz sadece "son kontrol" alanını güncelleriz (isteğe bağlı)
       const id = b.getAttribute("data-retry");
       const ref = doc(db, "users", currentUser.uid, "favorites", id);
-      await updateDoc(ref, { lastCheckedAt: nowIso(), updatedAt: Date.now() }).catch(()=>{});
+      await updateDoc(ref, { lastCheckedAt: nowIso(), updatedAtMs: Date.now() }).catch(()=>{});
       toast("İstek gönderildi (worker varsa günceller).");
     });
   });
@@ -695,7 +659,7 @@ function renderFavorites(){
       try{
         const t = await genAiComment(f);
         const ref = doc(db, "users", currentUser.uid, "favorites", id);
-        await updateDoc(ref, { aiComment: t, aiCommentAt: nowIso(), updatedAt: Date.now() });
+        await updateDoc(ref, { aiComment: t, aiCommentAt: nowIso(), updatedAt: serverTimestamp() });
         toast("AI yorum eklendi.");
       }catch(e){
         toast(e?.message || String(e));
@@ -732,11 +696,8 @@ onAuthStateChanged(auth, async (u)=>{
   closeLogin();
   $("logoutBtn").style.display = "";
 
-  // local fallback (Firestore gecikirse bile listede görünsün)
-  loadFavFallback();
-
   // listen favorites
-  const qFav = query(userFavCol(), orderBy("createdAt","desc"));
+  const qFav = query(userFavCol(), orderBy("createdAtMs","desc"));
   unsubFav = onSnapshot(qFav, (snap)=>{
     const list = [];
     snap.forEach(d=>{
@@ -744,25 +705,10 @@ onAuthStateChanged(auth, async (u)=>{
       list.push({
         id: d.id,
         ...data,
-        _created: (()=>{
-          const ca = data?.createdAt;
-          if (ca && typeof ca.toMillis === "function") return ca.toMillis();
-          if (typeof ca === "number") return ca;
-          if (typeof ca === "string"){
-            const t = Date.parse(ca);
-            if (!Number.isNaN(t)) return t;
-          }
-          return Date.now();
-        })()
+        _created: Number(data?.createdAtMs || 0)
       });
     });
     favCache = list;
     renderFavorites();
-    saveFavFallback();
-  }, (err)=>{
-    console.error("fav onSnapshot error", err);
-    const code = (err && err.code) ? String(err.code) : "";
-    if (code.includes("permission-denied")) toast("Favoriler okunamadı: Firestore okuma izni yok (rules).");
-    else toast("Favoriler okunamadı.");
   });
 });
