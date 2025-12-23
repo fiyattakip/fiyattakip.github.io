@@ -9,7 +9,7 @@ import {
 
 import {
   collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, updateDoc,
-  onSnapshot, query, orderBy, serverTimestamp
+  onSnapshot, query, where, orderBy, limit, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import {
@@ -89,7 +89,7 @@ function renderSiteList(targetEl, queryText, extra = {}){
           <button class="btnOpen" data-open="${esc(s.id)}">${esc(btnLabel)}</button>
           <button class="btnFav" data-fav="${esc(s.id)}" title="Favoriye ekle">
             <svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg>
-            Favoriye ekle
+            <span class="favLabel">Favoriye ekle</span>
           </button>
         </div>
       </div>
@@ -113,14 +113,34 @@ function renderSiteList(targetEl, queryText, extra = {}){
       const id = btn.getAttribute("data-fav");
       const site = SITES.find(x=>x.id===id);
       const q = (extra?.hintMap?.[id] || queryText || "").trim();
-      await addFavorite({
-        title: q || "(boş)",
-        siteId: site.id,
-        siteName: site.name,
-        query: q,
-        url: site.build(q),
-      });
-      toast("Favoriye eklendi.");
+
+      if (!currentUser){
+        toast("Favori için giriş yap.");
+        openLogin();
+        return;
+      }
+
+      btn.disabled = true;
+      try{
+        const ok = await addFavorite({
+          title: q || "(boş)",
+          siteId: site.id,
+          siteName: site.name,
+          query: q,
+          url: site.build(q),
+        });
+
+        if (ok){
+          btn.classList.add("on");
+          const lab = btn.querySelector(".favLabel");
+          if (lab) lab.textContent = "Favoride";
+          toast("Favoriye eklendi.");
+        }
+      }catch(e){
+        toast(e?.message || String(e));
+      }finally{
+        btn.disabled = false;
+      }
     });
   });
 }
@@ -409,13 +429,26 @@ function userFavCol(){
   return collection(db, "users", currentUser.uid, "favorites");
 }
 
-async function addFavorite({ title, siteId, siteName, query, url }){
-  if (!currentUser) return toast("Giriş gerekli.");
+async function addFavorite({ title, siteId, siteName, query: qText, url }){
+  if (!currentUser) return false;
+
+  // Basit tekrar kontrolü: aynı site + aynı query zaten varsa tekrar ekleme
+  try{
+    const qDup = query(userFavCol(), where("siteId","==",siteId), where("query","==",qText), limit(1));
+    const snap = await getDocs(qDup);
+    if (!snap.empty){
+      toast("Zaten favoride.");
+      return false;
+    }
+  }catch{
+    // index yoksa vs: yine de eklemeyi deneriz
+  }
+
   await addDoc(userFavCol(), {
     title,
     siteId,
     siteName,
-    query,
+    query: qText,
     url,
     // Worker burayı güncelleyebilir:
     lastPrice: null,
@@ -427,6 +460,8 @@ async function addFavorite({ title, siteId, siteName, query, url }){
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
+  return true;
 }
 
 async function removeFavorite(docId){
@@ -467,7 +502,17 @@ function sortFav(list, mode){
 /* Graph */
 function drawGraph(canvas, points){
   const ctx = canvas.getContext("2d");
-  const w = canvas.width, h = canvas.height;
+
+  // HiDPI: çizimi CSS px üzerinden yap
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, rect.width);
+  const h = Math.max(1, rect.height);
+
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
   ctx.clearRect(0,0,w,h);
 
   // bg
@@ -526,15 +571,9 @@ function openGraph(fav){
 
   $("graphHint").textContent = pts.length ? `Nokta: ${pts.length}` : "priceHistory yok.";
   show($("graphModal"));
-  // resize for hiDPI
-  const c = $("graphCanvas");
-  const rect = c.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  c.width = Math.floor(rect.width * dpr);
-  c.height = Math.floor(420 * dpr);
-  const ctx = c.getContext("2d");
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  drawGraph(c, pts);
+
+  // modal açıldıktan sonra ölçü doğru gelsin
+  requestAnimationFrame(()=> drawGraph($("graphCanvas"), pts));
 }
 $("closeGraph").addEventListener("click", ()=> hide($("graphModal")));
 
@@ -546,7 +585,7 @@ function renderFavorites(){
   const list = sortFav(favCache, mode);
 
   if (!list.length){
-    $("favList").innerHTML = `<div class="emptyBox">Favori yok.</div>`;
+    $("favList").innerHTML = `<div class="emptyBox"><b>Favori yok.</b><div class="smallNote">Üstten bir ürün arayıp “Favoriye ekle” deyince burada görünür. Her favoride “AI Yorum” ve “Grafik” butonları var.</div></div>`;
     return;
   }
 
