@@ -453,6 +453,15 @@ async function addFavorite({ title, siteId, siteName, query, url }){
 
   try{
     const ref = await addDoc(userFavCol(), payload);
+
+    // Optimistic UI: liste hemen görünsün (SW/cache, offline vb. durumlarda)
+    try{
+      const item = { id: ref.id, ...payload, _created: payload.createdAt };
+      favCache = [item, ...(favCache || [])];
+      renderFavorites();
+      saveFavFallback();
+    }catch{}
+
     return { id: ref.id };
   }catch(e){
     console.error("addFavorite failed:", e);
@@ -578,6 +587,30 @@ $("closeGraph").addEventListener("click", ()=> hide($("graphModal")));
 /* Render favorites */
 let favCache = [];
 
+function favFallbackKey(){
+  try{
+    const uid = currentUser?.uid || "anon";
+    return `ft_fav_${uid}`;
+  }catch{ return "ft_fav_anon"; }
+}
+function saveFavFallback(){
+  try{
+    localStorage.setItem(favFallbackKey(), JSON.stringify(favCache || []));
+  }catch{}
+}
+function loadFavFallback(){
+  try{
+    const raw = localStorage.getItem(favFallbackKey());
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)){
+      favCache = arr;
+      renderFavorites();
+    }
+  }catch{}
+}
+
+
 function renderFavorites(){
   const mode = $("favSort").value;
   const list = sortFav(favCache, mode);
@@ -699,6 +732,9 @@ onAuthStateChanged(auth, async (u)=>{
   closeLogin();
   $("logoutBtn").style.display = "";
 
+  // local fallback (Firestore gecikirse bile listede görünsün)
+  loadFavFallback();
+
   // listen favorites
   const qFav = query(userFavCol(), orderBy("createdAt","desc"));
   unsubFav = onSnapshot(qFav, (snap)=>{
@@ -722,5 +758,11 @@ onAuthStateChanged(auth, async (u)=>{
     });
     favCache = list;
     renderFavorites();
+    saveFavFallback();
+  }, (err)=>{
+    console.error("fav onSnapshot error", err);
+    const code = (err && err.code) ? String(err.code) : "";
+    if (code.includes("permission-denied")) toast("Favoriler okunamadı: Firestore okuma izni yok (rules).");
+    else toast("Favoriler okunamadı.");
   });
 });
