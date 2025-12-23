@@ -30,10 +30,7 @@ function toast(msg){
   toastTimer = setTimeout(()=> hide(t), 2200);
 }
 
-function esc(s){
-  if (s === null || s === undefined) return "";
-  return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
-}[m])); }
+function esc(s){ return (s||"").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
 function encQ(s){ return encodeURIComponent((s||"").trim()); }
 
 function openUrl(url){
@@ -541,160 +538,8 @@ function openGraph(fav){
 }
 $("closeGraph").addEventListener("click", ()=> hide($("graphModal")));
 
-$("closeAiComment").addEventListener("click", ()=> hide($("aiCommentModal")));
-
-/* Notifications (price drop) */
-async function ensureNotifPermission(){
-  if (!("Notification" in window)) return false;
-  if (Notification.permission === "granted") return true;
-  if (Notification.permission === "denied") return false;
-  try{
-    const p = await Notification.requestPermission();
-    return p === "granted";
-  }catch{
-    return false;
-  }
-}
-
-async function showLocalNotification(title, body, url){
-  const ok = await ensureNotifPermission();
-  if (!ok) return;
-  try{
-    const reg = await navigator.serviceWorker?.getRegistration?.();
-    if (reg?.showNotification){
-      await reg.showNotification(title, {
-        body,
-        icon: "./icon-192.png",
-        badge: "./icon-192.png",
-        data: { url }
-      });
-      return;
-    }
-  }catch{}
-  // fallback
-  try{ new Notification(title, { body }); }catch{}
-}
-
-/* AI Comment Modal */
-function setList(el, items){
-  el.innerHTML = "";
-  (items || []).slice(0, 8).forEach(x=>{
-    const li = document.createElement("li");
-    li.textContent = String(x);
-    el.appendChild(li);
-  });
-}
-
-function renderGraphOnCanvas(canvasEl, pts){
-  const rect = canvasEl.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvasEl.width = Math.floor(rect.width * dpr);
-  canvasEl.height = Math.floor(420 * dpr);
-  const ctx = canvasEl.getContext("2d");
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  drawGraph(canvasEl, pts);
-}
-
-function openAiCommentModal(fav){
-  $("aiCommentTitle").textContent = fav.title || fav.query || "AI Ürün Yorumu";
-  $("aiCommentMeta").textContent = `${fav.siteName || ""} • Son kontrol: ${fav.lastCheckedAt || "—"}`;
-  $("aiCommentSummary").textContent = fav.aiSummary || "—";
-  setList($("aiCommentPros"), fav.aiPros || []);
-  setList($("aiCommentCons"), fav.aiCons || []);
-  $("aiCommentFull").textContent = fav.aiComment || "—";
-
-  const pts = (fav.priceHistory || [])
-    .map(x=>({ t: Number(x.t||0), p: Number(x.p||0) }))
-    .filter(x=>Number.isFinite(x.t) && Number.isFinite(x.p) && x.t>0)
-    .sort((a,b)=>a.t-b.t);
-
-  $("aiGraphHint").textContent = pts.length ? `Nokta: ${pts.length}` : "priceHistory yok.";
-  const c = $("aiGraphCanvas");
-  show($("aiCommentModal"));
-  // render after visible for correct size
-  setTimeout(()=> renderGraphOnCanvas(c, pts), 0);
-
-  const th = Number.isFinite(Number(fav.dropThresholdPct)) ? Number(fav.dropThresholdPct) : 10;
-  $("aiThresholdInfo").innerHTML = `Bu favori için eşik: <b>%${th}</b>`;
-}
-
-async function genAiReview(fav){
-  const title = fav.title || fav.query || "";
-  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
-  const site = fav.siteName || "";
-  const prompt =
-`Ürün: ${title}
-Site: ${site}
-Fiyat: ${price}
-
-Türkçe yanıt ver ve SADECE JSON döndür:
-{
-  "summary": "1-2 cümle özet",
-  "pros": ["3 maddeye kadar"],
-  "cons": ["3 maddeye kadar"],
-  "full": "4-6 cümle detaylı yorum"
-}
-Kurallar: Pros/cons kısa olsun.`;
-  const raw = await geminiText(prompt);
-  // JSON parse safe
-  const txt = raw.trim();
-  let j = null;
-  try{
-    j = JSON.parse(txt);
-  }catch{
-    // JSON dışında geldiyse toparla
-    j = { summary: txt.split("\n")[0].slice(0,180), pros: [], cons: [], full: txt };
-  }
-  const summary = String(j.summary || "").trim() || (String(j.full||"").split(".")[0] + ".");
-  const pros = Array.isArray(j.pros) ? j.pros.map(x=>String(x)).filter(Boolean) : [];
-  const cons = Array.isArray(j.cons) ? j.cons.map(x=>String(x)).filter(Boolean) : [];
-  const full = String(j.full || "").trim() || String(raw || "").trim();
-  return { summary, pros, cons, full };
-}
-
-
 /* Render favorites */
 let favCache = [];
-
-// Price-drop notification guard (avoid repeat)
-const _seenPricePoint = new Map(); // favId -> lastPointT
-
-async function checkDropAlerts(list){
-  if (!currentUser) return;
-  if (!Array.isArray(list)) return;
-  for (const f of list){
-    const pts = Array.isArray(f.priceHistory) ? f.priceHistory : [];
-    if (pts.length < 2) continue;
-    const a = pts[pts.length - 1];
-    const b = pts[pts.length - 2];
-    const lastT = Number(a?.t || 0);
-    const lastP = Number(a?.p);
-    const prevP = Number(b?.p);
-    if (!Number.isFinite(lastT) || lastT<=0) continue;
-    if (!Number.isFinite(lastP) || !Number.isFinite(prevP) || prevP<=0) continue;
-
-    // if we already processed this point in this session
-    if (_seenPricePoint.get(f.id) === lastT) continue;
-    _seenPricePoint.set(f.id, lastT);
-
-    const th = Number.isFinite(Number(f.dropThresholdPct)) ? Number(f.dropThresholdPct) : 10;
-    const dropPct = ((prevP - lastP) / prevP) * 100;
-
-    const already = Number(f.lastNotifiedAtMs || 0) === lastT;
-    if (already) continue;
-
-    if (dropPct >= th){
-      const title = `Fiyat düştü: ${f.title || f.query || "Ürün"}`;
-      const body = `${prevP.toLocaleString("tr-TR")} → ${lastP.toLocaleString("tr-TR")} TL  (−%${dropPct.toFixed(1)})`;
-      await showLocalNotification(title, body, f.url || "./");
-      try{
-        const ref = doc(db, "users", currentUser.uid, "favorites", f.id);
-        await updateDoc(ref, { lastNotifiedAtMs: lastT, lastNotifiedPrice: lastP, updatedAt: serverTimestamp() });
-      }catch{}
-    }
-  }
-}
-
 
 function renderFavorites(){
   const mode = $("favSort").value;
@@ -709,24 +554,7 @@ function renderFavorites(){
     const errBadge = f.error ? `<span class="badgeErr">Hata: ${esc(f.error)}</span>` : `<span class="badgeOk">OK</span>`;
     const price = formatPrice(f.lastPrice);
     const meta = `${esc(f.siteName || "")} • Son kontrol: ${esc(f.lastCheckedAt || "—")}`;
-    const ai = f.aiComment ? `<div class="aiBubble">
-      <div style="font-weight:950;margin-bottom:4px">AI Yorum</div>
-      <div>${esc(f.aiSummary || (f.aiComment||"").slice(0,140))}</div>
-      <div class="smallNote" style="margin-top:6px;display:flex;gap:10px;align-items:center">
-        <span>Güncellendi: ${esc(f.aiCommentAt || "—")}</span>
-        <button class="pill" style="padding:6px 10px" data-aiview="${esc(f.id)}">Devamını gör</button>
-      </div>
-    </div>` : "";
-
-    const th = Number.isFinite(Number(f.dropThresholdPct)) ? Number(f.dropThresholdPct) : 10;
-    const thRow = `
-      <div class="thRow">
-        <span class="smallNote" style="font-weight:900">Eşik %</span>
-        <input type="number" min="1" max="90" step="1" value="${th}" data-th="${esc(f.id)}" />
-        <button class="btnMini primary" data-thsave="${esc(f.id)}">Kaydet</button>
-      </div>
-    `;
-
+    const ai = f.aiComment ? `<div class="aiBubble">${esc(f.aiComment)}<small>Güncellendi: ${esc(f.aiCommentAt || "—")}</small></div>` : "";
     return `
       <div class="favItem" data-id="${esc(f.id)}">
         <div class="favTop">
@@ -738,8 +566,6 @@ function renderFavorites(){
         </div>
 
         ${ai}
-
-        ${thRow}
 
         <div class="favBtns">
           <button class="btnOpen" data-openfav="${esc(f.id)}">Siteyi Aç</button>
@@ -796,50 +622,11 @@ function renderFavorites(){
     b.addEventListener("click", async ()=>{
       const id = b.getAttribute("data-aicom");
       const f = favCache.find(x=>x.id===id);
-      if (!f) return;
       try{
-        // varsa direkt aç
-        if (f.aiComment){
-          openAiCommentModal(f);
-          return;
-        }
-        const r = await genAiReview(f);
+        const t = await genAiComment(f);
         const ref = doc(db, "users", currentUser.uid, "favorites", id);
-        await updateDoc(ref, {
-          aiComment: r.full,
-          aiSummary: r.summary,
-          aiPros: r.pros,
-          aiCons: r.cons,
-          aiCommentAt: nowIso(),
-          updatedAt: serverTimestamp()
-        });
-        // cache güncellensin diye beklemeden modal açalım
-        openAiCommentModal({ ...f, aiComment: r.full, aiSummary: r.summary, aiPros: r.pros, aiCons: r.cons });
-        toast("AI yorum hazır.");
-      }catch(e){
-        toast(e?.message || String(e));
-      }
-    });
-  });
-
-  $("favList").querySelectorAll("[data-aiview]").forEach(b=>{
-    b.addEventListener("click", ()=>{
-      const id = b.getAttribute("data-aiview");
-      const f = favCache.find(x=>x.id===id);
-      if (f) openAiCommentModal(f);
-    });
-  });
-
-  $("favList").querySelectorAll("[data-thsave]").forEach(b=>{
-    b.addEventListener("click", async ()=>{
-      const id = b.getAttribute("data-thsave");
-      const inp = $("favList").querySelector(`[data-th="${CSS.escape(id)}"]`);
-      const val = Number(inp?.value);
-      const th = Number.isFinite(val) ? Math.min(90, Math.max(1, val)) : 10;
-      try{
-        const ref = doc(db, "users", currentUser.uid, "favorites", id);
-        await updateDoc(ref, { dropThresholdPct: th, updatedAt: serverTimestamp() });
-        toast("Eşik kaydedildi.");
+        await updateDoc(ref, { aiComment: t, aiCommentAt: nowIso(), updatedAt: serverTimestamp() });
+        toast("AI yorum eklendi.");
       }catch(e){
         toast(e?.message || String(e));
       }
@@ -889,6 +676,5 @@ onAuthStateChanged(auth, async (u)=>{
     });
     favCache = list;
     renderFavorites();
-    checkDropAlerts(list);
   });
 });
