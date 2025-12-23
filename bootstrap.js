@@ -1,25 +1,24 @@
-// ES module loader
-const log = (m)=>{
-  const el=document.getElementById('log');
-  if(el) el.textContent += m + '\n';
-};
+// bootstrap.js (ES Module) — güvenli import zinciri + debug
+const dbg = (m)=>{ const el=document.getElementById('debug'); if(el) el.textContent += m + "\n"; };
 
-log('bootstrap start');
-
+dbg("SW: unregistering...");
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
-  caches?.keys?.().then(keys=>keys.forEach(k=>caches.delete(k)));
-  log('SW/cache cleared');
+  try { (await navigator.serviceWorker.getRegistrations()).forEach(r=>r.unregister()); } catch {}
+}
+dbg("CacheStorage: clearing...");
+if (globalThis.caches?.keys) {
+  try { (await caches.keys()).forEach(k=>caches.delete(k)); } catch {}
 }
 
 try{
   await import('./firebase.js');
-  log('firebase.js OK');
+  dbg("firebase.js OK");
   await import('./ai.js');
-  log('ai.js OK');
+  dbg("ai.js OK");
   await import('./app.js');
-  log('app.js OK');
-  log('Bootstrap loaded ✅');
+  dbg("app.js OK");
+  dbg("Bootstrap loaded ✅");
 }catch(e){
-  log('Bootstrap failed ❌ ' + e.message);
+  dbg("Bootstrap failed ❌ " + (e?.message||String(e)));
+  console.error(e);
 }
