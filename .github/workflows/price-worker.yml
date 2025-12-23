@@ -1,12 +1,12 @@
-name: Price Worker
+name: price-worker
 
 on:
   schedule:
-    - cron: "*/20 * * * *"
+    - cron: "*/20 * * * *"   # 20 dakikada bir
   workflow_dispatch:
 
 jobs:
-  run-worker:
+  run:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -15,14 +15,16 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
 
-      - name: Install worker deps
-        working-directory: worker
-        run: npm ci
+      - name: Install deps
+        run: |
+          cd worker
+          npm init -y
+          npm i firebase-admin cheerio node-fetch
 
       - name: Run worker
-        working-directory: worker
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-        run: node index.js
+        run: |
+          node worker/price-worker.js
