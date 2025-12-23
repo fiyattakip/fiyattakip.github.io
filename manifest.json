@@ -2,8 +2,9 @@
   "name": "fiyattakip",
   "short_name": "fiyattakip",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f6ff",
+  "background_color": "#f7f9ff",
   "theme_color": "#3b5bfd",
   "icons": [
     { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
