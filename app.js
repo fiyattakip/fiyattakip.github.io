@@ -1,507 +1,680 @@
-import { watchAuth, loginEmailPass, loginGoogle, logout, upsertUser, listFavorites, saveFavorite, patchFavorite, removeFavorite } from "./firebase.js";
-import { hasAIConfig, saveAIConfigEncrypted, clearAIConfig, getDecryptedApiKey, geminiGenerateText, geminiExtractTextFromImage, setSessionPin } from "./ai.js";
+import { auth, db, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
-// --- Service Worker
-if ("serviceWorker" in navigator) {
+import {
+  collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, updateDoc,
+  onSnapshot, query, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+import {
+  saveGeminiKey, clearAiCfg, aiConfigured, geminiText, geminiVision
+} from "./ai.js";
+
+/* ---------- Helpers ---------- */
+const $ = (id) => document.getElementById(id);
+function show(el){ el.style.display = ""; }
+function hide(el){ el.style.display = "none"; }
+
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  show(t);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> hide(t), 2200);
+}
+
+function esc(s){ return (s||"").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+function encQ(s){ return encodeURIComponent((s||"").trim()); }
+
+function openUrl(url){
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function nowIso(){
+  const d = new Date();
+  return d.toISOString().slice(0,19).replace("T"," ");
+}
+
+async function clearAllCaches(){
+  try{
+    localStorage.removeItem("fiyattakip_local_cache_v1");
+    // keep AI cfg? user wants clean login: remove all except AI? We'll remove everything except AI
+    // (AI cfg stays unless user presses AI Key Sil)
+    const keys = Object.keys(localStorage);
+    for (const k of keys){
+      if (k.startsWith("fiyattakip_") && k !== "fiyattakip_ai_cfg_v4") localStorage.removeItem(k);
+    }
+    if ("caches" in window){
+      const names = await caches.keys();
+      await Promise.all(names.map(n=>caches.delete(n)));
+    }
+    toast("Önbellek temizlendi.");
+  }catch(e){
+    toast("Önbellek temizleme hata.");
+  }
+}
+
+/* ---------- Sites ---------- */
+const SITES = [
+  { id:"trendyol",   name:"Trendyol",     build:(q)=>`https://www.trendyol.com/sr?q=${encQ(q)}` },
+  { id:"hepsiburada",name:"Hepsiburada",  build:(q)=>`https://www.hepsiburada.com/ara?q=${encQ(q)}` },
+  { id:"n11",        name:"N11",          build:(q)=>`https://www.n11.com/arama?q=${encQ(q)}` },
+  { id:"amazon",     name:"Amazon TR",    build:(q)=>`https://www.amazon.com.tr/s?k=${encQ(q)}` },
+  { id:"pazarama",   name:"Pazarama",     build:(q)=>`https://www.pazarama.com/arama?q=${encQ(q)}` },
+  { id:"cicek",      name:"ÇiçekSepeti",  build:(q)=>`https://www.ciceksepeti.com/arama?query=${encQ(q)}` },
+  { id:"idefix",     name:"idefix",       build:(q)=>`https://www.idefix.com/arama/?q=${encQ(q)}` },
+];
+
+function renderSiteList(targetEl, queryText, extra = {}){
+  const html = SITES.map(s => {
+    const hint = extra?.hintMap?.[s.id] || queryText;
+    const comment = extra?.commentMap?.[s.id] || "";
+    const btnLabel = extra?.btnLabel || "Ara";
+
+    return `
+      <div class="item">
+        <div class="itemLeft">
+          <div class="siteName">${esc(s.name)}</div>
+          <div class="queryText">${esc(hint || "")}</div>
+          ${comment ? `<div class="aiBubble">${esc(comment)}<small>Güncellendi: ${esc(nowIso())}</small></div>` : ""}
+        </div>
+        <div class="itemRight">
+          <button class="btnOpen" data-open="${esc(s.id)}">${esc(btnLabel)}</button>
+          <button class="btnFav" data-fav="${esc(s.id)}" title="Favoriye ekle">
+            <svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg>
+            Favoriye ekle
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  targetEl.innerHTML = html || `<div class="emptyBox">Sonuç yok.</div>`;
+
+  // bind buttons
+  targetEl.querySelectorAll("[data-open]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-open");
+      const site = SITES.find(x=>x.id===id);
+      const q = (extra?.hintMap?.[id] || queryText || "").trim();
+      openUrl(site.build(q));
+    });
+  });
+
+  targetEl.querySelectorAll("[data-fav]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = btn.getAttribute("data-fav");
+      const site = SITES.find(x=>x.id===id);
+      const q = (extra?.hintMap?.[id] || queryText || "").trim();
+      await addFavorite({
+        title: q || "(boş)",
+        siteId: site.id,
+        siteName: site.name,
+        query: q,
+        url: site.build(q),
+      });
+      toast("Favoriye eklendi.");
+    });
+  });
+}
+
+/* ---------- Tabs ---------- */
+function setTab(name){
+  const btns = document.querySelectorAll(".tabBtn");
+  btns.forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  $("paneNormal").style.display = name==="normal" ? "" : "none";
+  $("paneAi").style.display = name==="ai" ? "" : "none";
+  $("paneVisual").style.display = name==="visual" ? "" : "none";
+}
+document.querySelectorAll(".tabBtn").forEach(btn=>{
+  btn.addEventListener("click", ()=> setTab(btn.dataset.tab));
+});
+
+/* ---------- PWA install ---------- */
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", (e)=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  $("installBtn").style.display = "";
+});
+$("installBtn").addEventListener("click", async ()=>{
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice.catch(()=>{});
+  deferredPrompt = null;
+  $("installBtn").style.display = "none";
+});
+
+/* ---------- SW register ---------- */
+if ("serviceWorker" in navigator){
   navigator.serviceWorker.register("./sw.js").catch(()=>{});
 }
 
-// --- Sites
-const SITES = [
-  { key:"trendyol", name:"Trendyol", searchUrl:q=>`https://www.trendyol.com/sr?q=${encodeURIComponent(q)}` },
-  { key:"hepsiburada", name:"Hepsiburada", searchUrl:q=>`https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}` },
-  { key:"n11", name:"N11", searchUrl:q=>`https://www.n11.com/arama?q=${encodeURIComponent(q)}` },
-  { key:"amazontr", name:"Amazon TR", searchUrl:q=>`https://www.amazon.com.tr/s?k=${encodeURIComponent(q)}` },
-  { key:"idefix", name:"idefix", searchUrl:q=>`https://www.idefix.com/search?q=${encodeURIComponent(q)}` },
-  { key:"ciceksepeti", name:"ÇiçekSepeti", searchUrl:q=>`https://www.ciceksepeti.com/arama?query=${encodeURIComponent(q)}` }
-];
-
+/* ---------- Login ---------- */
 let currentUser = null;
-let favCache = [];
+let unsubFav = null;
 
-// --- UI refs
-const loginView = document.getElementById("loginView");
-const appView = document.getElementById("appView");
-const loginErr = document.getElementById("loginErr");
+function openLogin(){
+  $("loginErr").style.display = "none";
+  $("loginModal").style.display = "";
+}
+function closeLogin(){
+  $("loginModal").style.display = "none";
+}
 
-const btnLogin = document.getElementById("btnLogin");
-const btnGoogle = document.getElementById("btnGoogle");
-const btnLogout = document.getElementById("btnLogout");
-const btnClearCacheLogin = document.getElementById("btnClearCacheLogin");
+$("closeLogin").addEventListener("click", closeLogin);
 
-const qNormal = document.getElementById("qNormal");
-const btnNormalSearch = document.getElementById("btnNormalSearch");
-const normalResults = document.getElementById("normalResults");
-
-const qAI = document.getElementById("qAI");
-const btnAISearch = document.getElementById("btnAISearch");
-const aiStatus = document.getElementById("aiStatus");
-const aiResults = document.getElementById("aiResults");
-
-const imgFile = document.getElementById("imgFile");
-const btnExtract = document.getElementById("btnExtract");
-const imgPreview = document.getElementById("imgPreview");
-const extractedText = document.getElementById("extractedText");
-const btnGoogleSearchText = document.getElementById("btnGoogleSearchText");
-const btnLens = document.getElementById("btnLens");
-const visualErr = document.getElementById("visualErr");
-
-const favList = document.getElementById("favList");
-const favEmpty = document.getElementById("favEmpty");
-const favSort = document.getElementById("favSort");
-const btnRefreshFav = document.getElementById("btnRefreshFav");
-const btnClearLocal = document.getElementById("btnClearLocal");
-
-// AI modal
-const btnOpenAISettings = document.getElementById("btnOpenAISettings");
-const aiModal = document.getElementById("aiModal");
-const modalBackdrop = document.getElementById("modalBackdrop");
-const btnCloseModal = document.getElementById("btnCloseModal");
-const aiKey = document.getElementById("aiKey");
-const aiPin = document.getElementById("aiPin");
-const rememberPin = document.getElementById("rememberPin");
-const btnSaveAI = document.getElementById("btnSaveAI");
-const btnClearAI = document.getElementById("btnClearAI");
-const aiCfgErr = document.getElementById("aiCfgErr");
-
-// Tabs
-document.querySelectorAll(".seg").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".seg").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    const tab = btn.dataset.tab;
-    ["normal","ai","visual"].forEach(t=>{
-      document.getElementById(`tab-${t}`).classList.toggle("hidden", t!==tab);
-    });
+document.querySelectorAll(".segBtn").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll(".segBtn").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    const mode = b.dataset.auth;
+    $("authEmail").style.display = mode==="email" ? "" : "none";
+    $("authGoogle").style.display = mode==="google" ? "" : "none";
   });
 });
 
-// --- Login
-btnLogin.addEventListener("click", async ()=>{
+$("togglePass").addEventListener("click", ()=>{
+  const p = $("pass");
+  p.type = p.type==="password" ? "text" : "password";
+});
+
+$("btnPreClear").addEventListener("click", clearAllCaches);
+
+$("btnLoginEmail").addEventListener("click", async ()=>{
+  const email = $("email").value.trim();
+  const pass = $("pass").value;
   try{
-    showErr(loginErr, "");
-    const email = document.getElementById("loginEmail").value.trim();
-    const pass = document.getElementById("loginPass").value.trim();
-    await loginEmailPass(email, pass);
+    if (firebaseConfigLooksInvalid()) throw new Error("Firebase config eksik. firebase.js içine Web config yapıştır.");
+    $("loginErr").style.display = "none";
+    await signInWithEmailAndPassword(auth, email, pass);
   }catch(e){
-    showErr(loginErr, String(e?.message||e));
+    // if user doesn't exist -> create
+    try{
+      if (String(e?.code||"").includes("auth/user-not-found")){
+        await createUserWithEmailAndPassword(auth, email, pass);
+        return;
+      }
+    }catch(e2){ e = e2; }
+
+    $("loginErr").textContent = `Hata: ${e?.message || e}`;
+    $("loginErr").style.display = "";
   }
 });
 
-btnGoogle.addEventListener("click", async ()=>{
+$("btnLoginGoogle").addEventListener("click", async ()=>{
   try{
-    showErr(loginErr, "");
-    await loginGoogle();
+    if (firebaseConfigLooksInvalid()) throw new Error("Firebase config eksik. firebase.js içine Web config yapıştır.");
+    $("loginErr").style.display = "none";
+    await signInWithPopup(auth, googleProvider);
   }catch(e){
-    showErr(loginErr, String(e?.message||e));
+    $("loginErr").textContent = `Hata: ${e?.message || e}`;
+    $("loginErr").style.display = "";
   }
 });
 
-btnLogout.addEventListener("click", async ()=>{
-  await logout();
+$("logoutBtn").addEventListener("click", async ()=>{
+  await signOut(auth);
 });
 
-btnClearCacheLogin.addEventListener("click", async ()=>{
-  await clearAllCachesAndSW();
-  alert("Önbellek temizlendi. Sayfa yenileniyor…");
-  location.reload();
+/* ---------- AI Settings Modal ---------- */
+$("aiSettingsBtn").addEventListener("click", ()=>{
+  $("aiModal").style.display = "";
+});
+$("closeAi").addEventListener("click", ()=> $("aiModal").style.display="none");
+
+$("saveAi").addEventListener("click", async ()=>{
+  try{
+    await saveGeminiKey({
+      apiKey: $("gemKey").value.trim(),
+      pin: $("gemPin").value,
+      rememberPin: $("rememberPin").checked
+    });
+    toast("AI ayarı kaydedildi.");
+    $("aiModal").style.display = "none"; // <- senin istediğin: Kaydet deyince kapansın
+  }catch(e){
+    toast(e?.message || String(e));
+  }
 });
 
-// --- Auth watcher
-watchAuth(async (u)=>{
-  currentUser = u || null;
-  if(!u){
-    loginView.classList.remove("hidden");
-    appView.classList.add("hidden");
-    btnLogout.classList.add("hidden");
+$("clearAi").addEventListener("click", ()=>{
+  clearAiCfg();
+  toast("AI key silindi.");
+});
+
+/* ---------- Normal / AI / Visual ---------- */
+$("btnNormal").addEventListener("click", ()=>{
+  const q = $("qNormal").value.trim();
+  if (!q) return toast("Ürün adı yaz.");
+  renderSiteList($("normalList"), q);
+});
+
+$("btnAi").addEventListener("click", async ()=>{
+  const q = $("qAi").value.trim();
+  if (!q) return toast("Bir şey yaz.");
+  if (!aiConfigured()) return toast("AI key kayıtlı değil. AI Ayarları'ndan gir.");
+
+  $("btnAi").disabled = true;
+  $("aiBox").style.display = "none";
+  $("aiList").innerHTML = "";
+  try{
+    const prompt =
+`Kullanıcı bir ürün arıyor: "${q}"
+Amaç: E-ticarette doğru arama ifadesi ve kısa öneri.
+Çıktı formatı:
+- query: (tek satır arama ifadesi)
+- comment: (kısa yorum: nelere dikkat edilmeli)
+Sadece bu formatla cevap ver.`;
+
+    const out = await geminiText(prompt);
+    const queryLine = (out.match(/query:\s*(.+)/i)?.[1] || q).trim();
+    const commentLine = (out.match(/comment:\s*(.+)/i)?.[1] || "").trim();
+
+    $("aiBox").textContent = commentLine ? `Öneri: ${commentLine}` : "AI öneri üretemedi.";
+    $("aiBox").style.display = "";
+
+    // AI aramada: her siteyi queryLine ile arar (Normal'e yönlendirme yok)
+    renderSiteList($("aiList"), queryLine, {
+      hintMap: Object.fromEntries(SITES.map(s=>[s.id, queryLine])),
+      commentMap: Object.fromEntries(SITES.map(s=>[s.id, commentLine])),
+      btnLabel: "Ara"
+    });
+
+  }catch(e){
+    toast(e?.message || String(e));
+    $("aiBox").textContent = "AI sonuç üretemedi.";
+    $("aiBox").style.display = "";
+  }finally{
+    $("btnAi").disabled = false;
+  }
+});
+
+function fileToBase64(file){
+  return new Promise((resolve, reject)=>{
+    const r = new FileReader();
+    r.onload = () => {
+      const res = String(r.result || "");
+      const b64 = res.split(",")[1] || "";
+      resolve(b64);
+    };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+$("btnVisual").addEventListener("click", async ()=>{
+  const f = $("fileImg").files?.[0];
+  if (!f) return toast("Bir görsel seç.");
+
+  if (!aiConfigured()) {
+    // AI yoksa direkt lens
+    const lens = "https://lens.google.com/upload";
+    $("visualOut").innerHTML = `AI key yok. <button class="btnPrimary" id="goLens" style="margin-left:10px">Google Lens</button>`;
+    $("visualOut").style.display = "";
+    setTimeout(()=> $("goLens")?.addEventListener("click", ()=> openUrl(lens)), 0);
     return;
   }
-  btnLogout.classList.remove("hidden");
-  loginView.classList.add("hidden");
-  appView.classList.remove("hidden");
-  await upsertUser(u.uid);
-  await loadFavorites();
-});
 
-// --- Normal search
-btnNormalSearch.addEventListener("click", ()=> runNormalSearch(qNormal.value));
-qNormal.addEventListener("keydown", (e)=>{ if(e.key==="Enter") runNormalSearch(qNormal.value); });
-
-function runNormalSearch(query){
-  const q = (query||"").trim();
-  if(!q) return;
-
-  normalResults.innerHTML = "";
-  SITES.forEach(site=>{
-    const el = renderSearchCard({
-      title: site.name,
-      subtitle: q,
-      body: "Bu sitede aramak için “Ara”. İstersen favoriye ekleyip otomatik takip edebilirsin.",
-      siteKey: site.key,
-      siteName: site.name,
-      query: q
-    });
-    normalResults.appendChild(el);
-  });
-}
-
-// --- AI search
-btnAISearch.addEventListener("click", ()=> runAISearch(qAI.value));
-qAI.addEventListener("keydown",(e)=>{ if(e.key==="Enter") runAISearch(qAI.value); });
-
-async function runAISearch(query){
-  const q = (query||"").trim();
-  if(!q) return;
-
-  aiStatus.textContent = "";
-  aiResults.innerHTML = "";
-  showErr(aiCfgErr, "");
+  $("btnVisual").disabled = true;
+  $("visualOut").style.display = "none";
 
   try{
-    // PIN yoksa kullanıcı modalden kaydettiğinde sessionPin setleniyor.
-    const apiKey = await getDecryptedApiKey();
+    const b64 = await fileToBase64(f);
+    const prompt =
+`Bu görseldeki ürün/metni çıkar.
+- 1 satır: ürün adı / arama ifadesi (en alakalı)
+- 2 satır: kısa açıklama
+Eğer ürün belirsizse "UNKNOWN" yaz.`;
 
-    aiStatus.textContent = "AI düşünüyor…";
-    const system = "Sen e-ticaret araması asistanısın. Her site için kısa ve net arama ifadesi üret. Ayrıca 1 cümlelik öneri yaz. JSON döndür.";
-    const prompt = `
-Kullanıcı araması: "${q}"
-Siteler: ${SITES.map(s=>s.name).join(", ")}
-ÇIKTI FORMAT:
-{
- "items":[
-  {"siteKey":"trendyol","query":"...","note":"..."},
-  ...
- ]
-}
-Sadece JSON döndür.`;
-    const text = await geminiGenerateText({ apiKey, prompt, system });
+    const txt = await geminiVision({
+      prompt,
+      mime: f.type || "image/png",
+      base64Data: b64
+    });
 
-    let data;
-    try{ data = JSON.parse(extractJson(text)); }catch{ data = null; }
-    const items = data?.items || [];
+    const lines = txt.split("\n").map(s=>s.trim()).filter(Boolean);
+    const extracted = (lines[0] || "UNKNOWN").trim();
+    const note = lines.slice(1).join(" ").trim();
 
-    if(!items.length){
-      aiStatus.textContent = "AI sonuç üretemedi.";
+    if (!extracted || extracted.toUpperCase()==="UNKNOWN"){
+      const lens = "https://lens.google.com/upload";
+      $("visualOut").innerHTML = `
+        <div><b>Hata:</b> Görsel bulunamadı / metin çıkarılamadı.</div>
+        <div style="margin-top:10px">
+          <button class="btnPrimary" id="goLens">Google Lens (Alternatif)</button>
+        </div>
+      `;
+      $("visualOut").style.display = "";
+      $("goLens").addEventListener("click", ()=> openUrl(lens));
       return;
     }
 
-    aiStatus.textContent = "";
-    items.forEach(it=>{
-      const site = SITES.find(s=>s.key===it.siteKey) || SITES[0];
-      const el = renderSearchCard({
-        title: site.name,
-        subtitle: it.query || q,
-        body: it.note || "Öneri üretilmedi.",
-        siteKey: site.key,
-        siteName: site.name,
-        query: it.query || q
-      });
-      aiResults.appendChild(el);
+    // Google alışveriş araması
+    const gShop = `https://www.google.com/search?tbm=shop&q=${encQ(extracted)}`;
+    const gWeb  = `https://www.google.com/search?q=${encQ(extracted)}`;
+    const lens = "https://lens.google.com/upload";
+
+    $("visualOut").innerHTML = `
+      <div><b>Çıkan metin:</b> ${esc(extracted)}</div>
+      ${note ? `<div class="smallNote">${esc(note)}</div>` : ""}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="btnOpen" id="goShop">Google Alışveriş</button>
+        <button class="btnAction" id="goWeb">Google</button>
+        <button class="btnWarn" id="goLens">Google Lens</button>
+        <button class="btnAction" id="toNormal">Normal’e aktar</button>
+        <button class="btnAction" id="toAi">AI’ye aktar</button>
+      </div>
+    `;
+    $("visualOut").style.display = "";
+
+    $("goShop").addEventListener("click", ()=> openUrl(gShop));
+    $("goWeb").addEventListener("click", ()=> openUrl(gWeb));
+    $("goLens").addEventListener("click", ()=> openUrl(lens));
+    $("toNormal").addEventListener("click", ()=>{
+      $("qNormal").value = extracted;
+      setTab("normal");
+      toast("Normal aramaya aktarıldı.");
+    });
+    $("toAi").addEventListener("click", ()=>{
+      $("qAi").value = extracted;
+      setTab("ai");
+      toast("AI aramaya aktarıldı.");
     });
 
   }catch(e){
-    aiStatus.textContent = "";
-    const msg = String(e?.message||e);
-    aiResults.innerHTML = `<div class="err">Hata: ${escapeHtml(msg)}</div>`;
-  }
-}
-
-// --- Visual
-imgFile.addEventListener("change", ()=>{
-  const f = imgFile.files?.[0];
-  if(!f) return;
-  const url = URL.createObjectURL(f);
-  imgPreview.src = url;
-  imgPreview.style.display = "block";
-  hideErr(visualErr);
-});
-
-btnExtract.addEventListener("click", async ()=>{
-  hideErr(visualErr);
-  extractedText.value = "";
-  btnGoogleSearchText.disabled = true;
-
-  try{
-    const f = imgFile.files?.[0];
-    if(!f) throw new Error("Görsel seç.");
-    const apiKey = await getDecryptedApiKey();
-    const text = await geminiExtractTextFromImage({ apiKey, file:f });
-
-    if(!text){
-      throw new Error("Görsel bulunamadı / metin çıkarılamadı.");
-    }
-
-    extractedText.value = text;
-    btnGoogleSearchText.disabled = false;
-
-    // otomatik google shopping araması
-    openGoogleShopping(text);
-
-  }catch(e){
-    showErr(visualErr, String(e?.message||e));
-  }
-});
-
-btnGoogleSearchText.addEventListener("click", ()=>{
-  const t = (extractedText.value||"").trim();
-  if(!t) return;
-  openGoogleShopping(t);
-});
-
-btnLens.addEventListener("click", ()=>{
-  // Direkt upload URL'i tarayıcıda file göndermek kolay değil. Lens'i açıp manuel yükleme:
-  window.open("https://lens.google.com/", "_blank", "noopener,noreferrer");
-});
-
-// --- Favorites
-btnRefreshFav.addEventListener("click", loadFavorites);
-favSort.addEventListener("change", renderFavorites);
-
-btnClearLocal.addEventListener("click", async ()=>{
-  await clearAllCachesAndSW(false); // localStorage'ı tamamen silmesin
-  alert("Cache temizlendi.");
-});
-
-// --- AI Modal
-btnOpenAISettings.addEventListener("click", openModal);
-btnCloseModal.addEventListener("click", closeModal);
-modalBackdrop.addEventListener("click", closeModal);
-
-btnSaveAI.addEventListener("click", async ()=>{
-  try{
-    hideErr(aiCfgErr);
-    const key = aiKey.value.trim();
-    const pin = aiPin.value.trim();
-    const remember = !!rememberPin.checked;
-    await saveAIConfigEncrypted({ apiKey:key, pin, rememberPin:remember });
-
-    // session pin set:
-    setSessionPin(pin);
-
-    // ✅ Kaydet → otomatik kapan
-    closeModal();
-    alert("AI key kaydedildi.");
-  }catch(e){
-    showErr(aiCfgErr, String(e?.message||e));
-  }
-});
-
-btnClearAI.addEventListener("click", ()=>{
-  clearAIConfig();
-  aiKey.value = "";
-  aiPin.value = "";
-  rememberPin.checked = false;
-  alert("AI key silindi.");
-});
-
-// --- helpers render
-function renderSearchCard({ title, subtitle, body, siteKey, siteName, query }){
-  const wrap = document.createElement("div");
-  wrap.className = "item";
-  wrap.innerHTML = `
-    <div class="itemHead">
-      <div>
-        <div class="itemTitle">${escapeHtml(title)}</div>
-        <div class="muted small">${escapeHtml(subtitle)}</div>
+    toast(e?.message || String(e));
+    const lens = "https://lens.google.com/upload";
+    $("visualOut").innerHTML = `
+      <div><b>Hata:</b> Görsel bulunamadı / metin çıkarılamadı.</div>
+      <div style="margin-top:10px">
+        <button class="btnPrimary" id="goLens">Google Lens (Alternatif)</button>
       </div>
-      <div class="badge">${escapeHtml(siteName)}</div>
-    </div>
-    <div class="itemBody">${escapeHtml(body)}</div>
-    <div class="itemActions">
-      <button class="pill warn" data-act="search">Ara</button>
-      <button class="pill" data-act="fav">Favoriye ekle</button>
-    </div>
-  `;
-  wrap.querySelector('[data-act="search"]').addEventListener("click", ()=>{
-    const site = SITES.find(s=>s.key===siteKey);
-    safeOpen(site?.searchUrl(query) || "");
-  });
-  wrap.querySelector('[data-act="fav"]').addEventListener("click", async ()=>{
-    if(!currentUser) return alert("Önce giriş yap.");
-    const favId = makeFavId(siteKey, query);
-    await saveFavorite(currentUser.uid, favId, {
-      siteKey,
-      siteName,
-      query,
-      createdAtClient: Date.now(),
-      lastPrice: null,
-      lastStatus: "OK",
-      lastCheckedAt: null,
-      aiComment: "",
-      aiCommentAt: null,
-      url: (SITES.find(s=>s.key===siteKey)?.searchUrl(query)) || ""
-    });
-    await loadFavorites();
-    alert("Favoriye eklendi.");
-  });
-  return wrap;
+    `;
+    $("visualOut").style.display = "";
+    $("goLens").addEventListener("click", ()=> openUrl(lens));
+  }finally{
+    $("btnVisual").disabled = false;
+  }
+});
+
+/* ---------- Favorites ---------- */
+function userFavCol(){
+  return collection(db, "users", currentUser.uid, "favorites");
 }
 
-function renderFavoriteItem(item){
-  const wrap = document.createElement("div");
-  wrap.className = "item";
-
-  const priceTxt = item.lastPrice ? formatTry(item.lastPrice) : "Fiyat yok";
-  const st = item.lastStatus || "OK";
-  const statusPill = st === "OK"
-    ? `<span class="pill ok">OK</span>`
-    : `<span class="pill danger">${escapeHtml(st)}</span>`;
-
-  wrap.innerHTML = `
-    <div class="itemHead">
-      <div>
-        <div class="itemTitle">${escapeHtml(item.query || "—")}</div>
-        <div class="muted small">${escapeHtml(item.siteName || item.siteKey)} • Son kontrol: ${escapeHtml(item.lastCheckedAt || "—")}</div>
-      </div>
-      <div class="badge">${priceTxt}</div>
-    </div>
-
-    <div class="itemActions">
-      <button class="pill" data-act="open">Siteyi Aç</button>
-      <button class="pill" data-act="copy">Copy Link</button>
-      <button class="pill warn" data-act="retry">Tekrar dene şimdi</button>
-      <button class="pill" data-act="aiComment">AI Yorum</button>
-      <button class="pill danger" data-act="del">Sil</button>
-      ${statusPill}
-    </div>
-
-    <div class="itemBody">
-      ${item.aiComment ? `<b>AI:</b> ${escapeHtml(item.aiComment)}<div class="muted small">Güncellendi: ${escapeHtml(item.aiCommentAt||"")}</div>` : `<span class="muted">AI yorumu yok.</span>`}
-    </div>
-  `;
-
-  wrap.querySelector('[data-act="open"]').addEventListener("click", ()=>{
-    const url = item.url || (SITES.find(s=>s.key===item.siteKey)?.searchUrl(item.query)) || "";
-    safeOpen(url);
+async function addFavorite({ title, siteId, siteName, query, url }){
+  if (!currentUser) return toast("Giriş gerekli.");
+  await addDoc(userFavCol(), {
+    title,
+    siteId,
+    siteName,
+    query,
+    url,
+    // Worker burayı güncelleyebilir:
+    lastPrice: null,
+    currency: "TRY",
+    lastCheckedAt: null,
+    error: null,
+    priceHistory: [], // [{t: timestamp(ms), p: number}]
+    aiComment: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
-
-  wrap.querySelector('[data-act="copy"]').addEventListener("click", async ()=>{
-    const url = item.url || (SITES.find(s=>s.key===item.siteKey)?.searchUrl(item.query)) || "";
-    await navigator.clipboard.writeText(url);
-    alert("Kopyalandı.");
-  });
-
-  wrap.querySelector('[data-act="retry"]').addEventListener("click", async ()=>{
-    // Frontend CORS yüzünden fiyat çekemez; ama kullanıcı siteyi açıp captcha vs geçebilir.
-    const url = item.url || (SITES.find(s=>s.key===item.siteKey)?.searchUrl(item.query)) || "";
-    safeOpen(url);
-  });
-
-  wrap.querySelector('[data-act="aiComment"]').addEventListener("click", async ()=>{
-    try{
-      const apiKey = await getDecryptedApiKey();
-      const prompt = `
-Ürün: ${item.query}
-Site: ${item.siteName || item.siteKey}
-Fiyat: ${item.lastPrice ? item.lastPrice + " TL" : "Bilinmiyor"}
-Kısa 2-3 cümle yorum yaz: güven, fiyat mantığı, alternatif öneri.
-      `.trim();
-      const txt = await geminiGenerateText({ apiKey, prompt, system:"Kısa ve net Türkçe yaz." });
-      await patchFavorite(currentUser.uid, item.id, {
-        aiComment: txt,
-        aiCommentAt: new Date().toLocaleString("tr-TR")
-      });
-      await loadFavorites();
-    }catch(e){
-      alert("AI Yorum hatası: " + String(e?.message||e));
-    }
-  });
-
-  wrap.querySelector('[data-act="del"]').addEventListener("click", async ()=>{
-    if(!confirm("Silinsin mi?")) return;
-    await removeFavorite(currentUser.uid, item.id);
-    await loadFavorites();
-  });
-
-  return wrap;
 }
 
-async function loadFavorites(){
-  if(!currentUser) return;
-  favCache = await listFavorites(currentUser.uid);
-  renderFavorites();
+async function removeFavorite(docId){
+  await deleteDoc(doc(db, "users", currentUser.uid, "favorites", docId));
 }
+
+async function genAiComment(fav){
+  if (!aiConfigured()) return toast("AI key kayıtlı değil.");
+  const title = fav.title || fav.query || "ürün";
+  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
+  const site = fav.siteName || "";
+  const prompt =
+`Ürün: ${title}
+Site: ${site}
+Fiyat: ${price}
+Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
+Maks 3-4 cümle. Türkçe.`;
+  const t = await geminiText(prompt);
+  return t.trim();
+}
+
+function formatPrice(p){
+  if (p===null || p===undefined || p==="") return "Fiyat yok";
+  const n = Number(p);
+  if (Number.isFinite(n)) return `${n.toLocaleString("tr-TR")} TL`;
+  return String(p);
+}
+
+function sortFav(list, mode){
+  const arr = [...list];
+  if (mode==="old") return arr.sort((a,b)=>(a._created||0)-(b._created||0));
+  if (mode==="new") return arr.sort((a,b)=>(b._created||0)-(a._created||0));
+  if (mode==="cheap") return arr.sort((a,b)=>(Number(a.lastPrice)||1e18)-(Number(b.lastPrice)||1e18));
+  if (mode==="exp") return arr.sort((a,b)=>(Number(b.lastPrice)||-1)-(Number(a.lastPrice)||-1));
+  return arr;
+}
+
+/* Graph */
+function drawGraph(canvas, points){
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  // bg
+  ctx.fillStyle = "rgba(248,250,252,.85)";
+  ctx.fillRect(0,0,w,h);
+
+  if (!points || points.length < 2){
+    ctx.fillStyle = "rgba(15,23,42,.65)";
+    ctx.font = "16px system-ui";
+    ctx.fillText("Grafik için yeterli veri yok (priceHistory boş).", 18, 34);
+    return;
+  }
+
+  const pad = 50;
+  const xs = points.map(p=>p.t);
+  const ys = points.map(p=>p.p);
+
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(1, maxY - minY);
+
+  // axis
+  ctx.strokeStyle = "rgba(15,23,42,.12)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, pad);
+  ctx.lineTo(pad, h-pad);
+  ctx.lineTo(w-pad, h-pad);
+  ctx.stroke();
+
+  // line
+  ctx.strokeStyle = "rgba(59,91,253,.9)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p, i)=>{
+    const x = pad + ((p.t - minX)/spanX) * (w - pad*2);
+    const y = (h - pad) - ((p.p - minY)/spanY) * (h - pad*2);
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // labels
+  ctx.fillStyle = "rgba(15,23,42,.65)";
+  ctx.font = "14px system-ui";
+  ctx.fillText(`Min: ${minY.toLocaleString("tr-TR")} TL`, pad, pad-18);
+  ctx.fillText(`Max: ${maxY.toLocaleString("tr-TR")} TL`, pad+180, pad-18);
+}
+
+function openGraph(fav){
+  $("graphTitle").textContent = `${fav.title || fav.query || ""} • ${fav.siteName || ""}`;
+  const pts = (fav.priceHistory || [])
+    .map(x=>({ t: Number(x.t||0), p: Number(x.p||0) }))
+    .filter(x=>Number.isFinite(x.t) && Number.isFinite(x.p) && x.t>0)
+    .sort((a,b)=>a.t-b.t);
+
+  $("graphHint").textContent = pts.length ? `Nokta: ${pts.length}` : "priceHistory yok.";
+  show($("graphModal"));
+  // resize for hiDPI
+  const c = $("graphCanvas");
+  const rect = c.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.floor(rect.width * dpr);
+  c.height = Math.floor(420 * dpr);
+  const ctx = c.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  drawGraph(c, pts);
+}
+$("closeGraph").addEventListener("click", ()=> hide($("graphModal")));
+
+/* Render favorites */
+let favCache = [];
 
 function renderFavorites(){
-  favList.innerHTML = "";
-  const items = [...favCache];
+  const mode = $("favSort").value;
+  const list = sortFav(favCache, mode);
 
-  const mode = favSort.value;
-  if(mode==="newest") items.sort((a,b)=> (b.createdAtClient||0)-(a.createdAtClient||0));
-  if(mode==="priceAsc") items.sort((a,b)=> (Number(a.lastPrice||1e18)-Number(b.lastPrice||1e18)));
-  if(mode==="priceDesc") items.sort((a,b)=> (Number(b.lastPrice||0)-Number(a.lastPrice||0)));
-  // relevance: varsayılan → karışma
+  if (!list.length){
+    $("favList").innerHTML = `<div class="emptyBox">Favori yok.</div>`;
+    return;
+  }
 
-  favEmpty.classList.toggle("hidden", items.length>0);
-  items.forEach(it=> favList.appendChild(renderFavoriteItem(it)));
+  $("favList").innerHTML = list.map(f => {
+    const errBadge = f.error ? `<span class="badgeErr">Hata: ${esc(f.error)}</span>` : `<span class="badgeOk">OK</span>`;
+    const price = formatPrice(f.lastPrice);
+    const meta = `${esc(f.siteName || "")} • Son kontrol: ${esc(f.lastCheckedAt || "—")}`;
+    const ai = f.aiComment ? `<div class="aiBubble">${esc(f.aiComment)}<small>Güncellendi: ${esc(f.aiCommentAt || "—")}</small></div>` : "";
+    return `
+      <div class="favItem" data-id="${esc(f.id)}">
+        <div class="favTop">
+          <div style="min-width:0">
+            <div class="favName">${esc(f.title || f.query || "")}</div>
+            <div class="favMeta">${meta}</div>
+          </div>
+          <div class="favPrice">${esc(price)}</div>
+        </div>
+
+        ${ai}
+
+        <div class="favBtns">
+          <button class="btnOpen" data-openfav="${esc(f.id)}">Siteyi Aç</button>
+          <button class="btnCopy" data-copy="${esc(f.url || "")}">Copy Link</button>
+          <button class="btnWarn" data-retry="${esc(f.id)}">Tekrar dene şimdi</button>
+          <button class="btnAction" data-graph="${esc(f.id)}">Grafik</button>
+          <button class="btnAction" data-aicom="${esc(f.id)}">AI Yorum</button>
+          <button class="btnDelete" data-del="${esc(f.id)}">Sil</button>
+          ${errBadge}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  $("favList").querySelectorAll("[data-openfav]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const id = b.getAttribute("data-openfav");
+      const f = favCache.find(x=>x.id===id);
+      if (f?.url) openUrl(f.url);
+    });
+  });
+
+  $("favList").querySelectorAll("[data-copy]").forEach(b=>{
+    b.addEventListener("click", async ()=>{
+      const url = b.getAttribute("data-copy") || "";
+      try{
+        await navigator.clipboard.writeText(url);
+        toast("Kopyalandı.");
+      }catch{
+        toast("Kopyalanamadı.");
+      }
+    });
+  });
+
+  $("favList").querySelectorAll("[data-retry]").forEach(b=>{
+    b.addEventListener("click", async ()=>{
+      // Bu buton worker'ın işi; biz sadece "son kontrol" alanını güncelleriz (isteğe bağlı)
+      const id = b.getAttribute("data-retry");
+      const ref = doc(db, "users", currentUser.uid, "favorites", id);
+      await updateDoc(ref, { lastCheckedAt: nowIso(), updatedAt: serverTimestamp() }).catch(()=>{});
+      toast("İstek gönderildi (worker varsa günceller).");
+    });
+  });
+
+  $("favList").querySelectorAll("[data-graph]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const id = b.getAttribute("data-graph");
+      const f = favCache.find(x=>x.id===id);
+      openGraph(f);
+    });
+  });
+
+  $("favList").querySelectorAll("[data-aicom]").forEach(b=>{
+    b.addEventListener("click", async ()=>{
+      const id = b.getAttribute("data-aicom");
+      const f = favCache.find(x=>x.id===id);
+      try{
+        const t = await genAiComment(f);
+        const ref = doc(db, "users", currentUser.uid, "favorites", id);
+        await updateDoc(ref, { aiComment: t, aiCommentAt: nowIso(), updatedAt: serverTimestamp() });
+        toast("AI yorum eklendi.");
+      }catch(e){
+        toast(e?.message || String(e));
+      }
+    });
+  });
+
+  $("favList").querySelectorAll("[data-del]").forEach(b=>{
+    b.addEventListener("click", async ()=>{
+      const id = b.getAttribute("data-del");
+      await removeFavorite(id);
+      toast("Silindi.");
+    });
+  });
 }
 
-// --- Modal
-function openModal(){
-  modalBackdrop.classList.remove("hidden");
-  aiModal.classList.remove("hidden");
-}
-function closeModal(){
-  modalBackdrop.classList.add("hidden");
-  aiModal.classList.add("hidden");
-  hideErr(aiCfgErr);
-}
+$("favSort").addEventListener("change", renderFavorites);
+$("btnRefreshFav").addEventListener("click", ()=> renderFavorites());
+$("btnClearCache").addEventListener("click", clearAllCaches);
 
-// --- Cache clear
-async function clearAllCachesAndSW(clearLocalStorage=true){
-  try{
-    if("caches" in window){
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k=>caches.delete(k)));
-    }
-    if("serviceWorker" in navigator){
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r=>r.unregister()));
-    }
-    if(clearLocalStorage){
-      localStorage.clear();
-      sessionStorage.clear();
-    }
-  }catch{}
-}
+/* ---------- Auth state ---------- */
+onAuthStateChanged(auth, async (u)=>{
+  currentUser = u || null;
 
-// --- misc
-function openGoogleShopping(text){
-  const q = encodeURIComponent(text);
-  // shopping intent:
-  safeOpen(`https://www.google.com/search?tbm=shop&q=${q}`);
-}
-function safeOpen(url){
-  if(!url) return;
-  window.open(url, "_blank", "noopener,noreferrer");
-}
-function makeFavId(siteKey, query){
-  return `${siteKey}_${hash(query)}`;
-}
-function hash(s){
-  let h=0; for(let i=0;i<s.length;i++){ h=(h<<5)-h+s.charCodeAt(i); h|=0; }
-  return String(Math.abs(h));
-}
-function formatTry(n){
-  try{
-    return new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:0}).format(Number(n));
-  }catch{ return `${n} TL`; }
-}
-function showErr(el,msg){
-  if(!msg){ el.classList.add("hidden"); el.textContent=""; return; }
-  el.textContent = msg;
-  el.classList.remove("hidden");
-}
-function hideErr(el){ showErr(el,""); }
-function escapeHtml(s){
-  return String(s||"").replace(/[&<>"']/g, m=>({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[m]));
-}
-function extractJson(text){
-  // Gemini bazen ```json ... ``` dönebilir
-  const t = String(text||"").trim();
-  const m = t.match(/\{[\s\S]*\}$/);
-  if(m) return m[0];
-  return t;
-}
+  if (!u){
+    $("logoutBtn").style.display = "none";
+    openLogin();
+    if (unsubFav){ unsubFav(); unsubFav = null; }
+    favCache = [];
+    renderFavorites();
+    return;
+  }
+
+  closeLogin();
+  $("logoutBtn").style.display = "";
+
+  // listen favorites
+  const qFav = query(userFavCol(), orderBy("createdAt","desc"));
+  unsubFav = onSnapshot(qFav, (snap)=>{
+    const list = [];
+    snap.forEach(d=>{
+      const data = d.data() || {};
+      list.push({
+        id: d.id,
+        ...data,
+        _created: data?.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
+      });
+    });
+    favCache = list;
+    renderFavorites();
+  });
+});
