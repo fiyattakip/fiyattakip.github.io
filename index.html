@@ -3,17 +3,50 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Fiyat Takip</title>
+  <title>Fiyat Takip (Null-Safe Fix)</title>
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <div id="app">
-    <button id="tabNormal">Normal</button>
-    <button id="tabAI">AI Arama</button>
-    <input id="q" placeholder="Ara"/>
-    <button id="searchBtn">Ara</button>
-    <pre id="log"></pre>
+  <div class="container">
+    <header class="hdr">
+      <div class="title">Fiyat Takip</div>
+      <div class="subtitle">Null-safe bootstrap sürümü (tıklama patlamaz).</div>
+    </header>
+
+    <div class="tabs">
+      <button id="tabNormal" class="tab active">Normal</button>
+      <button id="tabAI" class="tab">AI Arama</button>
+      <button id="tabGorsel" class="tab">Görsel</button>
+    </div>
+
+    <div class="search">
+      <input id="searchInput" placeholder="Ürün ara (ör: iphone 13 128gb)"/>
+      <button id="searchBtn">Ara</button>
+    </div>
+
+    <div id="panelNormal" class="panel">
+      <h3>Normal Arama</h3>
+      <div id="normalResults" class="card">Henüz arama yok.</div>
+    </div>
+
+    <div id="panelAI" class="panel hidden">
+      <h3>AI Arama</h3>
+      <div id="aiResults" class="card">Henüz arama yok.</div>
+    </div>
+
+    <div id="panelGorsel" class="panel hidden">
+      <h3>Görsel Arama</h3>
+      <div class="card">Bu sürümde sadece altyapı test ediliyor.</div>
+    </div>
+
+    <section class="fav">
+      <h3>Favoriler</h3>
+      <div id="favList" class="card">Favori yok.</div>
+    </section>
+
+    <pre id="debug" class="debug"></pre>
   </div>
+
   <script type="module" src="./bootstrap.js"></script>
 </body>
 </html>
