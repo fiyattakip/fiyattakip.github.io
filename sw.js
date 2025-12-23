@@ -40,5 +40,3 @@ self.addEventListener("fetch", (e)=>{
     }
   })());
 });
-
-// build: 2025-12-23T13:05:46.378793

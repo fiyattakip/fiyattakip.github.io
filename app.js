@@ -30,68 +30,7 @@ function toast(msg){
   toastTimer = setTimeout(()=> hide(t), 2200);
 }
 
-
-/* ====== Price Drop Notification (no-UX, default) ====== */
-const DROP_THRESHOLD_PCT_DEFAULT = 10; // %10
-const DROP_NOTIFY_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24h
-
-function getNotifyState(){
-  try { return JSON.parse(localStorage.getItem("ft_notify_state") || "{}") || {}; }
-  catch { return {}; }
-}
-function setNotifyState(state){
-  try { localStorage.setItem("ft_notify_state", JSON.stringify(state || {})); } catch {}
-}
-
-function maybeNotifyPriceDrop(prev, curr){
-  try{
-    if (!prev || !curr) return;
-    const prevP = Number(prev.lastPrice);
-    const currP = Number(curr.lastPrice);
-    if (!isFinite(prevP) || !isFinite(currP)) return;
-    if (currP <= 0 || prevP <= 0) return;
-    if (currP >= prevP) return;
-
-    const dropPct = ((prevP - currP) / prevP) * 100;
-    const threshold = Number(curr.dropThresholdPct);
-    const th = isFinite(threshold) && threshold > 0 ? threshold : DROP_THRESHOLD_PCT_DEFAULT;
-    if (dropPct + 1e-9 < th) return;
-
-    const state = getNotifyState();
-    const key = curr.id || curr.docId || curr.url || curr.query || "x";
-    const lastAt = Number(state[key]?.lastAtMs || 0);
-    const now = Date.now();
-    if (now - lastAt < DROP_NOTIFY_COOLDOWN_MS) return;
-
-    const title = "Fiyat düştü!";
-    const name = curr.title || curr.query || "Ürün";
-    const body = `${name}\n${formatPrice(prevP)} → ${formatPrice(currP)} (-%${dropPct.toFixed(1)})`;
-
-    // Prefer Notification if already granted, otherwise toast only (no UX prompt)
-    if (typeof Notification !== "undefined" && Notification.permission === "granted"){
-      try { new Notification(title, { body }); } catch { /* ignore */ }
-    }
-    toast(body);
-
-    state[key] = { lastAtMs: now, lastPrice: currP };
-    setNotifyState(state);
-  }catch(e){
-    // do not crash UI
-    console.warn("notify drop failed", e);
-  }
-}
-
-function esc(s){
-  if (s === null || s === undefined) return "";
-  return String(s).replace(/[&<>"']/g, ch => ({
-    "&":"&amp;",
-    "<":"&lt;",
-    ">":"&gt;",
-    '"':"&quot;",
-    "'":"&#39;"
-  })[ch]);
-}
-; return (s||"").replace(/[&<>"']/g, m => MAP[m]); }
+function esc(s){ const MAP={ "&":"&#38;","<":"&#60;",">":"&#62;",'"':"&#34;","'":"&#39;" }; return (s||"").replace(/[&<>"']/g, m => MAP[m]); }
 function encQ(s){ return encodeURIComponent((s||"").trim()); }
 
 function hashId(str){
@@ -358,9 +297,6 @@ Sadece bu formatla cevap ver.`;
       commentMap: Object.fromEntries(SITES.map(s=>[s.id, commentLine])),
       btnLabel: "Ara"
     });
-    // İnternette en düşük fiyat (isteğe bağlı API)
-    try{ renderBestPriceBox($("aiList"), queryLine); }catch(_e){}
-
 
   }catch(e){
     toast(e?.message || String(e));
@@ -527,111 +463,25 @@ async function removeFavorite(docId){
 }
 
 async function genAiComment(fav){
-  if (!aiConfigured()) throw new Error("AI key kayıtlı değil.");
+  if (!aiConfigured()) return toast("AI key kayıtlı değil.");
   const title = fav.title || fav.query || "ürün";
   const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
   const site = fav.siteName || "";
   const prompt =
-`Aşağıdaki ürün için SADECE geçerli JSON döndür. Başka hiçbir metin yazma.
-Şema:
-{
-  "summary": "1-2 cümle özet",
-  "pros": ["3 maddeyi geçme"],
-  "cons": ["3 maddeyi geçme"],
-  "full": "maks 6-7 cümle, pratik ve net"
-}
-
-Ürün: ${title}
+`Ürün: ${title}
 Site: ${site}
 Fiyat: ${price}
-
-Kurallar:
-- Türkçe yaz.
-- Pros/cons maddeleri kısa olsun.
-- Belirsizsen varsayım yapma, 'Bilinmiyor' de.`;
-
-  const raw = await geminiText(prompt);
-  const txt = (raw || "").trim();
-
-  const cleaned = txt
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```$/,"")
-    .trim();
-
-  try{
-    const obj = JSON.parse(cleaned);
-    return {
-      summary: String(obj.summary || "").trim(),
-      pros: Array.isArray(obj.pros) ? obj.pros.map(x=>String(x).trim()).filter(Boolean).slice(0,3) : [],
-      cons: Array.isArray(obj.cons) ? obj.cons.map(x=>String(x).trim()).filter(Boolean).slice(0,3) : [],
-      full: String(obj.full || "").trim()
-    };
-  }catch(e){
-    return { summary: "", pros: [], cons: [], full: txt };
-  }
+Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
+Maks 3-4 cümle. Türkçe.`;
+  const t = await geminiText(prompt);
+  return t.trim();
 }
-
 
 function formatPrice(p){
   if (p===null || p===undefined || p==="") return "Fiyat yok";
   const n = Number(p);
   if (Number.isFinite(n)) return `${n.toLocaleString("tr-TR")} TL`;
   return String(p);
-}
-
-
-
-/* Best price (internet) - optional worker API
-   Set localStorage key: fiyattakip_best_price_api = "https://YOUR-API"
-   Expected response (GET /best?query=...):
-   { "minPrice": 12345, "currency":"TRY", "title":"...", "url":"..." }
-*/
-function getBestPriceApi(){
-  return (localStorage.getItem("fiyattakip_best_price_api") || "").trim();
-}
-async function fetchBestPrice(query){
-  const api = getBestPriceApi();
-  if (!api) throw new Error("En düşük fiyat için API ayarlı değil.");
-  const u = api.replace(/\/$/,"") + "/best?query=" + encodeURIComponent(query);
-  const res = await fetch(u, { cache:"no-store" });
-  if (!res.ok) throw new Error("Best price API hata: " + res.status);
-  const data = await res.json();
-  return data;
-}
-function renderBestPriceBox(container, query){
-  const api = getBestPriceApi();
-  const id = "bestPriceBox";
-  container.insertAdjacentHTML("afterbegin", `
-    <div class="bestBox" id="${id}">
-      <div class="bestTop">
-        <div class="bestTitle">İnternette en düşük fiyat (BETA)</div>
-        <button class="pill" id="bestRun">Bul</button>
-      </div>
-      <div class="smallNote">Kaynak: ${api ? esc(api) : "API ayarlı değil (localStorage: fiyattakip_best_price_api)"}</div>
-      <div class="bestResult" id="bestResult">—</div>
-    </div>
-  `);
-
-  const run = document.getElementById("bestRun");
-  const out = document.getElementById("bestResult");
-  run.addEventListener("click", async ()=>{
-    try{
-      run.disabled = true;
-      out.textContent = "Aranıyor...";
-      const r = await fetchBestPrice(query);
-      const p = (r && r.minPrice!=null) ? formatPrice(r.minPrice) : "Bulunamadı";
-      const title = r?.title ? String(r.title) : query;
-      const url = r?.url ? String(r.url) : "";
-      out.innerHTML = url
-        ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(title)}</a> — <b>${esc(p)}</b>`
-        : `${esc(title)} — <b>${esc(p)}</b>`;
-    }catch(e){
-      out.textContent = e?.message || String(e);
-    }finally{
-      run.disabled = false;
-    }
-  });
 }
 
 function sortFav(list, mode){
@@ -717,41 +567,8 @@ function openGraph(fav){
 }
 $("closeGraph").addEventListener("click", ()=> hide($("graphModal")));
 
-/* AI COMMENT MODAL */
-function openAiModal(f){
-  if (!f) return;
-  $("aiModalTitle").textContent = f.title || f.query || "AI Yorum";
-  $("aiModalMeta").textContent = `${f.siteName || ""} • ${f.lastPrice ? formatPrice(f.lastPrice) : "Fiyat yok"} • ${f.aiCommentAt || "—"}`;
-
-  const summary = (f.aiSummary || "").trim();
-  const full = (f.aiCommentFull || f.aiComment || "").trim();
-  const pros = Array.isArray(f.aiPros) ? f.aiPros : [];
-  const cons = Array.isArray(f.aiCons) ? f.aiCons : [];
-
-  $("aiModalSummary").textContent = summary || (full ? full.split(/(?<=[.!?])\s+/).slice(0,2).join(" ") : "—");
-  $("aiModalPros").innerHTML = pros.length ? pros.map(x=>`<li>${esc(x)}</li>`).join("") : "<li>—</li>";
-  $("aiModalCons").innerHTML = cons.length ? cons.map(x=>`<li>${esc(x)}</li>`).join("") : "<li>—</li>";
-
-  // Full text + clamp
-  const fullEl = $("aiModalFull");
-  fullEl.textContent = full || "—";
-  fullEl.classList.remove("open");
-  const btn = $("aiModalToggle");
-  btn.textContent = "Devamını gör";
-  btn.onclick = ()=>{
-    fullEl.classList.toggle("open");
-    btn.textContent = fullEl.classList.contains("open") ? "Kapat" : "Devamını gör";
-  };
-
-  show($("aiModal"));
-}
-$("closeAiModal").addEventListener("click", ()=> hide($("aiModal")));
-$("aiModal").addEventListener("click", (e)=>{ if (e.target && e.target.id==="aiModal") hide($("aiModal")); });
-
-
 /* Render favorites */
 let favCache = [];
-let _prevFavById = new Map();
 
 function renderFavorites(){
   const mode = $("favSort").value;
@@ -766,15 +583,7 @@ function renderFavorites(){
     const errBadge = f.error ? `<span class="badgeErr">Hata: ${esc(f.error)}</span>` : `<span class="badgeOk">OK</span>`;
     const price = formatPrice(f.lastPrice);
     const meta = `${esc(f.siteName || "")} • Son kontrol: ${esc(f.lastCheckedAt || "—")}`;
-    const hasAi = !!(f.aiCommentFull || f.aiComment);
-    const ai = hasAi ? `
-      <div class="aiBox">
-        <div class="aiBadge">AI</div>
-        <div class="aiCommentPreview">${esc((f.aiSummary || f.aiCommentFull || f.aiComment || ""))}</div>
-        <button class="aiToggle" data-aipop="${esc(f.id)}">Devamını gör</button>
-        <small>Güncellendi: ${esc(f.aiCommentAt || "—")}</small>
-      </div>
-    ` : "";
+    const ai = f.aiComment ? `<div class="aiBubble">${esc(f.aiComment)}<small>Güncellendi: ${esc(f.aiCommentAt || "—")}</small></div>` : "";
     return `
       <div class="favItem" data-id="${esc(f.id)}">
         <div class="favTop">
@@ -843,32 +652,17 @@ function renderFavorites(){
       const id = b.getAttribute("data-aicom");
       const f = favCache.find(x=>x.id===id);
       try{
-        const obj = await genAiComment(f);
+        const t = await genAiComment(f);
         const ref = doc(db, "users", currentUser.uid, "favorites", id);
-        await updateDoc(ref, {
-          aiSummary: obj.summary || "",
-          aiPros: obj.pros || [],
-          aiCons: obj.cons || [],
-          aiCommentFull: obj.full || "",
-          aiCommentAt: nowIso(),
-          updatedAt: serverTimestamp()
-        });
-        toast("AI yorum güncellendi.");
+        await updateDoc(ref, { aiComment: t, aiCommentAt: nowIso(), updatedAt: serverTimestamp() });
+        toast("AI yorum eklendi.");
       }catch(e){
         toast(e?.message || String(e));
       }
     });
   });
 
-  $("favList").
-  $("favList").querySelectorAll("[data-aipop]").forEach(b=>{
-    b.addEventListener("click", ()=>{
-      const id = b.getAttribute("data-aipop");
-      const f = favCache.find(x=>x.id===id);
-      openAiModal(f);
-    });
-  });
-querySelectorAll("[data-del]").forEach(b=>{
+  $("favList").querySelectorAll("[data-del]").forEach(b=>{
     b.addEventListener("click", async ()=>{
       const id = b.getAttribute("data-del");
       await removeFavorite(id);
@@ -910,14 +704,6 @@ onAuthStateChanged(auth, async (u)=>{
       });
     });
     list.sort((a,b)=>(b._created||0)-(a._created||0));
-    // price-drop notify (compare previous snapshot to new)
-    const newMap = new Map(list.map(x=>[x.id, x]));
-    for (const [id, curr] of newMap.entries()){
-      const prev = _prevFavById.get(id);
-      if (prev) maybeNotifyPriceDrop(prev, curr);
-    }
-    _prevFavById = newMap;
-
     favCache = list;
     renderFavorites();
   });
