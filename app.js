@@ -30,8 +30,19 @@ function toast(msg){
   toastTimer = setTimeout(()=> hide(t), 2200);
 }
 
-function esc(s){ return (s||"").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+function esc(s){ const MAP={ "&":"&#38;","<":"&#60;",">":"&#62;",'"':"&#34;","'":"&#39;" }; return (s||"").replace(/[&<>"']/g, m => MAP[m]); }
 function encQ(s){ return encodeURIComponent((s||"").trim()); }
+
+function hashId(str){
+  // FNV-1a 32bit -> hex (Firestore doc id için güvenli)
+  let h = 0x811c9dc5;
+  for (let i=0; i<str.length; i++){
+    h ^= str.charCodeAt(i);
+    h = (h + (h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24)) >>> 0;
+  }
+  return ("fav_" + h.toString(16)).padEnd(12, "0");
+}
+
 
 function openUrl(url){
   window.open(url, "_blank", "noopener,noreferrer");
@@ -113,18 +124,14 @@ function renderSiteList(targetEl, queryText, extra = {}){
       const id = btn.getAttribute("data-fav");
       const site = SITES.find(x=>x.id===id);
       const q = (extra?.hintMap?.[id] || queryText || "").trim();
-      try{
-        const id = await addFavorite({
-          title: q || "(boş)",
-          siteId: site.id,
-          siteName: site.name,
-          query: q,
-          url: site.build(q),
-        });
-        toast("Favoriye eklendi.");
-      }catch(e){
-        toast(e?.message || String(e));
-      }
+      await addFavorite({
+        title: q || "(boş)",
+        siteId: site.id,
+        siteName: site.name,
+        query: q,
+        url: site.build(q),
+      });
+      toast("Favoriye eklendi.");
     });
   });
 }
@@ -409,42 +416,32 @@ Eğer ürün belirsizse "UNKNOWN" yaz.`;
 });
 
 /* ---------- Favorites ---------- */
-function favDocId(siteId, query){
-  // deterministic id to prevent duplicates without extra reads
-  const s = `${siteId}|${(query||"").trim().toLowerCase()}`;
-  // simple FNV-1a 32-bit
-  let h = 2166136261;
-  for (let i=0;i<s.length;i++){
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return `${siteId}_${(h>>>0).toString(16)}`;
-}
-
-
 function userFavCol(){
   return collection(db, "users", currentUser.uid, "favorites");
 }
 
 async function addFavorite({ title, siteId, siteName, query, url }){
-  if (!currentUser) throw new Error("Giriş gerekli.");
+  if (!currentUser) return toast("Giriş gerekli.");
 
-  const q = (query || "").trim();
-  if (!q) throw new Error("Arama boş olamaz.");
+  // Aynı ürün/sorgu tekrar eklenmesin diye deterministik doc id
+  const keySrc = `${siteId}|${(url || "").trim()}|${(query || title || "").trim()}`;
+  const favId = hashId(keySrc);
 
-  const id = favDocId(siteId, q);
-  const ref = doc(db, "users", currentUser.uid, "favorites", id);
+  const ref = doc(db, "users", currentUser.uid, "favorites", favId);
+  const existing = await getDoc(ref);
+  if (existing.exists()){
+    toast("Zaten favoride.");
+    return;
+  }
 
-  const now = Date.now();
-  const payload = {
-    title: title || q,
+  const nowMs = Date.now();
+  await setDoc(ref, {
+    uid: currentUser.uid,
+    title,
     siteId,
     siteName,
-    query: q,
+    query,
     url,
-
-    uid: currentUser.uid,
-
     // Worker burayı güncelleyebilir:
     lastPrice: null,
     currency: "TRY",
@@ -452,18 +449,16 @@ async function addFavorite({ title, siteId, siteName, query, url }){
     error: null,
     priceHistory: [], // [{t: timestamp(ms), p: number}]
     aiComment: null,
+    createdAtMs: nowMs,
+    updatedAtMs: nowMs,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 
-    createdAtMs: now,
-    updatedAtMs: now,
-  };
-
-  // setDoc with deterministic id: first time creates, next time merges (no duplicates)
-  await setDoc(ref, payload, { merge: true });
-  return id;
+  toast("Favoriye eklendi.");
 }
 
 async function removeFavorite(docId){
-(docId){
   await deleteDoc(doc(db, "users", currentUser.uid, "favorites", docId));
 }
 
@@ -639,7 +634,7 @@ function renderFavorites(){
       // Bu buton worker'ın işi; biz sadece "son kontrol" alanını güncelleriz (isteğe bağlı)
       const id = b.getAttribute("data-retry");
       const ref = doc(db, "users", currentUser.uid, "favorites", id);
-      await updateDoc(ref, { lastCheckedAt: nowIso(), updatedAtMs: Date.now() }).catch(()=>{});
+      await updateDoc(ref, { lastCheckedAt: nowIso(), updatedAt: serverTimestamp() }).catch(()=>{});
       toast("İstek gönderildi (worker varsa günceller).");
     });
   });
@@ -697,7 +692,7 @@ onAuthStateChanged(auth, async (u)=>{
   $("logoutBtn").style.display = "";
 
   // listen favorites
-  const qFav = query(userFavCol(), orderBy("createdAtMs","desc"));
+  const qFav = query(userFavCol());
   unsubFav = onSnapshot(qFav, (snap)=>{
     const list = [];
     snap.forEach(d=>{
@@ -705,9 +700,10 @@ onAuthStateChanged(auth, async (u)=>{
       list.push({
         id: d.id,
         ...data,
-        _created: Number(data?.createdAtMs || 0)
+        _created: (typeof data?.createdAtMs === "number" ? data.createdAtMs : (data?.createdAt?.toMillis ? data.createdAt.toMillis() : 0))
       });
     });
+    list.sort((a,b)=>(b._created||0)-(a._created||0));
     favCache = list;
     renderFavorites();
   });
