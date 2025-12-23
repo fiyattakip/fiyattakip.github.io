@@ -3,20 +3,38 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Fiyat Takip (Recovery)</title>
-  <link rel="stylesheet" href="styles.css"/>
+  <title>Fiyat Takip (Recovery2)</title>
+  <style>
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+    button{pointer-events:auto;touch-action:manipulation;font-size:18px;padding:14px 18px;border-radius:14px;border:1px solid #ccc;cursor:pointer}
+    #status{white-space:pre-line;color:#065f46}
+  </style>
 </head>
 <body>
-  <h1>Fiyat Takip</h1>
-  <button id="btnTest">Tıkla (Test)</button>
-  <div id="log"></div>
+  <div class="wrap">
+    <h1>Recovery2</h1>
+
+    <!-- Inline onclick: works even if ALL JS files are blocked -->
+    <button onclick="alert('OK: Tıklama çalışıyor'); document.getElementById('status').textContent += 'Inline onclick OK\n';">
+      TIKLA (INLINE TEST)
+    </button>
+
+    <div id="status">Sayfa yüklendi.
+</div>
+  </div>
 
   <script>
-    // 🔥 HARD RESET: Unregister ALL service workers to kill cache issues
+    // Show that inline script runs
+    document.getElementById('status').textContent += 'Inline script çalıştı\n';
+
+    // Kill SW cache
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+      navigator.serviceWorker.getRegistrations().then(rs => {
+        rs.forEach(r => r.unregister());
+        document.getElementById('status').textContent += 'SW unregister denendi\n';
+      });
     }
   </script>
-  <script src="app.v2.js" defer></script>
 </body>
 </html>
