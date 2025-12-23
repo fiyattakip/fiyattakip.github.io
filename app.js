@@ -9,7 +9,7 @@ import {
 
 import {
   collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, updateDoc,
-  onSnapshot, query, where, orderBy, limit, serverTimestamp
+  onSnapshot, query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import {
@@ -89,7 +89,7 @@ function renderSiteList(targetEl, queryText, extra = {}){
           <button class="btnOpen" data-open="${esc(s.id)}">${esc(btnLabel)}</button>
           <button class="btnFav" data-fav="${esc(s.id)}" title="Favoriye ekle">
             <svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg>
-            <span class="favLabel">Favoriye ekle</span>
+            Favoriye ekle
           </button>
         </div>
       </div>
@@ -113,36 +113,21 @@ function renderSiteList(targetEl, queryText, extra = {}){
       const id = btn.getAttribute("data-fav");
       const site = SITES.find(x=>x.id===id);
       const q = (extra?.hintMap?.[id] || queryText || "").trim();
-
-      if (!currentUser){
-        toast("Favori için giriş yap.");
-        openLogin();
-        return;
-      }
-
-      btn.disabled = true;
       try{
-        const ok = await addFavorite({
+        const res = await addFavorite({
           title: q || "(boş)",
           siteId: site.id,
           siteName: site.name,
           query: q,
           url: site.build(q),
         });
-
-        if (ok){
-          btn.classList.add("on");
-          const lab = btn.querySelector(".favLabel");
-          if (lab) lab.textContent = "Favoride";
-          toast("Favoriye eklendi.");
-        }
-      }catch(e){
-        toast(e?.message || String(e));
-      }finally{
-        btn.disabled = false;
+        if (!res?.skipped) toast("Favoriye eklendi.");
+      }catch{
+        // addFavorite zaten toast bastı
       }
     });
   });
+
 }
 
 /* ---------- Tabs ---------- */
@@ -429,26 +414,31 @@ function userFavCol(){
   return collection(db, "users", currentUser.uid, "favorites");
 }
 
-async function addFavorite({ title, siteId, siteName, query: qText, url }){
-  if (!currentUser) return false;
-
-  // Basit tekrar kontrolü: aynı site + aynı query zaten varsa tekrar ekleme
-  try{
-    const qDup = query(userFavCol(), where("siteId","==",siteId), where("query","==",qText), limit(1));
-    const snap = await getDocs(qDup);
-    if (!snap.empty){
-      toast("Zaten favoride.");
-      return false;
-    }
-  }catch{
-    // index yoksa vs: yine de eklemeyi deneriz
+async function addFavorite({ title, siteId, siteName, query, url }){
+  if (!currentUser){
+    toast("Favori eklemek için giriş yapmalısın.");
+    openLogin();
+    throw new Error("not-auth");
   }
 
-  await addDoc(userFavCol(), {
+  // Aynı site + aynı arama tekrar eklenmesin
+  const qNorm = (query || "").trim().toLowerCase();
+  const exists = (favCache || []).some(f =>
+    String(f.siteId || "").toLowerCase() === String(siteId || "").toLowerCase() &&
+    String((f.query || "")).trim().toLowerCase() === qNorm
+  );
+  if (exists){
+    toast("Zaten favorilerde.");
+    return { skipped: true };
+  }
+
+  const now = Date.now();
+  const payload = {
+    uid: currentUser.uid,
     title,
     siteId,
     siteName,
-    query: qText,
+    query,
     url,
     // Worker burayı güncelleyebilir:
     lastPrice: null,
@@ -457,12 +447,24 @@ async function addFavorite({ title, siteId, siteName, query: qText, url }){
     error: null,
     priceHistory: [], // [{t: timestamp(ms), p: number}]
     aiComment: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+    createdAt: now,
+    updatedAt: now,
+  };
 
-  return true;
+  try{
+    const ref = await addDoc(userFavCol(), payload);
+    return { id: ref.id };
+  }catch(e){
+    console.error("addFavorite failed:", e);
+    const code = (e && e.code) ? String(e.code) : "";
+    if (code.includes("permission-denied")) toast("Favori eklenemedi: Firestore izin hatası (rules).");
+    else if (code.includes("failed-precondition")) toast("Favori eklenemedi: Firestore ayarı/indeks problemi.");
+    else if (code.includes("unavailable")) toast("Favori eklenemedi: bağlantı yok.");
+    else toast("Favori eklenemedi.");
+    throw e;
+  }
 }
+
 
 async function removeFavorite(docId){
   await deleteDoc(doc(db, "users", currentUser.uid, "favorites", docId));
@@ -502,17 +504,7 @@ function sortFav(list, mode){
 /* Graph */
 function drawGraph(canvas, points){
   const ctx = canvas.getContext("2d");
-
-  // HiDPI: çizimi CSS px üzerinden yap
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.max(1, rect.width);
-  const h = Math.max(1, rect.height);
-
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
+  const w = canvas.width, h = canvas.height;
   ctx.clearRect(0,0,w,h);
 
   // bg
@@ -571,9 +563,15 @@ function openGraph(fav){
 
   $("graphHint").textContent = pts.length ? `Nokta: ${pts.length}` : "priceHistory yok.";
   show($("graphModal"));
-
-  // modal açıldıktan sonra ölçü doğru gelsin
-  requestAnimationFrame(()=> drawGraph($("graphCanvas"), pts));
+  // resize for hiDPI
+  const c = $("graphCanvas");
+  const rect = c.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.floor(rect.width * dpr);
+  c.height = Math.floor(420 * dpr);
+  const ctx = c.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  drawGraph(c, pts);
 }
 $("closeGraph").addEventListener("click", ()=> hide($("graphModal")));
 
@@ -585,7 +583,7 @@ function renderFavorites(){
   const list = sortFav(favCache, mode);
 
   if (!list.length){
-    $("favList").innerHTML = `<div class="emptyBox"><b>Favori yok.</b><div class="smallNote">Üstten bir ürün arayıp “Favoriye ekle” deyince burada görünür. Her favoride “AI Yorum” ve “Grafik” butonları var.</div></div>`;
+    $("favList").innerHTML = `<div class="emptyBox">Favori yok.</div>`;
     return;
   }
 
@@ -644,7 +642,7 @@ function renderFavorites(){
       // Bu buton worker'ın işi; biz sadece "son kontrol" alanını güncelleriz (isteğe bağlı)
       const id = b.getAttribute("data-retry");
       const ref = doc(db, "users", currentUser.uid, "favorites", id);
-      await updateDoc(ref, { lastCheckedAt: nowIso(), updatedAt: serverTimestamp() }).catch(()=>{});
+      await updateDoc(ref, { lastCheckedAt: nowIso(), updatedAt: Date.now() }).catch(()=>{});
       toast("İstek gönderildi (worker varsa günceller).");
     });
   });
@@ -664,7 +662,7 @@ function renderFavorites(){
       try{
         const t = await genAiComment(f);
         const ref = doc(db, "users", currentUser.uid, "favorites", id);
-        await updateDoc(ref, { aiComment: t, aiCommentAt: nowIso(), updatedAt: serverTimestamp() });
+        await updateDoc(ref, { aiComment: t, aiCommentAt: nowIso(), updatedAt: Date.now() });
         toast("AI yorum eklendi.");
       }catch(e){
         toast(e?.message || String(e));
@@ -710,7 +708,16 @@ onAuthStateChanged(auth, async (u)=>{
       list.push({
         id: d.id,
         ...data,
-        _created: data?.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
+        _created: (()=>{
+          const ca = data?.createdAt;
+          if (ca && typeof ca.toMillis === "function") return ca.toMillis();
+          if (typeof ca === "number") return ca;
+          if (typeof ca === "string"){
+            const t = Date.parse(ca);
+            if (!Number.isNaN(t)) return t;
+          }
+          return Date.now();
+        })()
       });
     });
     favCache = list;
