@@ -1,54 +1,42 @@
-const CACHE_VERSION = "fiyattakip-v20";
+const CACHE = "fiyattakip-cache-v5";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./firebase.js",
   "./ai.js",
-  "./sw.js",
+  "./firebase.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil((async ()=>{
-    const cache = await caches.open(CACHE_VERSION);
-    await cache.addAll(ASSETS);
-    self.skipWaiting();
-  })());
+self.addEventListener("install", (e)=>{
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil((async ()=>{
+self.addEventListener("activate", (e)=>{
+  e.waitUntil((async ()=>{
     const keys = await caches.keys();
-    await Promise.all(keys.map(k => (k !== CACHE_VERSION) ? caches.delete(k) : Promise.resolve()));
-    self.clients.claim();
+    await Promise.all(keys.map(k => (k===CACHE ? null : caches.delete(k))));
+    await self.clients.claim();
   })());
 });
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  const url = new URL(req.url);
-
-  if (url.hostname.includes("googleapis.com") || url.hostname.includes("gstatic.com") || url.hostname.includes("firebaseapp.com")) return;
+self.addEventListener("fetch", (e)=>{
+  const req = e.request;
   if (req.method !== "GET") return;
 
-  event.respondWith((async ()=>{
-    const cache = await caches.open(CACHE_VERSION);
+  e.respondWith((async ()=>{
+    const cache = await caches.open(CACHE);
     const cached = await cache.match(req);
     if (cached) return cached;
-
     try{
-      const res = await fetch(req);
-      if (res && res.ok && (req.destination === "document" || req.destination === "script" || req.destination === "style" || req.destination === "image")) {
-        cache.put(req, res.clone());
-      }
-      return res;
+      const fresh = await fetch(req);
+      if (fresh && fresh.ok && fresh.type !== "opaque") cache.put(req, fresh.clone());
+      return fresh;
     }catch{
-      if (req.destination === "document") return cache.match("./index.html");
-      throw new Error("offline");
+      return cached || new Response("Offline", { status: 503 });
     }
   })());
 });
