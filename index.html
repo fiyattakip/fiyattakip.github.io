@@ -1,72 +1,17 @@
 <!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0b1220" />
-  <link rel="manifest" href="./manifest.json" />
-  <link rel="icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Fiyat Takip</title>
-  <style>
-    #debugBar{position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;
-      background:rgba(255,255,255,.92);border:1px solid rgba(15,23,42,.14);
-      border-radius:16px;padding:10px 12px;box-shadow:0 10px 35px rgba(0,0,0,.22);
-      font-weight:800;display:none;white-space:pre-line}
-    #debugBar button{margin-left:8px;padding:6px 10px;border-radius:12px;border:1px solid rgba(15,23,42,.14);background:rgba(15,23,42,.05);cursor:pointer;font-weight:800}
-    #inlineTestBtn{position:fixed;top:10px;left:10px;z-index:99999;opacity:.0;pointer-events:auto}
-  </style>
+  <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <!-- Invisible inline test (still clickable): if you tap top-left it should alert -->
-  <button id="inlineTestBtn" onclick="alert('INLINE OK');">.</button>
-  <div id="debugBar"></div>
+  <h1>Fiyat Takip</h1>
+  <button id="testBtn">Tıkla</button>
+  <pre id="log"></pre>
 
-  <script>
-    const dbg = (m)=>{ 
-      const bar=document.getElementById('debugBar'); 
-      bar.style.display='block'; 
-      bar.textContent += m + "\n";
-    };
-
-    window.addEventListener('error', (e)=>{
-      dbg("JS ERROR: " + (e.message || e.error || e.type));
-    });
-    window.addEventListener('unhandledrejection', (e)=>{
-      dbg("PROMISE ERROR: " + (e.reason && (e.reason.message||e.reason) || "unknown"));
-    });
-
-    async function hardResetThenLoad(){
-      try{
-        // Unregister SW
-        if ('serviceWorker' in navigator){
-          const regs = await navigator.serviceWorker.getRegistrations();
-          for (const r of regs) await r.unregister();
-          dbg("SW: unregistered ("+regs.length+")");
-        }
-        // Clear Cache Storage
-        if (window.caches){
-          const keys = await caches.keys();
-          await Promise.all(keys.map(k=>caches.delete(k)));
-          dbg("CacheStorage: cleared ("+keys.length+")");
-        }
-      }catch(err){
-        dbg("Reset error: " + (err && (err.message||err) || "unknown"));
-      }
-
-      // Load fresh modules with cache-busting
-      const v = Date.now();
-      dbg("Loading modules v=" + v);
-
-      try{
-        await import("./bootstrap.js?v="+v);
-        dbg("Bootstrap loaded ✅");
-      }catch(err){
-        dbg("Bootstrap failed ❌ " + (err && (err.message||err) || "unknown"));
-      }
-    }
-
-    hardResetThenLoad();
-  </script>
+  <!-- IMPORTANT: module loader that EXISTS -->
+  <script type="module" src="./bootstrap.js"></script>
 </body>
 </html>
