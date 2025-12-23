@@ -13,7 +13,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import {
-  saveGeminiKey, clearAiCfg, aiConfigured, geminiText, geminiVision
+  saveAiKeys, clearAiCfg, aiConfigured, aiText, aiVision, loadAiCfg
 } from "./ai.js";
 
 /* ---------- Helpers ---------- */
@@ -246,16 +246,20 @@ $("logoutBtn").addEventListener("click", async ()=>{
 
 /* ---------- AI Settings Modal ---------- */
 $("aiSettingsBtn").addEventListener("click", ()=>{
+  const cfg = loadAiCfg();
+  if (cfg?.preferredProvider) $("aiProvider").value = cfg.preferredProvider;
   $("aiModal").style.display = "";
 });
 $("closeAi").addEventListener("click", ()=> $("aiModal").style.display="none");
 
 $("saveAi").addEventListener("click", async ()=>{
   try{
-    await saveGeminiKey({
-      apiKey: $("gemKey").value.trim(),
+    await saveAiKeys({
+      geminiKey: $("gemKey").value.trim(),
+      openaiKey: $("openaiKey").value.trim(),
       pin: $("gemPin").value,
-      rememberPin: $("rememberPin").checked
+      rememberPin: $("rememberPin").checked,
+      preferredProvider: $("aiProvider").value
     });
     toast("AI ayarı kaydedildi.");
     $("aiModal").style.display = "none"; // <- senin istediğin: Kaydet deyince kapansın
@@ -266,6 +270,9 @@ $("saveAi").addEventListener("click", async ()=>{
 
 $("clearAi").addEventListener("click", ()=>{
   clearAiCfg();
+  $("gemKey").value = "";
+  $("openaiKey").value = "";
+  $("gemPin").value = "";
   toast("AI key silindi.");
 });
 
@@ -293,7 +300,7 @@ Amaç: E-ticarette doğru arama ifadesi ve kısa öneri.
 - comment: (kısa yorum: nelere dikkat edilmeli)
 Sadece bu formatla cevap ver.`;
 
-    const out = await geminiText(prompt);
+    const out = await aiText(prompt);
     const queryLine = (out.match(/query:\s*(.+)/i)?.[1] || q).trim();
     const commentLine = (out.match(/comment:\s*(.+)/i)?.[1] || "").trim();
 
@@ -353,7 +360,7 @@ $("btnVisual").addEventListener("click", async ()=>{
 - 2 satır: kısa açıklama
 Eğer ürün belirsizse "UNKNOWN" yaz.`;
 
-    const txt = await geminiVision({
+    const txt = await aiVision({
       prompt,
       mime: f.type || "image/png",
       base64Data: b64
@@ -482,7 +489,7 @@ Site: ${site}
 Fiyat: ${price}
 Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
 Maks 3-4 cümle. Türkçe.`;
-  const t = await geminiText(prompt);
+  const t = await aiText(prompt);
   return t.trim();
 }
 
