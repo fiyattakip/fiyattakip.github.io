@@ -1,251 +1,227 @@
+// worker/price-worker.js (Node 18+)
+// GitHub Actions çalıştırır. Firestore Admin ile yazar.
+// Not: Sitelerin HTML yapısı değişebilir. Burada “meta/JSON-LD” ağırlıklı okunur.
+
 import admin from "firebase-admin";
+import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
-const PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
-const SA_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+function mustEnv(name){
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env: ${name}`);
+  return v;
+}
 
-if (!PROJECT_ID) throw new Error("FIREBASE_PROJECT_ID env yok");
-if (!SA_JSON) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON secret yok");
-
-const serviceAccount = JSON.parse(SA_JSON);
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  projectId: PROJECT_ID
-});
-
+const svc = JSON.parse(mustEnv("FIREBASE_SERVICE_ACCOUNT_JSON"));
+admin.initializeApp({ credential: admin.credential.cert(svc) });
 const db = admin.firestore();
 
-const TRACK_INTERVAL_MIN = 20;
+const SITES = [
+  { key:"trendyol", name:"Trendyol" },
+  { key:"hepsiburada", name:"Hepsiburada" },
+  { key:"n11", name:"N11" },
+  { key:"amazontr", name:"Amazon TR" },
+  { key:"pazarama", name:"Pazarama" },
+  { key:"ciceksepeti", name:"ÇiçekSepeti" },
+  { key:"idefix", name:"idefix" },
+];
 
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121 Safari/537.36";
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-function nowMs(){ return Date.now(); }
-function toNumTR(s){
-  if (!s) return null;
-  const cleaned = String(s).replace(/\s/g,"").replace(/[^\d.,]/g,"");
-  if (!cleaned) return null;
-  // 12.345,67 -> 12345.67 / 12.345 -> 12345
-  let v = cleaned;
-  if (v.includes(",") && v.includes(".")) v = v.replace(/\./g,"").replace(",",".");
-  else v = v.replace(",",".");
-  const n = Number(v);
+function normPriceTry(str){
+  if (!str) return null;
+  const s = String(str).replace(/[^\d.,]/g,"").replace(/\./g,"").replace(",",".");
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchHtml(url){
-  const res = await fetch(url, {
-    headers: { "User-Agent": UA, "Accept-Language":"tr-TR,tr;q=0.9,en;q=0.8" },
-    redirect: "follow"
-  });
-  const text = await res.text();
-  return { status: res.status, text };
-}
-
-function pickFromJsonLd($){
-  let best = null;
-
-  $('script[type="application/ld+json"]').each((_, el)=>{
-    const raw = $(el).text();
-    if (!raw) return;
+function pickJsonLdPrice($){
+  const scripts = $('script[type="application/ld+json"]').toArray();
+  for (const s of scripts){
+    const txt = $(s).text();
     try{
-      const parsed = JSON.parse(raw);
-      const arr = Array.isArray(parsed) ? parsed : [parsed];
-
-      for (const obj of arr){
-        const items = [];
-        if (obj && typeof obj === "object"){
-          // product itself
-          if (obj["@type"] === "Product") items.push(obj);
-          // itemList
-          if (obj["@type"] === "ItemList" && Array.isArray(obj.itemListElement)){
-            for (const it of obj.itemListElement){
-              const item = it?.item || it;
-              if (item?.["@type"] === "Product") items.push(item);
-            }
-          }
-        }
-
-        for (const p of items){
-          const offer = p.offers;
-          const price = offer?.price || offer?.lowPrice || offer?.offers?.price;
-          const currency = offer?.priceCurrency;
-          const n = toNumTR(price);
-          if (n && (!best || n < best.price)){
-            best = { price: n, currency: currency || "TRY" };
+      const j = JSON.parse(txt);
+      const arr = Array.isArray(j) ? j : [j];
+      for (const o of arr){
+        const offers = o?.offers;
+        if (offers){
+          const offArr = Array.isArray(offers) ? offers : [offers];
+          for (const ofr of offArr){
+            const p = ofr?.price || ofr?.lowPrice || ofr?.highPrice;
+            const n = normPriceTry(p);
+            if (n) return n;
           }
         }
       }
     }catch{}
-  });
-
-  return best?.price ?? null;
+  }
+  return null;
 }
 
-function pickFromMeta($){
-  const metas = [
+function pickMetaPrice($){
+  const metaProps = [
     'meta[property="product:price:amount"]',
     'meta[property="og:price:amount"]',
-    'meta[itemprop="price"]'
+    'meta[name="price"]',
+    'meta[itemprop="price"]',
   ];
-  for (const sel of metas){
+  for (const sel of metaProps){
     const v = $(sel).attr("content");
-    const n = toNumTR(v);
+    const n = normPriceTry(v);
     if (n) return n;
   }
   return null;
 }
 
-function pickFromSelectors($, siteKey){
-  const map = {
-    trendyol: [
-      ".prc-box-dscntd", ".prc-dsc", ".pr-new-br span", '[data-testid="price-current-price"]'
-    ],
-    hepsiburada: [
-      '[data-test-id="price-current-price"]', ".product-price", ".price"
-    ],
-    n11: [
-      ".newPrice", ".priceContainer .price"
-    ],
-    amazontr: [
-      "span.a-price > span.a-offscreen", ".a-price .a-offscreen"
-    ],
-    pazarama: [
-      '[data-testid="price"]', ".price"
-    ],
-    ciceksepeti: [
-      ".price", ".product__price"
-    ],
-    idefix: [
-      ".price", ".product-price"
-    ]
-  };
-  const sels = map[siteKey] || [];
-  for (const sel of sels){
-    const t = $(sel).first().text();
-    const n = toNumTR(t);
-    if (n) return n;
-  }
-  return null;
-}
-
-// “arama sayfasından ürün fiyatı” yakalama (siteye göre)
-function pickFromSearchPage($, siteKey){
-  // Bu kısım siteye göre değişir; burada “en sık” çalışan basit yaklaşım:
-  const candidates = [];
-  // fiyat gibi görünen tüm metinleri çek
-  $("*").each((_, el)=>{
-    const txt = $(el).text();
-    if (!txt) return;
-    if (txt.includes("₺") || txt.includes("TL")){
-      const n = toNumTR(txt);
-      if (n && n > 0) candidates.push(n);
+async function fetchHtml(url){
+  const res = await fetch(url, {
+    headers:{
+      "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+      "Accept":"text/html,application/xhtml+xml"
     }
   });
-  if (candidates.length === 0) return null;
-  // “en düşük” alma demiştin ama worker burada “ilk ürün” seçemeyebilir.
-  // En düşük almak spam ürün getirebilir; bu yüzden medyan+yakın fiyat seçimi:
-  candidates.sort((a,b)=>a-b);
-  const mid = candidates[Math.floor(candidates.length/2)];
-  return mid || candidates[0];
+  const text = await res.text();
+  return { ok: res.ok, status: res.status, text };
 }
 
-async function getPriceFromUrl(siteKey, url){
-  const { status, text } = await fetchHtml(url);
-  if (status >= 400) throw new Error(`HTTP ${status}`);
+async function extractPrice(url){
+  const { ok, status, text } = await fetchHtml(url);
+  if (!ok) return { price:null, status };
+
+  const $ = cheerio.load(text);
+  let price = pickJsonLdPrice($) || pickMetaPrice($);
+
+  // son çare: sayfadaki TL desenleri (riskli)
+  if (!price){
+    const body = $("body").text().slice(0, 200000);
+    const m = body.match(/(\d{1,3}(\.\d{3})*|\d+)(,\d{2})?\s*TL/);
+    if (m) price = normPriceTry(m[0]);
+  }
+  return { price, status };
+}
+
+// Search intent resolver (çok basit): site arama linkinden ilk ürün URL’sini bulmaya çalışır.
+// Not: Her sitenin arama HTML’i farklı. Burada “en basit” yaklaşım var.
+async function resolveSearchToProduct(siteKey, query){
+  // Minimal: site arama sayfasını aç → ilk ürün linkini yakala (her zaman tutmayabilir)
+  const build = {
+    trendyol: `https://www.trendyol.com/sr?q=${encodeURIComponent(query)}`,
+    hepsiburada: `https://www.hepsiburada.com/ara?q=${encodeURIComponent(query)}`,
+    n11: `https://www.n11.com/arama?q=${encodeURIComponent(query)}`,
+    amazontr: `https://www.amazon.com.tr/s?k=${encodeURIComponent(query)}`,
+    pazarama: `https://www.pazarama.com/arama?q=${encodeURIComponent(query)}`,
+    ciceksepeti: `https://www.ciceksepeti.com/arama?query=${encodeURIComponent(query)}`,
+    idefix: `https://www.idefix.com/arama/?q=${encodeURIComponent(query)}`
+  }[siteKey];
+
+  if (!build) return null;
+
+  const { ok, text } = await fetchHtml(build);
+  if (!ok) return null;
 
   const $ = cheerio.load(text);
 
-  // önce JSON-LD/meta/selector
-  const a = pickFromJsonLd($);
-  if (a) return a;
+  // genel link yakalama (siteye göre değişir)
+  const anchors = $("a[href]").toArray().slice(0, 400);
+  for (const a of anchors){
+    const href = $(a).attr("href") || "";
+    const abs = href.startsWith("http") ? href : new URL(href, build).toString();
 
-  const b = pickFromMeta($);
-  if (b) return b;
-
-  const c = pickFromSelectors($, siteKey);
-  if (c) return c;
-
-  // son çare: arama sayfası heuristic
-  const d = pickFromSearchPage($, siteKey);
-  if (d) return d;
-
-  throw new Error("Fiyat bulunamadı");
-}
-
-function pctDrop(prev, next){
-  if (!prev || !next) return 0;
-  return ((prev - next) / prev) * 100;
+    // basit filtre: ürün sayfası olabilecek linkler
+    if (siteKey === "trendyol" && abs.includes("/p-")) return abs;
+    if (siteKey === "hepsiburada" && abs.includes(".com/") && abs.includes("-p-")) return abs;
+    if (siteKey === "n11" && abs.includes("/urun/")) return abs;
+    if (siteKey === "amazontr" && abs.includes("/dp/")) return abs;
+    if (siteKey === "pazarama" && abs.includes("/urun/")) return abs;
+    if (siteKey === "ciceksepeti" && abs.includes("/p/")) return abs;
+    if (siteKey === "idefix" && abs.includes("/")) {
+      // idefix ürün linkleri değişken, kaba bırakıyoruz:
+      if (!abs.includes("/arama")) return abs;
+    }
+  }
+  return null;
 }
 
 async function main(){
+  // users/*/favorites/*
   const usersSnap = await db.collection("users").get();
+  console.log("users:", usersSnap.size);
 
-  let updated = 0;
-  let errors = 0;
+  for (const u of usersSnap.docs){
+    const uid = u.id;
+    const favsRef = db.collection("users").doc(uid).collection("favorites");
+    const favsSnap = await favsRef.get();
 
-  for (const userDoc of usersSnap.docs){
-    const uid = userDoc.id;
-    const favSnap = await db.collection("users").doc(uid).collection("favorites").get();
-
-    for (const favDoc of favSnap.docs){
-      const fav = favDoc.data();
-      const ref = favDoc.ref;
-
-      const due = (fav.nextTryAt ?? 0) <= nowMs();
-      const lastCheckedAt = fav.lastCheckedAt ?? 0;
-      const tooSoon = (nowMs() - lastCheckedAt) < TRACK_INTERVAL_MIN*60*1000;
-
-      if (!due && tooSoon) continue;
-
-      const siteKey = fav.siteKey;
-      const url = fav.url;
+    for (const f of favsSnap.docs){
+      const fav = f.data();
+      const favId = f.id;
 
       try{
-        const price = await getPriceFromUrl(siteKey, url);
-
-        const lastPrice = fav.lastPrice ?? null;
-        const history = Array.isArray(fav.history) ? fav.history.slice() : [];
-
-        // fiyat değişmediyse history ekleme (senin dediğin)
-        if (lastPrice == null || price !== lastPrice){
-          history.push({ tMs: nowMs(), p: price });
-          // çok büyümesin
-          if (history.length > 120) history.splice(0, history.length - 120);
+        // 1) Search intent ise resolve et
+        if (fav.type === "search" && !fav.resolved){
+          const url = await resolveSearchToProduct(fav.siteKey, fav.query);
+          if (url){
+            await favsRef.doc(favId).update({
+              resolved: true,
+              productUrl: url,
+              productTitle: fav.productTitle || fav.query
+            });
+            console.log("resolved", uid, favId, url);
+          } else {
+            console.log("resolve failed", uid, favId);
+            continue; // resolve yoksa fiyat çekmeyelim
+          }
+          await sleep(800);
         }
 
-        const updates = {
-          lastCheckedAt: nowMs(),
-          lastSuccessAt: nowMs(),
-          lastError: null,
-          nextTryAt: nowMs() + TRACK_INTERVAL_MIN*60*1000,
+        // 2) fiyat çek
+        const productUrl = (fav.productUrl || "").trim();
+        if (!productUrl) continue;
+
+        const { price } = await extractPrice(productUrl);
+        if (!price){
+          console.log("price not found", uid, favId);
+          continue;
+        }
+
+        const history = Array.isArray(fav.history) ? fav.history.slice() : [];
+        const last = history.length ? history[history.length-1]?.p : null;
+        if (last != null && Number(last) === Number(price)){
+          // değişmediyse ekleme yok
+          continue;
+        }
+
+        history.push({ t: new Date().toISOString(), p: price });
+
+        // yüzde düşüş kontrol (son 2)
+        let drop = null;
+        if (history.length >= 2){
+          const prev = history[history.length-2]?.p;
+          const cur = history[history.length-1]?.p;
+          if (prev && cur && cur < prev){
+            drop = ((prev - cur) / prev) * 100;
+          }
+        }
+
+        await favsRef.doc(favId).update({
           lastPrice: price,
           history
-        };
+        });
 
-        await ref.set(updates, { merge: true });
-        updated++;
+        if (drop != null && drop >= 10){
+          console.log("DROP >=10%", uid, favId, drop.toFixed(1));
+          // İstersen buraya FCM ekleriz (bir sonraki adım).
+        }
 
-        // %10 düşüş varsa (bildirim kısmını şimdilik web notification ile yapıyoruz)
-        // ileride FCM eklemek istersen bunu burada gönderebiliriz.
-
+        await sleep(900);
       }catch(e){
-        errors++;
-        await ref.set({
-          lastCheckedAt: nowMs(),
-          lastError: String(e?.message || e),
-          // başarısızsa akıllı gecikme (senin dediğin):
-          nextTryAt: nowMs() + 5*60*1000 // 5 dk sonra tekrar dene
-        }, { merge:true });
+        console.log("err", uid, favId, e?.message || e);
       }
     }
   }
-
-  console.log("DONE", { updated, errors });
 }
 
-main().catch(err=>{
-  console.error("FATAL", err);
+main().catch(e=>{
+  console.error(e);
   process.exit(1);
 });
