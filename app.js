@@ -53,6 +53,16 @@ function hashId(str){
 }
 
 
+
+function favDocIdFor({ siteId, url, query, title }){
+  const keySrc = `${siteId}|${(url || "").trim()}|${(query || title || "").trim()}`;
+  return hashId(keySrc);
+}
+
+function hasFavoriteId(favId){
+  return !!favCache.find(x => x.id === favId);
+}
+
 function openUrl(url){
   window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -98,6 +108,11 @@ function renderSiteList(targetEl, queryText, extra = {}){
     const comment = extra?.commentMap?.[s.id] || "";
     const btnLabel = extra?.btnLabel || "Ara";
 
+    const q = (hint || queryText || "").trim();
+    const url = s.build(q);
+    const favId = favDocIdFor({ siteId: s.id, url, query: q, title: q });
+    const isOn = !!currentUser && hasFavoriteId(favId);
+
     return `
       <div class="item">
         <div class="itemLeft">
@@ -107,9 +122,9 @@ function renderSiteList(targetEl, queryText, extra = {}){
         </div>
         <div class="itemRight">
           <button class="btnOpen" data-open="${esc(s.id)}">${esc(btnLabel)}</button>
-          <button class="btnFav" data-fav="${esc(s.id)}" title="Favoriye ekle">
+          <button class="btnFav ${isOn ? "on" : ""}" data-favsite="${esc(s.id)}" data-favid="${esc(favId)}" title="Favori">
             <svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg>
-            Favoriye ekle
+            ${isOn ? "Favoride" : "Favoriye ekle"}
           </button>
         </div>
       </div>
@@ -128,19 +143,40 @@ function renderSiteList(targetEl, queryText, extra = {}){
     });
   });
 
-  targetEl.querySelectorAll("[data-fav]").forEach(btn=>{
+  targetEl.querySelectorAll("[data-favid]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
-      const id = btn.getAttribute("data-fav");
-      const site = SITES.find(x=>x.id===id);
-      const q = (extra?.hintMap?.[id] || queryText || "").trim();
-      await addFavorite({
-        title: q || "(boş)",
-        siteId: site.id,
-        siteName: site.name,
-        query: q,
-        url: site.build(q),
-      });
-      toast("Favoriye eklendi.");
+      if (!currentUser) return toast("Giriş gerekli.");
+
+      const siteId = btn.getAttribute("data-favsite");
+      const favId = btn.getAttribute("data-favid");
+      const site = SITES.find(x=>x.id===siteId);
+
+      // aynı q/url üretimi
+      const q = (extra?.hintMap?.[siteId] || queryText || "").trim();
+      const url = site.build(q);
+
+      try{
+        if (hasFavoriteId(favId)){
+          await removeFavorite(favId);
+          // UI güncelle
+          btn.classList.remove("on");
+          btn.innerHTML = `<svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg> Favoriye ekle`;
+          toast("Favoriden kaldırıldı.");
+        }else{
+          await addFavorite({
+            title: q || "(boş)",
+            siteId: site.id,
+            siteName: site.name,
+            query: q,
+            url,
+          });
+          btn.classList.add("on");
+          btn.innerHTML = `<svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg> Favoride`;
+          toast("Favoriye eklendi.");
+        }
+      }catch(e){
+        toast(e?.message || String(e));
+      }
     });
   });
 }
@@ -184,20 +220,9 @@ let unsubFav = null;
 function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
-  document.body.classList.add("modalOpen");
-  const appEl = $("app");
-  if (appEl) appEl.style.display = "none";
 }
 function closeLogin(){
-  // Giriş yoksa kapatma
-  if (!currentUser){
-    toast("Giriş yapmadan kullanamazsın.");
-    $("loginModal").style.display = "";
-    document.body.classList.add("modalOpen");
-    return;
-  }
   $("loginModal").style.display = "none";
-  document.body.classList.remove("modalOpen");
 }
 
 $("closeLogin").addEventListener("click", closeLogin);
@@ -706,10 +731,7 @@ $("btnClearCache").addEventListener("click", clearAllCaches);
 onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
-  // Auth durumu netleşene kadar login modalını gizli tut (flicker önleme)
-  $("loginModal").style.display = "none";
-if (!u){
-    $("app") && ($("app").style.display = "none");
+  if (!u){
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -717,7 +739,7 @@ if (!u){
     renderFavorites();
     return;
   }
-  $("app") && ($("app").style.display = "");
+
   closeLogin();
   $("logoutBtn").style.display = "";
 
