@@ -42,6 +42,91 @@ function esc(s) {
 } 
 function encQ(s){ return encodeURIComponent((s||"").trim()); }
 
+
+// Arama sayfası mı? (arama linki favoriye eklenmesin)
+function isSearchUrl(url){
+  try{
+    const u = new URL(url);
+    const p = u.pathname || "";
+    const s = u.search || "";
+    // bilinen arama path'leri
+    if (p.includes("/sr") || p.includes("/ara") || p.includes("/arama") || p === "/s") return true;
+    // query param araması
+    if (s.includes("q=") || s.includes("query=") || s.includes("k=")) return true;
+    return false;
+  }catch(_){
+    return false;
+  }
+}
+
+let pickCtx = null; // {siteId, siteName, query, searchUrl}
+
+function openPickModal(ctx){
+  pickCtx = ctx;
+  const wrap = $("pickModal");
+  if (!wrap) return toast("Pick modal yok (index.html).");
+  $("pickTitle").textContent = `${ctx.siteName} • Ürün seç`;
+  $("pickDesc").textContent = `"${ctx.query || ""}" aramasından bir ürün linki seç. (Arama sayfasından otomatik çekemiyoruz; ürün sayfasını açıp linki yapıştır.)`;
+  // temizle inputlar
+  ["pickUrl1","pickUrl2","pickUrl3"].forEach(id=>{ const el=$(id); if(el) el.value=""; });
+  wrap.style.display = "";
+  document.body.classList.add("modalOpen");
+}
+
+function closePickModal(){
+  const wrap = $("pickModal");
+  if (wrap) wrap.style.display = "none";
+  document.body.classList.remove("modalOpen");
+  pickCtx = null;
+}
+
+async function pasteInto(id){
+  try{
+    const t = await navigator.clipboard.readText();
+    if (!t) return toast("Panoda link yok.");
+    $(id).value = t.trim();
+  }catch(e){
+    toast("Pano izni yok. Linki manuel yapıştır.");
+  }
+}
+
+function normalizeUrl(s){
+  const t = (s||"").trim();
+  if (!t) return "";
+  // bazı kopyalamalarda boşluk vs.
+  return t.replace(/\s+/g,"");
+}
+
+async function addPickedFavorite(which){
+  if (!pickCtx) return;
+  const inputId = which===1 ? "pickUrl1" : which===2 ? "pickUrl2" : "pickUrl3";
+  const productUrl = normalizeUrl($(inputId)?.value);
+  if (!productUrl || !productUrl.startsWith("http")){
+    toast("Geçerli ürün linki yapıştır.");
+    return;
+  }
+  const favId = hashId(`${pickCtx.siteId}|${productUrl}|${pickCtx.query||""}`);
+  const exists = !!favCache.find(x=>x.id===favId);
+  try{
+    if (exists){
+      toast("Zaten favorilerde.");
+      closePickModal();
+      return;
+    }
+    await addFavorite({
+      id: favId,
+      title: pickCtx.query || "(boş)",
+      siteId: pickCtx.siteId,
+      siteName: pickCtx.siteName,
+      query: pickCtx.query || "",
+      url: productUrl,
+    });
+    toast("Favoriye eklendi.");
+    closePickModal();
+  }catch(e){
+    toast(e?.message || String(e));
+  }
+}
 function hashId(str){
   // FNV-1a 32bit -> hex (Firestore doc id için güvenli)
   let h = 0x811c9dc5;
@@ -141,6 +226,11 @@ function renderSiteList(targetEl, queryText, extra = {}){
       const site = SITES.find(x=>x.id===siteId);
       const q = (extra?.hintMap?.[siteId] || queryText || "").trim();
       const url = site.build(q);
+
+      if (isSearchUrl(url)){
+        openPickModal({ siteId: site.id, siteName: site.name, query: q, searchUrl: url });
+        return;
+      }
       const favId = btn.getAttribute("data-favid") || hashId(`${site.id}|${(url||"").trim()}|${q}`);
       const isFav = !!favCache.find(x=>x.id===favId);
 
@@ -729,6 +819,23 @@ function renderFavorites(){
 $("favSort").addEventListener("change", renderFavorites);
 $("btnRefreshFav").addEventListener("click", ()=> renderFavorites());
 $("btnClearCache").addEventListener("click", clearAllCaches);
+
+
+// --- Ürün seç (Top 3) modal eventleri ---
+if ($("pickClose")) $("pickClose").addEventListener("click", closePickModal);
+if ($("pickOpenSearch")) $("pickOpenSearch").addEventListener("click", ()=>{
+  if (pickCtx?.searchUrl) window.open(pickCtx.searchUrl, "_blank", "noopener");
+});
+[1,2,3].forEach(n=>{
+  const pasteBtn = $("pickPaste"+n);
+  if (pasteBtn) pasteBtn.addEventListener("click", ()=>pasteInto("pickUrl"+n));
+  const addBtn = $("pickAdd"+n);
+  if (addBtn) addBtn.addEventListener("click", ()=>addPickedFavorite(n));
+});
+if ($("pickNone")) $("pickNone").addEventListener("click", ()=>{
+  toast("Ürün bulunamadı / seçilmedi.");
+  closePickModal();
+});
 
 /* ---------- Auth state ---------- */
 onAuthStateChanged(auth, async (u)=>{
