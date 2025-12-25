@@ -184,10 +184,20 @@ let unsubFav = null;
 function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
+  document.body.classList.add("modalOpen"); // scroll kilidi
 }
+
 function closeLogin(){
+  // giriş yoksa kapatma
+  if (!currentUser){
+    toast("Giriş yapmadan kullanamazsın.");
+    $("loginModal").style.display = "";
+    document.body.classList.add("modalOpen");
+    return;
+  }
   $("loginModal").style.display = "none";
-}
+  document.body.classList.remove("modalOpen");
+} 
 
 $("closeLogin").addEventListener("click", closeLogin);
 
