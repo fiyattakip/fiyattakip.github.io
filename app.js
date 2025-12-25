@@ -358,7 +358,7 @@ async function doEmailLogin(isRegister){
   }
 }
 
-async function doGoogleLogin(){
+async async function doGoogleLogin(){
   try{
     // mobilde popup bazen bloklanır
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -374,8 +374,7 @@ async function doGoogleLogin(){
   }
 }
 
-// Redirect dönüşünü sessizce işle
-getRedirectResult(auth).catch(()=>{});
+// Redirect dönüşünü DOMContentLoaded içinde işle (persist sonrası)
 
 // ---------- Wire UI ----------
 function wireUI(){
@@ -599,6 +598,8 @@ function setAuthedUI(isAuthed){
 // Boot
 window.addEventListener("DOMContentLoaded", ()=>{
   setPersistence(auth, browserLocalPersistence).catch(()=>{});
+  // Google redirect dönüşünü işle (mobil)
+  getRedirectResult(auth).catch(()=>{});
   wireUI();
 
   if (firebaseConfigLooksInvalid()){
