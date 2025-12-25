@@ -42,91 +42,6 @@ function esc(s) {
 } 
 function encQ(s){ return encodeURIComponent((s||"").trim()); }
 
-
-// Arama sayfası mı? (arama linki favoriye eklenmesin)
-function isSearchUrl(url){
-  try{
-    const u = new URL(url);
-    const p = u.pathname || "";
-    const s = u.search || "";
-    // bilinen arama path'leri
-    if (p.includes("/sr") || p.includes("/ara") || p.includes("/arama") || p === "/s") return true;
-    // query param araması
-    if (s.includes("q=") || s.includes("query=") || s.includes("k=")) return true;
-    return false;
-  }catch(_){
-    return false;
-  }
-}
-
-let pickCtx = null; // {siteId, siteName, query, searchUrl}
-
-function openPickModal(ctx){
-  pickCtx = ctx;
-  const wrap = $("pickModal");
-  if (!wrap) return toast("Pick modal yok (index.html).");
-  $("pickTitle").textContent = `${ctx.siteName} • Ürün seç`;
-  $("pickDesc").textContent = `"${ctx.query || ""}" aramasından bir ürün linki seç. (Arama sayfasından otomatik çekemiyoruz; ürün sayfasını açıp linki yapıştır.)`;
-  // temizle inputlar
-  ["pickUrl1","pickUrl2","pickUrl3"].forEach(id=>{ const el=$(id); if(el) el.value=""; });
-  wrap.style.display = "";
-  document.body.classList.add("modalOpen");
-}
-
-function closePickModal(){
-  const wrap = $("pickModal");
-  if (wrap) wrap.style.display = "none";
-  document.body.classList.remove("modalOpen");
-  pickCtx = null;
-}
-
-async function pasteInto(id){
-  try{
-    const t = await navigator.clipboard.readText();
-    if (!t) return toast("Panoda link yok.");
-    $(id).value = t.trim();
-  }catch(e){
-    toast("Pano izni yok. Linki manuel yapıştır.");
-  }
-}
-
-function normalizeUrl(s){
-  const t = (s||"").trim();
-  if (!t) return "";
-  // bazı kopyalamalarda boşluk vs.
-  return t.replace(/\s+/g,"");
-}
-
-async function addPickedFavorite(which){
-  if (!pickCtx) return;
-  const inputId = which===1 ? "pickUrl1" : which===2 ? "pickUrl2" : "pickUrl3";
-  const productUrl = normalizeUrl($(inputId)?.value);
-  if (!productUrl || !productUrl.startsWith("http")){
-    toast("Geçerli ürün linki yapıştır.");
-    return;
-  }
-  const favId = hashId(`${pickCtx.siteId}|${productUrl}|${pickCtx.query||""}`);
-  const exists = !!favCache.find(x=>x.id===favId);
-  try{
-    if (exists){
-      toast("Zaten favorilerde.");
-      closePickModal();
-      return;
-    }
-    await addFavorite({
-      id: favId,
-      title: pickCtx.query || "(boş)",
-      siteId: pickCtx.siteId,
-      siteName: pickCtx.siteName,
-      query: pickCtx.query || "",
-      url: productUrl,
-    });
-    toast("Favoriye eklendi.");
-    closePickModal();
-  }catch(e){
-    toast(e?.message || String(e));
-  }
-}
 function hashId(str){
   // FNV-1a 32bit -> hex (Firestore doc id için güvenli)
   let h = 0x811c9dc5;
@@ -180,11 +95,6 @@ const SITES = [
 function renderSiteList(targetEl, queryText, extra = {}){
   const html = SITES.map(s => {
     const hint = extra?.hintMap?.[s.id] || queryText;
-    const q = (hint || "").trim();
-    const url = s.build(q);
-    const favId = hashId(`${s.id}|${(url||"").trim()}|${q}`);
-    const isFav = !!favCache.find(x=>x.id===favId);
-    const favText = isFav ? "Favoride" : "Favoriye ekle";
     const comment = extra?.commentMap?.[s.id] || "";
     const btnLabel = extra?.btnLabel || "Ara";
 
@@ -197,9 +107,9 @@ function renderSiteList(targetEl, queryText, extra = {}){
         </div>
         <div class="itemRight">
           <button class="btnOpen" data-open="${esc(s.id)}">${esc(btnLabel)}</button>
-          <button class="btnFav ${isFav ? "on" : ""}" data-fav="${esc(s.id)}" data-favid="${esc(favId)}" title="${esc(favText)}">
-            <svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-8-4.5-10.5-9A6.6 6.6 0 0 1 12 5.1 6.6 6.6 0 0 1 22.5 12c-2.5 4.5-10.5 9-10.5 9Z"/></svg>
-            <span class="favLabel">${esc(favText)}</span>
+          <button class="btnFav" data-fav="${esc(s.id)}" title="Favoriye ekle">
+            <svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg>
+            Favoriye ekle
           </button>
         </div>
       </div>
@@ -220,44 +130,17 @@ function renderSiteList(targetEl, queryText, extra = {}){
 
   targetEl.querySelectorAll("[data-fav]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
-      if (!currentUser) return toast("Giriş gerekli.");
-
-      const siteId = btn.getAttribute("data-fav");
-      const site = SITES.find(x=>x.id===siteId);
-      const q = (extra?.hintMap?.[siteId] || queryText || "").trim();
-      const url = site.build(q);
-
-      if (isSearchUrl(url)){
-        openPickModal({ siteId: site.id, siteName: site.name, query: q, searchUrl: url });
-        return;
-      }
-      const favId = btn.getAttribute("data-favid") || hashId(`${site.id}|${(url||"").trim()}|${q}`);
-      const isFav = !!favCache.find(x=>x.id===favId);
-
-      try{
-        if (isFav){
-          await removeFavorite(favId);
-          btn.classList.remove("on");
-          btn.title = "Favoriye ekle";
-          const lab = btn.querySelector(".favLabel");
-          if (lab) lab.textContent = "Favoriye ekle";
-          toast("Favoriden kaldırıldı.");
-        }else{
-          await addFavorite({
-            title: q || "(boş)",
-            siteId: site.id,
-            siteName: site.name,
-            query: q,
-            url,
-          });
-          btn.classList.add("on");
-          btn.title = "Favoride";
-          const lab = btn.querySelector(".favLabel");
-          if (lab) lab.textContent = "Favoride";
-        }
-      }catch(e){
-        toast(e?.message || String(e));
-      }
+      const id = btn.getAttribute("data-fav");
+      const site = SITES.find(x=>x.id===id);
+      const q = (extra?.hintMap?.[id] || queryText || "").trim();
+      await addFavorite({
+        title: q || "(boş)",
+        siteId: site.id,
+        siteName: site.name,
+        query: q,
+        url: site.build(q),
+      });
+      toast("Favoriye eklendi.");
     });
   });
 }
@@ -301,20 +184,9 @@ let unsubFav = null;
 function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
-  document.body.classList.add("modalOpen");
-  const appEl = $("app");
-  if (appEl) appEl.style.display = "none";
 }
 function closeLogin(){
-  // giriş yoksa kapatma
-  if (!auth.currentUser){
-    toast("Giriş yapmadan kullanamazsın.");
-    $("loginModal").style.display = "";
-    document.body.classList.add("modalOpen");
-    return;
-  }
   $("loginModal").style.display = "none";
-  document.body.classList.remove("modalOpen");
 }
 
 $("closeLogin").addEventListener("click", closeLogin);
@@ -603,23 +475,32 @@ async function addFavorite({ title, siteId, siteName, query, url }){
 }
 
 async function removeFavorite(docId){
-  if (!currentUser) return;
   await deleteDoc(doc(db, "users", currentUser.uid, "favorites", docId));
 }
 
 async function genAiComment(fav){
   if (!aiConfigured()) return toast("AI key kayıtlı değil.");
-  const title = fav.title || fav.query || "ürün";
-  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
-  const site = fav.siteName || "";
+  const title = (fav.title || fav.query || "").trim() || "ürün";
+  const site = (fav.siteName || "").trim();
+
+  const nPrice = Number(fav.lastPrice);
+  const hasPrice = Number.isFinite(nPrice) && nPrice > 0;
+
   const prompt =
-`Ürün: ${title}
-Site: ${site}
-Fiyat: ${price}
-Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
-Maks 3-4 cümle. Türkçe.`;
+`Sen bir e-ticaret asistanısın. Kullanıcıya KISA ve PRATİK bir ürün yorumu yaz.
+
+Ürün: ${title}
+Site: ${site || "—"}
+${hasPrice ? `Fiyat: ${nPrice.toLocaleString("tr-TR")} TL` : "Fiyat: (bilinmiyor / okunamadı)"}
+
+Kurallar:
+- Ürüne odaklan. Fiyat yoksa fiyatla ilgili yorum yapma.
+- Asla uydurma bilgi yazma ("piyasaya sürülmedi", "stokta yok", "şu model çıktı" gibi doğrulanamayan iddialar YASAK).
+- Garanti/satıcı/uyumluluk/variant (renk-hafıza) kontrolü gibi güvenli kontrolleri öner.
+- En fazla 3-4 cümle. Türkçe.`;
+
   const t = await aiText(prompt);
-  return t.trim();
+  return String(t||"").trim();
 }
 
 function formatPrice(p){
@@ -820,32 +701,11 @@ $("favSort").addEventListener("change", renderFavorites);
 $("btnRefreshFav").addEventListener("click", ()=> renderFavorites());
 $("btnClearCache").addEventListener("click", clearAllCaches);
 
-
-// --- Ürün seç (Top 3) modal eventleri ---
-if ($("pickClose")) $("pickClose").addEventListener("click", closePickModal);
-if ($("pickOpenSearch")) $("pickOpenSearch").addEventListener("click", ()=>{
-  if (pickCtx?.searchUrl) window.open(pickCtx.searchUrl, "_blank", "noopener");
-});
-[1,2,3].forEach(n=>{
-  const pasteBtn = $("pickPaste"+n);
-  if (pasteBtn) pasteBtn.addEventListener("click", ()=>pasteInto("pickUrl"+n));
-  const addBtn = $("pickAdd"+n);
-  if (addBtn) addBtn.addEventListener("click", ()=>addPickedFavorite(n));
-});
-if ($("pickNone")) $("pickNone").addEventListener("click", ()=>{
-  toast("Ürün bulunamadı / seçilmedi.");
-  closePickModal();
-});
-
 /* ---------- Auth state ---------- */
 onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
-  // flicker önleme: auth sonucu gelene kadar login'i kapalı tut
-  $("loginModal").style.display = "none";
-
   if (!u){
-    $("app").style.display = "none";
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -854,7 +714,6 @@ onAuthStateChanged(auth, async (u)=>{
     return;
   }
 
-  $("app").style.display = "";
   closeLogin();
   $("logoutBtn").style.display = "";
 
