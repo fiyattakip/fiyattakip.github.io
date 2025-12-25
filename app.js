@@ -85,14 +85,36 @@ function currencyToNumber(tr){
 }
 
 async function fetchHTML(url){
-  // r.jina.ai proxy helps bypass CORS for simple reads
-  const prox = "https://r.jina.ai/" + url;
-  const r = await fetch(prox, { cache:"no-store" });
-  if (!r.ok) throw new Error("Fetch hata: " + r.status);
-  const txt = await r.text();
-  // jina sometimes prefixes metadata lines; keep from first "<"
-  const i = txt.indexOf("<");
-  return i > 0 ? txt.slice(i) : txt;
+  // Goal: fetch raw HTML from e-commerce pages in a static/PWA context (CORS-safe).
+  // 1) Try allorigins (raw) which returns the original response body with CORS headers.
+  // 2) Fallback to r.jina.ai (may return readable/markdown content; used only if #1 fails).
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 15000);
+
+  const tryFetch = async (u) => {
+    const r = await fetch(u, { cache: "no-store", signal: controller.signal });
+    if (!r.ok) throw new Error("Fetch hata: " + r.status);
+    return await r.text();
+  };
+
+  try{
+    const prox = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+    const html = await tryFetch(prox);
+    return html;
+  }catch(e){
+    console.warn("allorigins fail, fallback jina:", e);
+    try{
+      const prox2 = "https://r.jina.ai/" + url; // fallback
+      const txt = await tryFetch(prox2);
+      // If it isn't HTML, return as-is; parsers may still find JSON/links.
+      const i = txt.indexOf("<");
+      return i >= 0 ? txt.slice(i) : txt;
+    }finally{
+      clearTimeout(t);
+    }
+  }finally{
+    clearTimeout(t);
+  }
 }
 
 function parseTrendyol(html){
@@ -137,6 +159,18 @@ function parseTrendyol(html){
       }
     }catch(e){}
   }
+
+  // Fallback: if proxy returned non-HTML (markdown/text), try to extract product links by pattern
+  if (!out.length){
+    const re1 = /(https?:\/\/www\.trendyol\.com\/[^\s"']*?-p-\d+[^\s"']*)/g;
+    let m1, k=0;
+    while((m1=re1.exec(html)) && out.length<24){
+      const url = m1[1].replace(/\)\]/g,"");
+      out.push({ site:"Trendyol", title:"Ürün", url, price:null, priceText:"", img:"" });
+      k++;
+    }
+  }
+
 return out;
 }
 
@@ -193,6 +227,17 @@ function parseHepsiburada(html){
       }
     }catch(e){}
   }
+
+  // Fallback: extract product links from text/markdown responses
+  if (!out.length){
+    const re1 = /(https?:\/\/www\.hepsiburada\.com\/[^\s"']*?-p-\d+[^\s"']*)/g;
+    let m1;
+    while((m1=re1.exec(html)) && out.length<24){
+      const url = m1[1].replace(/\)\]/g,"");
+      out.push({ site:"Hepsiburada", title:"Ürün", url, price:null, priceText:"", img:"" });
+    }
+  }
+
 return out;
 }
 
