@@ -177,12 +177,6 @@ if ("serviceWorker" in navigator){
   navigator.serviceWorker.register("./sw.js").catch(()=>{});
 }
 
-/* ---------- Boot (prevent flicker) ---------- */
-document.addEventListener("DOMContentLoaded", ()=>{
-  // auth state gelene kadar hiçbir şey gösterme
-  const appEl = $("app"); if (appEl) appEl.style.display = "none";
-  $("loginModal").style.display = "none";
-});
 /* ---------- Login ---------- */
 let currentUser = null;
 let unsubFav = null;
@@ -190,19 +184,9 @@ let unsubFav = null;
 function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
-  document.body.classList.add("modalOpen");
-  const appEl = $("app"); if (appEl) appEl.style.display = "none";
 }
 function closeLogin(){
-  // giriş yoksa kapatma
-  if (!currentUser){
-    toast("Giriş yapmadan kullanamazsın.");
-    $("loginModal").style.display = "";
-    document.body.classList.add("modalOpen");
-    return;
-  }
   $("loginModal").style.display = "none";
-  document.body.classList.remove("modalOpen");
 }
 
 $("closeLogin").addEventListener("click", closeLogin);
@@ -495,18 +479,59 @@ async function removeFavorite(docId){
 }
 
 async function genAiComment(fav){
-  if (!aiConfigured()) return toast("AI key kayıtlı değil.");
+  if (!aiConfigured()) { toast("AI key kayıtlı değil."); return ""; }
+
   const title = fav.title || fav.query || "ürün";
-  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
   const site = fav.siteName || "";
-  const prompt =
+  const priceNum = Number(fav.lastPrice);
+  const hasPrice = Number.isFinite(priceNum) && priceNum > 0;
+
+  // Price stats if available
+  let minP = null, maxP = null, avgP = null, nPts = 0;
+  const pts = (fav.priceHistory || [])
+    .map(x=>({ p: Number(x.p||0) }))
+    .filter(x=>Number.isFinite(x.p) && x.p > 0);
+  nPts = pts.length;
+  if (nPts){
+    const arr = pts.map(x=>x.p);
+    minP = Math.min(...arr);
+    maxP = Math.max(...arr);
+    avgP = Math.round(arr.reduce((a,b)=>a+b,0)/nPts);
+  }
+
+  let prompt = "";
+  if (!hasPrice){
+    // PRODUCT-ONLY comment: do NOT speculate about release/stock/price.
+    prompt =
 `Ürün: ${title}
 Site: ${site}
-Fiyat: ${price}
-Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
-Maks 3-4 cümle. Türkçe.`;
+
+Görev:
+- Fiyat/stock/çıkış tarihi hakkında tahmin veya iddia yazma.
+- "Henüz piyasaya sürülmedi", "stokta yok" gibi çıkarımlar yapma.
+- 3-5 cümle, Türkçe, pratik.
+
+Odak:
+- Doğru ürün/varyant seçimi (kapasite/renk/model uyumu)
+- Satıcı/garanti kontrolü (resmi satıcı, ithalatçı, iade şartları)
+- Sahte/yanlış ürün riskine karşı kısa uyarılar
+- Kullanıcıya “neye bakmalı?” checklist tarzı ipucu`;
+  } else {
+    const statsLine = nPts ? `Geçmiş (n=${nPts}): min ${minP} TL • ort ${avgP} TL • max ${maxP} TL` : `Geçmiş: veri yok`;
+    prompt =
+`Ürün: ${title}
+Site: ${site}
+Güncel fiyat: ${priceNum} TL
+${statsLine}
+
+Görev:
+- Fiyatın geçmişe göre konumunu kısa yorumla.
+- 3-5 cümle, Türkçe, pratik.
+- Tahmin/iddia yazma; sadece verilen verilere dayan.`;
+  }
+
   const t = await aiText(prompt);
-  return t.trim();
+  return (t || "").trim();
 }
 
 function formatPrice(p){
@@ -711,12 +736,7 @@ $("btnClearCache").addEventListener("click", clearAllCaches);
 onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
-  // flicker önleme: auth state gelince önce modalı kapat
-  $("loginModal").style.display = "none";
-
-  const appEl = $("app");
   if (!u){
-    if (appEl) appEl.style.display = "none";
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -725,10 +745,8 @@ onAuthStateChanged(auth, async (u)=>{
     return;
   }
 
-  if (appEl) appEl.style.display = "";
   closeLogin();
   $("logoutBtn").style.display = "";
-
 
   // listen favorites
   const qFav = query(userFavCol());
