@@ -30,10 +30,16 @@ function toast(msg){
   toastTimer = setTimeout(()=> hide(t), 2200);
 }
 
-<h3>${esc(product.title)}</h3>
-<p>${esc(product.site)}</p>
-<div class="ai">${esc(product.aiComment)}</div>
-
+function esc(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, m => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[m]));
+} 
 function encQ(s){ return encodeURIComponent((s||"").trim()); }
 
 function hashId(str){
