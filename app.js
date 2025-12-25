@@ -747,3 +747,12 @@ document.querySelectorAll(".segBtn").forEach(b=>{
     $("authGoogle").style.display = mode==="google" ? "" : "none";
   });
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (!currentUser) {
+    $("app").style.display = "none";
+    openLogin();
+  } else {
+    $("app").style.display = "";
+  }
+});
