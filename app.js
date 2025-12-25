@@ -250,9 +250,18 @@ let unsubFav = null;
 function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
+  document.body.classList.add("modalOpen");
 }
 function closeLogin(){
+  // giriş yoksa kapatma
+  if (!currentUser){
+    toast("Giriş yapmadan kullanamazsın.");
+    $("loginModal").style.display = "";
+    document.body.classList.add("modalOpen");
+    return;
+  }
   $("loginModal").style.display = "none";
+  document.body.classList.remove("modalOpen");
 }
 // --- Fallback: Auth event gecikirse boş sayfada kalma (özellikle cache/slow network) ---
 const FALLBACK_LOGIN_TIMER = setTimeout(()=>{
@@ -260,7 +269,7 @@ const FALLBACK_LOGIN_TIMER = setTimeout(()=>{
     if (!currentUser){
       // app gizliyse login göster
       const appEl = document.getElementById("app");
-      if (appEl) appEl.style.display = "none";
+      if (appEl) appEl.style.display = "";
       if (typeof openLogin === "function") openLogin();
     }
   }catch(_){}
@@ -854,6 +863,8 @@ onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
   if (!u){
+    const appEl = $("app");
+    if (appEl) appEl.style.display = "";
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -862,6 +873,8 @@ onAuthStateChanged(auth, async (u)=>{
     return;
   }
 
+  const appEl = $("app");
+  if (appEl) appEl.style.display = "";
   closeLogin();
   $("logoutBtn").style.display = "";
 

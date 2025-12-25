@@ -309,3 +309,7 @@ body{
   max-width: min(520px, calc(100% - 28px));
   font-weight: 850;
 }
+
+
+body.modalOpen{ overflow:hidden; }
+body.modalOpen #app{ filter: blur(10px); }
