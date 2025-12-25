@@ -479,59 +479,18 @@ async function removeFavorite(docId){
 }
 
 async function genAiComment(fav){
-  if (!aiConfigured()) { toast("AI key kayıtlı değil."); return ""; }
-
+  if (!aiConfigured()) return toast("AI key kayıtlı değil.");
   const title = fav.title || fav.query || "ürün";
+  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
   const site = fav.siteName || "";
-  const priceNum = Number(fav.lastPrice);
-  const hasPrice = Number.isFinite(priceNum) && priceNum > 0;
-
-  // Price stats if available
-  let minP = null, maxP = null, avgP = null, nPts = 0;
-  const pts = (fav.priceHistory || [])
-    .map(x=>({ p: Number(x.p||0) }))
-    .filter(x=>Number.isFinite(x.p) && x.p > 0);
-  nPts = pts.length;
-  if (nPts){
-    const arr = pts.map(x=>x.p);
-    minP = Math.min(...arr);
-    maxP = Math.max(...arr);
-    avgP = Math.round(arr.reduce((a,b)=>a+b,0)/nPts);
-  }
-
-  let prompt = "";
-  if (!hasPrice){
-    // PRODUCT-ONLY comment: do NOT speculate about release/stock/price.
-    prompt =
+  const prompt =
 `Ürün: ${title}
 Site: ${site}
-
-Görev:
-- Fiyat/stock/çıkış tarihi hakkında tahmin veya iddia yazma.
-- "Henüz piyasaya sürülmedi", "stokta yok" gibi çıkarımlar yapma.
-- 3-5 cümle, Türkçe, pratik.
-
-Odak:
-- Doğru ürün/varyant seçimi (kapasite/renk/model uyumu)
-- Satıcı/garanti kontrolü (resmi satıcı, ithalatçı, iade şartları)
-- Sahte/yanlış ürün riskine karşı kısa uyarılar
-- Kullanıcıya “neye bakmalı?” checklist tarzı ipucu`;
-  } else {
-    const statsLine = nPts ? `Geçmiş (n=${nPts}): min ${minP} TL • ort ${avgP} TL • max ${maxP} TL` : `Geçmiş: veri yok`;
-    prompt =
-`Ürün: ${title}
-Site: ${site}
-Güncel fiyat: ${priceNum} TL
-${statsLine}
-
-Görev:
-- Fiyatın geçmişe göre konumunu kısa yorumla.
-- 3-5 cümle, Türkçe, pratik.
-- Tahmin/iddia yazma; sadece verilen verilere dayan.`;
-  }
-
+Fiyat: ${price}
+Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
+Maks 3-4 cümle. Türkçe.`;
   const t = await aiText(prompt);
-  return (t || "").trim();
+  return t.trim();
 }
 
 function formatPrice(p){
