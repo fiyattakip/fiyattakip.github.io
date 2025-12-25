@@ -179,42 +179,51 @@ async function loadFavorites(){
 }
 
 function renderFavorites(items){
-  const root = $("favList");
-  if (!root) return;
-  if (!items.length){
-    root.innerHTML = `<div class="cardBox"><div class="miniHint">Henüz favori yok.</div></div>`;
+  const container = $("favList");
+  const pager = $("favPager");
+  if (!container) return;
+
+  const { page, totalPages, slice } = paginate(items, pageState.favs);
+  pageState.favs = page;
+
+  container.innerHTML = "";
+  if (!slice.length){
+    container.innerHTML = `<div class="empty">Favori yok.</div>`;
+    if (pager) pager.innerHTML = "";
     return;
   }
-  root.innerHTML = "";
-  for (const it of items){
-    const el = document.createElement("div");
-    el.className = "cardBox";
-    el.innerHTML = `
+
+  for (const it of slice){
+    const card = document.createElement("div");
+    card.className = "cardBox";
+    card.innerHTML = `
       <div class="rowLine">
         <div>
-          <div class="ttl">${it.siteName || ""}</div>
-          <div class="sub">${it.query || ""}</div>
+          <div class="ttl">${it.siteName||""}</div>
+          <div class="sub">${it.query||""}</div>
         </div>
         <div class="actions">
           <button class="btnPrimary sm btnOpen" type="button">Aç</button>
-          <button class="btnGhost sm btnAddPrice" type="button">Fiyat</button>
-          <button class="btnGhost sm btnDel" type="button">Sil</button>
+          <button class="btnGhost sm btnFav" type="button">Favoride</button>
         </div>
       </div>
-      <div class="mini">Son: <b>${fmtPrice(it.lastPrice)}</b></div>
+      <div class="mini">${it.url||""}</div>
     `;
-    el.querySelector(".btnOpen")?.addEventListener("click", ()=>window.open(it.url, "_blank", "noopener"));
-    el.querySelector(".btnDel")?.addEventListener("click", ()=>removeFavorite(it.id));
-    el.querySelector(".btnAddPrice")?.addEventListener("click", async ()=>{
-      const v = prompt("Yeni fiyat (TL):", it.lastPrice ?? "");
-      if (!v) return;
-      const n = Number(String(v).replace(",", "."));
-      if (!isFinite(n) || n<=0) return toast("Geçerli fiyat gir.");
-      await addPricePoint(it.id, n);
-      toast("Fiyat eklendi.");
+    card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
+      if (it.url) window.open(it.url, "_blank", "noopener");
     });
-    root.appendChild(el);
+    card.querySelector(".btnFav")?.addEventListener("click", async ()=> {
+      await toggleFavorite(it.siteKey, it.siteName, it.query, it.url);
+      await loadFavorites();
+    });
+    container.appendChild(card);
   }
+
+  renderPager(pager, pageState.favs, totalPages, (p)=>{
+    pageState.favs = p;
+    renderFavorites(items);
+  });
+  applyFavUI();
 }
 
 function makeSparkline(points, w=160, h=48){
@@ -236,13 +245,20 @@ function makeSparkline(points, w=160, h=48){
 
 function renderGraphs(items){
   const root = $("graphRoot");
+  const pager = $("graphPager");
   if (!root) return;
-  if (!items.length){
-    root.innerHTML = `<div class="cardBox"><div class="miniHint">Grafik için favori ekle.</div></div>`;
+
+  const { page, totalPages, slice } = paginate(items, pageState.graph);
+  pageState.graph = page;
+
+  root.innerHTML = "";
+  if (!slice.length){
+    root.innerHTML = `<div class="empty">Grafik yok. Favorilere fiyat ekleyince burada görünür.</div>`;
+    if (pager) pager.innerHTML = "";
     return;
   }
-  root.innerHTML = "";
-  for (const it of items){
+
+  for (const it of slice){
     const hist = Array.isArray(it.history) ? it.history : [];
     const prices = hist.map(x=>Number(x.p)).filter(n=>isFinite(n));
     const min = prices.length? Math.min(...prices): null;
@@ -276,8 +292,76 @@ function renderGraphs(items){
     });
     root.appendChild(card);
   }
+
+  renderPager(pager, pageState.graph, totalPages, (p)=>{
+    pageState.graph = p;
+    renderGraphs(items);
+  });
 }
 
+
+// ---------- Pagination ----------
+const PAGE_SIZE = 10;
+const pageState = { normal: 1, favs: 1, graph: 1 };
+
+function paginate(items, page, pageSize=PAGE_SIZE){
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const p = Math.min(Math.max(1, page), totalPages);
+  const start = (p - 1) * pageSize;
+  return { page: p, totalPages, slice: items.slice(start, start + pageSize), total };
+}
+
+function renderPager(pagerEl, page, totalPages, onGo){
+  if (!pagerEl) return;
+  if (totalPages <= 1){
+    pagerEl.innerHTML = "";
+    return;
+  }
+  const makeBtn = (label, p, disabled=false, active=false) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pgBtn" + (active ? " active" : "");
+    b.textContent = label;
+    b.disabled = disabled;
+    b.addEventListener("click", ()=> onGo(p));
+    return b;
+  };
+  pagerEl.innerHTML = "";
+  pagerEl.appendChild(makeBtn("‹", page-1, page<=1));
+
+  // show up to 5 page numbers around current
+  const windowSize = 5;
+  let start = Math.max(1, page - Math.floor(windowSize/2));
+  let end = Math.min(totalPages, start + windowSize - 1);
+  start = Math.max(1, end - windowSize + 1);
+
+  if (start > 1){
+    pagerEl.appendChild(makeBtn("1", 1, false, page===1));
+    if (start > 2){
+      const span = document.createElement("span");
+      span.className = "pgInfo";
+      span.textContent = "…";
+      pagerEl.appendChild(span);
+    }
+  }
+
+  for (let p=start; p<=end; p++){
+    pagerEl.appendChild(makeBtn(String(p), p, false, page===p));
+  }
+
+  if (end < totalPages){
+    if (end < totalPages-1){
+      const span = document.createElement("span");
+      span.className = "pgInfo";
+      span.textContent = "…";
+      pagerEl.appendChild(span);
+    }
+    pagerEl.appendChild(makeBtn(String(totalPages), totalPages, false, page===totalPages));
+  }
+
+  pagerEl.appendChild(makeBtn("›", page+1, page>=totalPages));
+}
 // ---------- Notifications (foreground) ----------
 function maybeNotify(title, body){
   try{
@@ -316,15 +400,22 @@ const SITES = [
 ];
 
 function renderSiteList(container, query){
+  const pager = $("normalPager");
   if (!container) return;
-  const q = String(query||"").trim();
+  const q = String(query || "").trim();
+  const allSites = SITES.slice();
+
+  const { page, totalPages, slice } = paginate(allSites, pageState.normal);
+  pageState.normal = page;
+
+  container.innerHTML = "";
   if (!q){
-    container.innerHTML = `<div class="cardBox"><b>Bir şey yaz.</b></div>`;
+    container.innerHTML = `<div class="empty">Arama kelimesi gir.</div>`;
+    if (pager) pager.innerHTML = "";
     return;
   }
 
-  container.innerHTML = "";
-  for (const s of SITES){
+  for (const s of slice){
     const url = s.build(q);
     const card = document.createElement("div");
     card.className = "cardBox";
@@ -344,29 +435,21 @@ function renderSiteList(container, query){
     card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
       window.open(url, "_blank", "noopener");
     });
-    const favBtn = card.querySelector(".btnFav");
-    const applyFavUI = ()=>{
-      const fav = isFavUrl(url);
-      if (!favBtn) return;
-      favBtn.classList.toggle("isFav", fav);
-      favBtn.textContent = fav ? "❤️ Favoride" : "🤍 Favori";
-    };
-    applyFavUI();
-
-    favBtn?.addEventListener("click", async ()=>{
-      if (!currentUser) return toast("Favori için giriş yap.");
-      const id = favIdFromUrl(url);
-      if (isFavUrl(url)){
-        await removeFavorite(id);
-        toast("Favoriden kaldırıldı.");
-      } else {
-        await addFavorite({ siteKey: s.key, siteName: s.name, query: q, url });
-        toast("Favoriye eklendi.");
-      }
+    card.querySelector(".btnFav")?.addEventListener("click", async ()=>{
+      await toggleFavorite(s.key, s.name, q, url);
+      toast("Favori güncellendi.");
+      await loadFavorites();
       applyFavUI();
     });
     container.appendChild(card);
   }
+
+  renderPager(pager, pageState.normal, totalPages, (p)=>{
+    pageState.normal = p;
+    renderSiteList(container, q);
+  });
+
+  applyFavUI();
 }
 
 window.renderSiteList = renderSiteList;
