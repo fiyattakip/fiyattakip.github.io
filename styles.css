@@ -321,3 +321,11 @@ body.modalOpen {
   height: 100vh;
   touch-action: none;
 }
+/* AI yorumu taşma / devamı görünmüyor fix */
+.aiBubble{
+  max-height: 180px;
+  overflow-y: auto;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
+}
