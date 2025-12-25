@@ -315,3 +315,9 @@ body{
   border-color: rgba(138,21,56,.20) !important;
   color: #7a0d31 !important;
 }
+/* Modal açıkken arka plan scroll kilidi */
+body.modalOpen {
+  overflow: hidden;
+  height: 100vh;
+  touch-action: none;
+}
