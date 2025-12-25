@@ -316,3 +316,97 @@ body{
   color: var(--text);
 }
 .row2{ display:flex; gap:10px; margin-top: 10px; }
+
+
+/* Checkbox row */
+.chkRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(255,255,255,.80);
+}
+.chkRow input{ width: 18px; height: 18px; }
+
+/* Toast */
+.toast{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 92px;
+  z-index: 300000;
+  background: rgba(20,25,40,.88);
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.94);
+  padding: 10px 14px;
+  border-radius: 16px;
+  box-shadow: 0 14px 50px rgba(0,0,0,.45);
+  max-width: calc(100% - 32px);
+  font-weight: 900;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: .18s ease;
+}
+.toast.show{ opacity: 1; }
+
+/* Product cards */
+.itemCard{
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.itemImg{
+  width: 52px; height: 52px;
+  border-radius: 16px;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.12);
+  flex: 0 0 auto;
+  font-size: 22px;
+}
+.itemMain{ flex:1; min-width: 0; }
+.itemTitle{ font-weight: 1000; line-height: 1.2; }
+.itemMeta{ margin-top: 6px; font-size: 12px; color: rgba(255,255,255,.72); display:flex; gap:10px; flex-wrap:wrap; }
+.itemPrice{ font-weight: 1000; }
+.itemActions{ margin-top: 10px; display:flex; gap:8px; flex-wrap:wrap; }
+.btnTiny{
+  border-radius: 14px;
+  padding: 8px 10px;
+  font-weight: 1000;
+  font-size: 12px;
+}
+.btnLink{
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  color: var(--text);
+}
+
+/* Expandable text */
+.expBox{
+  margin-top: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+  padding: 12px;
+}
+.expText{
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255,255,255,.90);
+  max-height: 140px;
+  overflow: hidden;
+}
+.expBox.open .expText{ max-height: none; }
+.expMore{
+  margin-top: 10px;
+  width: 100%;
+}
