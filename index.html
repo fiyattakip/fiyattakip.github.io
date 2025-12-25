@@ -122,7 +122,7 @@
   </div>
 
   <!-- LOGIN MODAL -->
-  <div id="loginModal" class="modalwrap" style="display:none">
+  <div id="loginModal" class="modalwrap" style="display:none" style="display:none">
     <div class="modal">
       <div class="modalTop">
         <div style="font-weight:950;font-size:20px">Giriş</div>
@@ -219,48 +219,6 @@
 
   <script type="module" src="./firebase.js"></script>
   <script type="module" src="./ai.js"></script>
-  
-  <!-- PICK PRODUCT MODAL (Top 3) -->
-  <div id="pickModal" class="modalwrap" style="display:none">
-    <div class="modal">
-      <div class="modalTop">
-        <div id="pickTitle" style="font-weight:950;font-size:18px">Ürün seç</div>
-        <button id="pickClose" class="pill" style="padding:8px 12px">✕</button>
-      </div>
-
-      <div class="smallNote" id="pickDesc" style="margin-top:10px"></div>
-
-      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
-        <button id="pickOpenSearch" class="btnAction">Arama sayfasını aç</button>
-      </div>
-
-      <div class="form" style="margin-top:12px">
-        <div class="lbl">Seçenek 1 (ürün linki)</div>
-        <div class="pwRow">
-          <input id="pickUrl1" class="input" placeholder="https://... (ürün sayfası linki)" />
-          <button id="pickPaste1" class="btnAction" type="button">Yapıştır</button>
-          <button id="pickAdd1" class="btnAction" type="button">Ekle</button>
-        </div>
-
-        <div class="lbl" style="margin-top:10px">Seçenek 2 (ürün linki)</div>
-        <div class="pwRow">
-          <input id="pickUrl2" class="input" placeholder="https://..." />
-          <button id="pickPaste2" class="btnAction" type="button">Yapıştır</button>
-          <button id="pickAdd2" class="btnAction" type="button">Ekle</button>
-        </div>
-
-        <div class="lbl" style="margin-top:10px">Seçenek 3 (ürün linki)</div>
-        <div class="pwRow">
-          <input id="pickUrl3" class="input" placeholder="https://..." />
-          <button id="pickPaste3" class="btnAction" type="button">Yapıştır</button>
-          <button id="pickAdd3" class="btnAction" type="button">Ekle</button>
-        </div>
-
-        <button id="pickNone" class="btnAction" style="margin-top:12px">Hiçbiri değil</button>
-      </div>
-    </div>
-  </div>
-
-<script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
