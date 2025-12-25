@@ -301,23 +301,13 @@ body{
   .hero h1{font-size:40px}
   .btnPrimary{min-width:86px}
 }
-/* --- Pill buttons contrast fix --- */
-.pill{
-  background: rgba(255,255,255,.92) !important;
-  border: 1px solid rgba(15,23,42,.14) !important;
-  color: #0f172a !important;
-}
-.pill:hover{ filter: brightness(.98); }
-.pill:active{ transform: translateY(1px); }
 
-.pill.danger{
-  background: rgba(255,107,139,.18) !important;
-  border-color: rgba(138,21,56,.20) !important;
-  color: #7a0d31 !important;
-}
-/* Modal açıkken arka plan scroll kilidi */
-body.modalOpen {
-  overflow: hidden;
-  height: 100vh;
-  touch-action: none;
+
+/* --- AI bubble readability fix --- */
+.aiBubble{
+  max-height: 180px;
+  overflow-y: auto;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
 }
