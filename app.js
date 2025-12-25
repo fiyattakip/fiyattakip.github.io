@@ -13,7 +13,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import {
-  saveAiKeys, clearAiCfg, aiConfigured, aiText, aiVision, loadAiCfg
+  saveGeminiKey, clearAiCfg, aiConfigured, geminiText, geminiVision
 } from "./ai.js";
 
 /* ---------- Helpers ---------- */
@@ -86,11 +86,213 @@ const SITES = [
   { id:"trendyol",   name:"Trendyol",     build:(q)=>`https://www.trendyol.com/sr?q=${encQ(q)}` },
   { id:"hepsiburada",name:"Hepsiburada",  build:(q)=>`https://www.hepsiburada.com/ara?q=${encQ(q)}` },
   { id:"n11",        name:"N11",          build:(q)=>`https://www.n11.com/arama?q=${encQ(q)}` },
-  { id:"amazon",     name:"Amazon TR",    build:(q)=>`https://www.amazon.com.tr/s?k=${encQ(q)}` },
+  { id:"amazontr",     name:"Amazon TR",    build:(q)=>`https://www.amazon.com.tr/s?k=${encQ(q)}` },
   { id:"pazarama",   name:"Pazarama",     build:(q)=>`https://www.pazarama.com/arama?q=${encQ(q)}` },
-  { id:"cicek",      name:"ÇiçekSepeti",  build:(q)=>`https://www.ciceksepeti.com/arama?query=${encQ(q)}` },
+  { id:"ciceksepeti",  name:"ÇiçekSepeti",  build:(q)=>`https://www.ciceksepeti.com/arama?query=${encQ(q)}` },
   { id:"idefix",     name:"idefix",       build:(q)=>`https://www.idefix.com/arama/?q=${encQ(q)}` },
 ];
+
+
+/* ---------- Search→Product Resolver (Top3) ---------- */
+const ACCESSORY_WORDS = [
+  "kılıf","kilif","kapak","case","silikon","ekran koruyucu","koruyucu","cam","temperli",
+  "kablo","şarj","sarj","adaptör","adapter","powerbank","kulaklık","kulaklik","stand",
+  "çanta","canta","kordon","band","aksesuar","film","lens","cover"
+];
+
+function normStr(s){
+  return String(s||"")
+    .toLowerCase()
+    .replace(/ı/g,"i").replace(/İ/g,"i")
+    .replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ö/g,"o").replace(/ç/g,"c")
+    .replace(/[^a-z0-9\s]/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+function tokenizeQ(q){
+  const stop = new Set(["ve","ile","icin","için","the","a","an","or","ya","da"]);
+  return normStr(q).split(" ").filter(t=>t && t.length>1 && !stop.has(t));
+}
+function scoreTitle(query, title){
+  const q = tokenizeQ(query);
+  const t = normStr(title);
+  if(!t) return -999;
+
+  let score = 0;
+  const joined = q.join(" ");
+  if(joined && t.includes(joined)) score += 35;
+
+  for(const tok of q){
+    if(t.includes(tok)) score += (/\d/.test(tok) ? 16 : 10);
+  }
+
+  // Penalize accessory words if query doesn't contain them
+  for(const w of ACCESSORY_WORDS){
+    const wn = normStr(w);
+    if(t.includes(wn) && !normStr(query).includes(wn)) score -= 50;
+  }
+  return score;
+}
+function makeProxyUrl(url){
+  const clean = String(url||"").trim();
+  if(!clean.startsWith("http")) return clean;
+  const proto = clean.startsWith("https://") ? "https://" : "http://";
+  const rest = clean.replace(/^https?:\/\//,"");
+  return `https://r.jina.ai/${proto}${rest}`;
+}
+async function fetchHtmlForSearch(url){
+  const u = makeProxyUrl(url);
+  const r = await fetch(u, { method:"GET" });
+  const txt = await r.text();
+  if(!r.ok) throw new Error(`Arama sayfası alınamadı (HTTP ${r.status})`);
+  return txt;
+}
+function absUrl(base, href){
+  try{
+    return new URL(href, base).toString();
+  }catch{
+    return href;
+  }
+}
+function uniqueByUrl(list){
+  const seen = new Set();
+  const out = [];
+  for(const it of list){
+    if(!it?.url) continue;
+    const u = it.url.split("#")[0];
+    if(seen.has(u)) continue;
+    seen.add(u);
+    out.push({...it, url:u});
+  }
+  return out;
+}
+function extractCandidates(siteId, html, baseUrl){
+  const out = [];
+  const isHtml = /<a\s/i.test(html) || /<html/i.test(html);
+
+  const push = (url, title)=>{
+    if(!url) return;
+    const u = absUrl(baseUrl, url);
+    out.push({ url:u, title:(title||"").trim() });
+  };
+
+  if(isHtml){
+    try{
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      doc.querySelectorAll("a[href]").forEach(a=>{
+        const href = a.getAttribute("href") || "";
+        const title = a.getAttribute("title") || a.getAttribute("aria-label") || a.textContent || "";
+        push(href, title);
+      });
+    }catch(e){
+      console.warn("DOMParser failed", e);
+    }
+  }else{
+    // fallback: regex URLs
+    const reUrl = /https?:\/\/[^\s"')]+/g;
+    const m = html.match(reUrl) || [];
+    for(const u of m) push(u, "");
+  }
+
+  // site-specific filter
+  const keep = (u)=>{
+    const uu = u.toLowerCase();
+    if(siteId==="amazontr") return /\/(dp|gp\/product)\//.test(uu);
+    if(siteId==="hepsiburada") return uu.includes("hepsiburada.com") && (uu.includes("-p-") || uu.includes("/p-"));
+    if(siteId==="n11") return uu.includes("n11.com") && uu.includes("/urun/");
+    if(siteId==="trendyol") return uu.includes("trendyol.com") && uu.includes("-p-");
+    if(siteId==="ciceksepeti") return uu.includes("ciceksepeti.com") && uu.includes("-p-");
+    if(siteId==="idefix") return uu.includes("idefix.com") && (uu.includes("/urun/") || uu.includes("-p-") || uu.includes("/kitap/") || uu.includes("/elektronik/"));
+    if(siteId==="pazarama") return uu.includes("pazarama.com") && (uu.includes("/urun/") || uu.includes("-p-"));
+    return false;
+  };
+
+  const filtered = uniqueByUrl(out).filter(it=> keep(it.url));
+  return filtered.slice(0, 60);
+}
+
+function rankCandidates(query, candidates){
+  const scored = candidates.map(c=>{
+    const s = scoreTitle(query, c.title);
+    return {...c, score:s};
+  }).sort((a,b)=>b.score-a.score);
+  return scored;
+}
+
+function findFavForSiteQuery(siteId, q){
+  const qq = (q||"").trim();
+  return favCache.filter(f => (f.siteId===siteId) && ((f.query||"").trim()===qq));
+}
+
+function setFavBtnUI(btn, isFav){
+  if(!btn) return;
+  btn.classList.toggle("isFav", !!isFav);
+  btn.innerHTML = isFav
+    ? `<svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.4-10-9.2C-0.3 7 2.3 3 6.1 3c2 0 3.3 1 3.9 1.7C10.6 4 12 3 13.9 3 17.7 3 20.3 7 22 11.8 19 16.6 12 21 12 21z"/></svg> Favoride`
+    : `<svg class="miniIco" viewBox="0 0 24 24"><path d="M12.1 21.3 12 21.2l-.1.1C7.1 17.7 2 14.3 2 9.5 2 6.4 4.4 4 7.5 4c1.7 0 3.3.8 4.5 2.1C13.2 4.8 14.8 4 16.5 4 19.6 4 22 6.4 22 9.5c0 4.8-5.1 8.2-9.9 11.8z"/></svg> Favoriye ekle`;
+}
+
+let pendingPick = null;
+
+function openPickModal({ site, query, candidates, onChoose }){
+  pendingPick = { site, query, candidates, onChoose };
+  $("pickHint").textContent = `${site.name} • “${query}” için en alakalı 3 sonuç:`;
+  $("pickList").innerHTML = candidates.map((c, idx)=>{
+    const t = c.title || "(başlık yok)";
+    const meta = c.url;
+    return `
+      <div class="pickItem" data-pick-idx="${idx}">
+        <div class="pickTitle">${esc(t)}</div>
+        <div class="pickMeta">${esc(meta)}</div>
+        <div class="pickActions">
+          <button class="btnPrimary" data-pick="${idx}">Seç</button>
+          <button class="btnOpen" data-open-url="${esc(c.url)}">Aç</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  $("pickModal").style.display = "";
+
+  $("pickList").querySelectorAll("[data-open-url]").forEach(b=>{
+    b.addEventListener("click", ()=> openUrl(b.getAttribute("data-open-url")));
+  });
+  $("pickList").querySelectorAll("[data-pick]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const idx = Number(b.getAttribute("data-pick"));
+      const item = candidates[idx];
+      closePickModal();
+      onChoose?.(item);
+    });
+  });
+}
+
+function closePickModal(){
+  $("pickModal").style.display = "none";
+  pendingPick = null;
+}
+
+$("closePick")?.addEventListener("click", closePickModal);
+$("pickNone")?.addEventListener("click", ()=>{
+  closePickModal();
+  toast("Ürün bulunamadı.");
+});
+
+async function resolveSearchTop3(site, query){
+  const searchUrl = site.build(query);
+  const html = await fetchHtmlForSearch(searchUrl);
+  const candidates = extractCandidates(site.id, html, searchUrl);
+  const ranked = rankCandidates(query, candidates);
+  const top = ranked.slice(0, 3);
+
+  // confidence thresholds
+  if(!top.length) return { top: [], reason:"no_candidates" };
+  const best = top[0];
+  if(best.score < 18) return { top: [], reason:"low_conf" };
+  // if close scores, still show top3 (user wanted)
+  return { top, reason:"ok" };
+}
+
 
 function renderSiteList(targetEl, queryText, extra = {}){
   const html = SITES.map(s => {
@@ -129,18 +331,71 @@ function renderSiteList(targetEl, queryText, extra = {}){
   });
 
   targetEl.querySelectorAll("[data-fav]").forEach(btn=>{
+    const id = btn.getAttribute("data-fav");
+    const site = SITES.find(x=>x.id===id);
+    const q = (extra?.hintMap?.[id] || queryText || "").trim();
+    // initial state
+    const already = findFavForSiteQuery(site.id, q).length>0;
+    setFavBtnUI(btn, already);
+
     btn.addEventListener("click", async ()=>{
-      const id = btn.getAttribute("data-fav");
-      const site = SITES.find(x=>x.id===id);
-      const q = (extra?.hintMap?.[id] || queryText || "").trim();
-      await addFavorite({
-        title: q || "(boş)",
-        siteId: site.id,
-        siteName: site.name,
-        query: q,
-        url: site.build(q),
-      });
-      toast("Favoriye eklendi.");
+      if (!currentUser) return toast("Giriş gerekli.");
+
+      const existing = findFavForSiteQuery(site.id, q);
+      if(existing.length){
+        // remove (first match)
+        try{
+          await removeFavorite(existing[0].id);
+          toast("Favoriden kaldırıldı.");
+          // update cache will refresh via snapshot, but update UI instantly too
+          setFavBtnUI(btn, false);
+        }catch(e){
+          console.error(e);
+          toast("Kaldırılamadı.");
+        }
+        return;
+      }
+
+      // resolve search to product(s) and ask user (Top3 popup)
+      btn.disabled = true;
+      btn.textContent = "Bulunuyor...";
+      try{
+        const { top, reason } = await resolveSearchTop3(site, q);
+        if(!top.length){
+          toast("Ürün bulunamadı. Ürün sayfası linkiyle ekle.");
+          setFavBtnUI(btn, false);
+          return;
+        }
+        openPickModal({
+          site, query:q, candidates: top,
+          onChoose: async (picked)=>{
+            try{
+              await addFavorite({
+                title: picked.title || q || "(boş)",
+                siteId: site.id,
+                siteName: site.name,
+                query: q,
+                url: picked.url
+              });
+              setFavBtnUI(btn, true);
+              toast("Favoriye eklendi.");
+            }catch(e){
+              console.error(e);
+              toast(e?.message || "Favoriye eklenemedi.");
+              setFavBtnUI(btn, false);
+            }
+          }
+        });
+      }catch(e){
+        console.error(e);
+        toast("Arama çözümlenemedi (engel/CORS olabilir). Ürün linkiyle ekle.");
+        setFavBtnUI(btn, false);
+      }finally{
+        btn.disabled = false;
+        // restore proper UI text
+        const nowFav = findFavForSiteQuery(site.id, q).length>0;
+        setFavBtnUI(btn, nowFav);
+      }
     });
   });
 }
@@ -246,34 +501,56 @@ $("logoutBtn").addEventListener("click", async ()=>{
 
 /* ---------- AI Settings Modal ---------- */
 $("aiSettingsBtn").addEventListener("click", ()=>{
-  const cfg = loadAiCfg();
-  if (cfg?.preferredProvider) $("aiProvider").value = cfg.preferredProvider;
   $("aiModal").style.display = "";
 });
 $("closeAi").addEventListener("click", ()=> $("aiModal").style.display="none");
 
+
+function refreshAiSavedNote(){
+  try{
+    const cfg = loadCfg?.() || {};
+    const hasGem = !!cfg?.gemini?.cipher;
+    const hasOai = !!cfg?.openai?.cipher;
+    const pref = cfg?.provider || "auto";
+    if($("aiProvider")) $("aiProvider").value = pref;
+    const note = $("aiSavedNote");
+    if(!note) return;
+    if(pref==="rules"){
+      note.textContent = "Rules modu aktif (ücretsiz). API key gerekmez.";
+      note.style.display = "";
+      return;
+    }
+    if(hasGem || hasOai){
+      note.textContent = `AI key kayıtlı (${hasGem?"Gemini":""}${hasGem&&hasOai?" + ":""}${hasOai?"OpenAI":""}). PIN doğruysa AI çalışır.`;
+      note.style.display = "";
+    }else{
+      note.textContent = "AI key kayıtlı değil.";
+      note.style.display = "";
+    }
+  }catch(e){
+    console.warn(e);
+  }
+}
+refreshAiSavedNote();
+
 $("saveAi").addEventListener("click", async ()=>{
   try{
     await saveAiKeys({
+      provider: $("aiProvider").value,
       geminiKey: $("gemKey").value.trim(),
-      openaiKey: $("openaiKey").value.trim(),
+      openaiKey: $("openKey").value.trim(),
       pin: $("gemPin").value,
-      rememberPin: $("rememberPin").checked,
-      preferredProvider: $("aiProvider").value
+      rememberPin: $("rememberPin").checked
     });
-    toast("AI ayarı kaydedildi.");
-    $("aiModal").style.display = "none"; // <- senin istediğin: Kaydet deyince kapansın
-  }catch(e){
-    toast(e?.message || String(e));
-  }
-});
 
-$("clearAi").addEventListener("click", ()=>{
-  clearAiCfg();
+$("clearAi").addEventListener("click", async ()=>{
+  await clearAiAll();
   $("gemKey").value = "";
-  $("openaiKey").value = "";
+  $("openKey").value = "";
   $("gemPin").value = "";
-  toast("AI key silindi.");
+  $("aiProvider").value = "auto";
+  toast("AI ayarı silindi.");
+  refreshAiSavedNote();
 });
 
 /* ---------- Normal / AI / Visual ---------- */
@@ -300,7 +577,7 @@ Amaç: E-ticarette doğru arama ifadesi ve kısa öneri.
 - comment: (kısa yorum: nelere dikkat edilmeli)
 Sadece bu formatla cevap ver.`;
 
-    const out = await aiText(prompt);
+    const out = await geminiText(prompt);
     const queryLine = (out.match(/query:\s*(.+)/i)?.[1] || q).trim();
     const commentLine = (out.match(/comment:\s*(.+)/i)?.[1] || "").trim();
 
@@ -360,7 +637,7 @@ $("btnVisual").addEventListener("click", async ()=>{
 - 2 satır: kısa açıklama
 Eğer ürün belirsizse "UNKNOWN" yaz.`;
 
-    const txt = await aiVision({
+    const txt = await geminiVision({
       prompt,
       mime: f.type || "image/png",
       base64Data: b64
@@ -479,7 +756,9 @@ async function removeFavorite(docId){
 }
 
 async function genAiComment(fav){
-  if (!aiConfigured()) return toast("AI key kayıtlı değil.");
+  const pref = (loadCfg?.()||{}).provider || "auto";
+  if(pref==="rules") return rulesComment(fav);
+
   const title = fav.title || fav.query || "ürün";
   const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
   const site = fav.siteName || "";
@@ -489,9 +768,48 @@ Site: ${site}
 Fiyat: ${price}
 Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
 Maks 3-4 cümle. Türkçe.`;
-  const t = await aiText(prompt);
-  return t.trim();
+
+  try{
+    const t = await aiTextAuto(prompt);
+    const out = String(t||"").trim();
+    if(out) return out;
+    return rulesComment(fav);
+  }catch(e){
+    console.warn("AI failed, fallback to rules:", e);
+    return rulesComment(fav);
+  }
 }
+
+function rulesComment(fav){
+  const title = fav.title || fav.query || "ürün";
+  const hist = Array.isArray(fav.priceHistory) ? fav.priceHistory : [];
+  const prices = hist.map(x=>Number(x.p)).filter(n=>Number.isFinite(n));
+  const last = Number(fav.lastPrice);
+  const cur = Number.isFinite(last) ? last : (prices.length ? prices[prices.length-1] : null);
+  if(!cur) return `${title} için şu an güvenilir fiyat verisi yok. Ürün sayfası linkini kontrol edip tekrar dene.`;
+
+  let min = cur, max = cur, avg = cur;
+  if(prices.length){
+    min = Math.min(...prices);
+    max = Math.max(...prices);
+    avg = prices.reduce((a,b)=>a+b,0)/prices.length;
+  }
+  const pct = (a,b)=> b? ((a-b)/b*100) : 0;
+  const vsMin = pct(cur, min);
+  const vsAvg = pct(cur, avg);
+
+  const bits = [];
+  bits.push(`Şu an ${formatPrice(cur)} civarında.`);
+  if(prices.length>=3){
+    bits.push(`Takip döneminde en düşük ${formatPrice(min)}, ortalama ${formatPrice(avg)}.`);
+    if(cur <= min*1.01) bits.push("Dip seviyeye çok yakın görünüyor.");
+    else if(vsMin>10) bits.push(`Dipten yaklaşık +%${Math.round(vsMin)} yukarıda.`);
+    if(vsAvg<-5) bits.push("Ortalamanın altında; iyi fırsat olabilir.");
+    else if(vsAvg>5) bits.push("Ortalamanın üstünde; biraz beklemek mantıklı olabilir.");
+  }
+  return bits.join(" ");
+}
+
 
 function formatPrice(p){
   if (p===null || p===undefined || p==="") return "Fiyat yok";
