@@ -277,90 +277,60 @@ $("clearAi").addEventListener("click", ()=>{
 });
 
 /* ---------- Normal / AI / Visual ---------- */
-/* ==== Normal/AI arama modu (UI + motor) ==== */
-const LS_MODE = "fiyattakip_search_mode_v1";
-
-function setSearchMode(mode){
-  localStorage.setItem(LS_MODE, mode);
-  const bn = $("modeNormal"); 
-  const ba = $("modeAI");
-  if (bn) bn.classList.toggle("active", mode==="normal");
-  if (ba) ba.classList.toggle("active", mode==="ai");
-
-  const hint = $("modeHint");
-  if (hint){
-    hint.textContent = (mode==="ai")
-      ? "AI arama: yazdığını analiz eder ve sitelerde aramak için en net sorguyu üretir."
-      : "Normal arama: seçilen sitelerde direkt arar.";
-  }
-}
-function getSearchMode(){
-  return localStorage.getItem(LS_MODE) || "normal";
-}
-
-$("modeNormal")?.addEventListener("click", ()=> setSearchMode("normal"));
-$("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
-setSearchMode(getSearchMode());
-
-async function aiBuildSearchQuery(userText){
-  const prompt = `
-Sen bir e-ticaret arama asistanısın.
-Kullanıcının metnini, e-ticaret sitelerinde aramaya uygun, kısa ve net bir "arama sorgusu"na çevir.
-
-Kurallar:
-- ÇIKTI SADECE JSON olacak.
-- Uydurma model/özellik ekleme. Emin değilsen daha genel yaz.
-- Sorgu 2-8 kelime arası kısa olsun.
-- Kullanıcı belirsiz yazdıysa en mantıklı ana sorgu üret.
-
-JSON formatı:
-{"query":"...","alts":["...","..."],"avoid":["...","..."]}
-
-Kullanıcı metni: ${userText}
-  `.trim();
-
-  const raw = await aiText(prompt);
-
-  // JSON’u yakalamaya çalış (bazen başına/sonuna açıklama gelebilir)
-  const txt = String(raw || "").trim();
-  const m = txt.match(/\{[\s\S]*\}/);
-  const jsonStr = m ? m[0] : txt;
-
-  let obj = null;
-  try { obj = JSON.parse(jsonStr); } catch { /* ignore */ }
-
-  const query = String(obj?.query || userText).replace(/\s+/g," ").trim().slice(0,80);
-  const alts = Array.isArray(obj?.alts) ? obj.alts.map(x=>String(x).trim()).filter(Boolean) : [];
-  const avoid = Array.isArray(obj?.avoid) ? obj.avoid.map(x=>String(x).trim()).filter(Boolean) : [];
-
-  return { query, alts, avoid };
-}
-
 $("btnNormal").addEventListener("click", async ()=>{
-  const q0 = $("qNormal").value.trim();
-  if (!q0) return toast("Ürün adı yaz.");
+  const q = $("qNormal").value.trim();
+  if (!q) return toast("Ürün adı yaz.");
 
-  const mode = getSearchMode();
-
-  if (mode === "normal"){
-    renderSiteList($("normalList"), q0);
+  const mode = localStorage.getItem("searchMode") || "normal";
+  if (mode === "ai"){
+    $("qAi").value = q;
+    await triggerAiSearch();
     return;
   }
+  renderSiteList($("normalList"), q);
+});
 
-  // AI mod: önce arama sorgusunu AI'dan üret, sonra normal listeyi o sorguyla üret
+async function triggerAiSearch(){
+  const q = $("qAi").value.trim();
+  if (!q) return toast("Bir şey yaz.");
   if (!aiConfigured()) return toast("AI key kayıtlı değil. AI Ayarları'ndan gir.");
 
+  $("btnAi").disabled = true;
+  $("aiBox").style.display = "";
+  $("aiList").innerHTML = "";
   try{
-    toast("AI sorgu hazırlanıyor...");
-    const built = await aiBuildSearchQuery(q0);
-    $("qNormal").value = built.query; // kullanıcı da görsün
-    renderSiteList($("normalList"), built.query);
+    const prompt =
+`Kullanıcının arama niyetini anla ve e-ticaret sitelerinde aramaya uygun net bir sorgu üret.
+Sadece JSON döndür:
+{"query":"...","alts":["...","..."],"avoid":["..."]}
+
+Kullanıcı metni: ${q}`;
+
+    const raw = await aiText(prompt);
+    let txt = String(raw||"").trim();
+    const m = txt.match(/\{[\s\S]*\}/);
+    if (m) txt = m[0];
+    let obj;
+    try{ obj = JSON.parse(txt); }catch{ obj = null; }
+
+    const query = (obj?.query || q).toString().trim();
+
+    // Bilgi kutusu (isteğe bağlı)
+    $("aiBox").style.display = "";
+    $("aiList").innerHTML =
+      `<div class="aiHint">AI sorgusu: <b>${esc(query)}</b></div>`;
+
+    // Sonuçları normal listeye basıyoruz
+    renderSiteList($("normalList"), query);
+
   }catch(e){
-    toast(e?.message || String(e));
-    // AI hata verirse normal aramaya düş
-    renderSiteList($("normalList"), q0);
+    console.error(e);
+    toast("AI arama hata: " + (e?.message || e));
+    renderSiteList($("normalList"), q);
+  }finally{
+    $("btnAi").disabled = false;
   }
-});
+}
 
 $("btnAi").addEventListener("click", async ()=>{
   const q = $("qAi").value.trim();
@@ -802,4 +772,51 @@ onAuthStateChanged(auth, async (u)=>{
     favCache = list;
     renderFavorites();
   });
+});
+
+/* ===== Search Mode Toggle + Bottom Nav (UI) ===== */
+function setSearchMode(mode){
+  localStorage.setItem("searchMode", mode);
+  const bn = document.getElementById("modeNormal");
+  const ba = document.getElementById("modeAI");
+  if (bn && ba){
+    bn.classList.toggle("active", mode==="normal");
+    ba.classList.toggle("active", mode==="ai");
+  }
+}
+setSearchMode(localStorage.getItem("searchMode") || "normal");
+document.getElementById("modeNormal")?.addEventListener("click", ()=> setSearchMode("normal"));
+document.getElementById("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
+
+document.querySelectorAll(".qItem").forEach(el=>{
+  el.addEventListener("click", ()=>{
+    const name = el.querySelector(".qName")?.textContent?.trim() || "";
+    if (!name) return;
+    $("qNormal").value = name;
+    $("btnNormal").click();
+    window.scrollTo({top:0, behavior:"smooth"});
+  });
+});
+
+function navActivate(key){
+  document.querySelectorAll(".navBtn").forEach(b=>b.classList.toggle("active", b.dataset.nav===key));
+  if (key === "settings"){
+    $("aiSettingsBtn")?.click();
+    return;
+  }
+  if (key === "favs" || key === "graph"){
+    const fav = document.querySelector(".favCard") || $("favList")?.closest("section");
+    fav?.scrollIntoView({behavior:"smooth", block:"start"});
+    return;
+  }
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+document.getElementById("navHome")?.addEventListener("click", ()=> navActivate("home"));
+document.getElementById("navGraph")?.addEventListener("click", ()=> navActivate("graph"));
+document.getElementById("navFavs")?.addEventListener("click", ()=> navActivate("favs"));
+document.getElementById("navSettings")?.addEventListener("click", ()=> navActivate("settings"));
+
+document.getElementById("fabCamera")?.addEventListener("click", ()=>{
+  document.getElementById("tabVisual")?.click();
+  setTimeout(()=> document.getElementById("btnVisual")?.click(), 120);
 });

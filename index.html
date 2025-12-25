@@ -13,6 +13,12 @@
 </head>
 <body>
   <div class="wrap">
+
+    <header class="topbar">
+      <div class="topbarTitle">FiyatTakip</div>
+      <button class="topbarIcon" id="notifBtn" aria-label="Bildirimler">🔔</button>
+    </header>
+
     <div class="card">
       <div class="hero">
         <div style="display:flex; align-items:center; gap:12px;">
@@ -66,14 +72,29 @@
           <input id="qNormal" class="input" placeholder="Ürün adı yaz (örn: iphone 13 128gb)" />
           <button id="btnNormal" class="btnPrimary">Ara</button>
         </div>
-        
         <div class="modeToggle" id="modeToggle">
           <button class="modeBtn active" id="modeNormal" type="button">Normal</button>
           <button class="modeBtn" id="modeAI" type="button">AI</button>
         </div>
-        <div class="modeHint" id="modeHint">Normal arama: seçilen sitelerde direkt arar.</div>
 
-        
+        <div class="promoCard">
+          <div class="promoLeft">
+            <div class="promoTitle">Fırsat Takibi</div>
+            <div class="promoSub">Favorilere ekle → otomatik kontrol → %10+ düşüş bildirimi</div>
+          </div>
+          <div class="promoBag">🛍️</div>
+        </div>
+
+        <div class="quickGrid">
+          <div class="qItem"><div class="qImg">🎧</div><div class="qName">Kulaklık</div><div class="qMeta">Hızlı ara</div></div>
+          <div class="qItem"><div class="qImg">📱</div><div class="qName">Telefon</div><div class="qMeta">Hızlı ara</div></div>
+          <div class="qItem"><div class="qImg">💻</div><div class="qName">Laptop</div><div class="qMeta">Hızlı ara</div></div>
+          <div class="qItem"><div class="qImg">⌚</div><div class="qName">Saat</div><div class="qMeta">Hızlı ara</div></div>
+          <div class="qItem"><div class="qImg">🧹</div><div class="qName">Süpürge</div><div class="qMeta">Hızlı ara</div></div>
+          <div class="qItem"><div class="qImg">👟</div><div class="qName">Ayakkabı</div><div class="qMeta">Hızlı ara</div></div>
+        </div>
+
+        <div class="helper">Normal arama: seçilen sitelerde arar.</div>
 
         <div id="normalList" class="listBox"></div>
       </section>
@@ -128,7 +149,21 @@
     </div>
   </div>
 
-  <!-- LOGIN MODAL -->
+  
+    <nav class="bottomNav" aria-label="Alt menü">
+      <button class="navBtn active" data-nav="home" id="navHome"><span class="nIco">🏠</span><span class="nLbl">Ana</span></button>
+      <button class="navBtn" data-nav="graph" id="navGraph"><span class="nIco">📈</span><span class="nLbl">Grafik</span></button>
+
+      <button class="navFab" id="fabCamera" aria-label="AI Kamera">
+        <span class="fabRing"></span>
+        <span class="fabIcon">📷</span>
+      </button>
+
+      <button class="navBtn" data-nav="favs" id="navFavs"><span class="nIco">❤️</span><span class="nLbl">Favori</span></button>
+      <button class="navBtn" data-nav="settings" id="navSettings"><span class="nIco">⚙️</span><span class="nLbl">Ayar</span></button>
+    </nav>
+
+<!-- LOGIN MODAL -->
   <div id="loginModal" class="modalwrap" style="display:none">
     <div class="modal">
       <div class="modalTop">
