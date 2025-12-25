@@ -46,13 +46,13 @@ function lockApp(lock){
 function openLogin(){
   const m = $("loginModal");
   if (!m) return;
-  m.classList.add("open");
+  m.classList.add("show");
   m.setAttribute("aria-hidden","false");
 }
 function closeLogin(){
   const m = $("loginModal");
   if (!m) return;
-  m.classList.remove("open");
+  m.classList.remove("show");
   m.setAttribute("aria-hidden","true");
 }
 
