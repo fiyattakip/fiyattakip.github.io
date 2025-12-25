@@ -609,17 +609,63 @@ async function removeFavorite(docId){
 
 async function genAiComment(fav){
   if (!aiConfigured()) return toast("AI key kayıtlı değil.");
-  const title = fav.title || fav.query || "ürün";
-  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
-  const site = fav.siteName || "";
-  const prompt =
-`Ürün: ${title}
-Site: ${site}
-Fiyat: ${price}
-Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
-Maks 3-4 cümle. Türkçe.`;
+
+  const title = (fav.title || fav.query || "ürün").trim();
+  const site  = (fav.siteName || "").trim();
+
+  const priceNum = Number(fav.lastPrice);
+  const hasPrice = Number.isFinite(priceNum) && priceNum > 0;
+
+  // Fiyat geçmişi varsa min/avg gibi basit istatistik (opsiyonel)
+  const hist = Array.isArray(fav.priceHistory) ? fav.priceHistory : [];
+  const prices = hist.map(x => Number(x.p)).filter(n => Number.isFinite(n) && n > 0);
+  const minP = prices.length ? Math.min(...prices) : null;
+  const avgP = prices.length ? Math.round(prices.reduce((a,b)=>a+b,0) / prices.length) : null;
+
+  let prompt = "";
+
+  if (!hasPrice){
+    // ✅ FİYAT YOKSA: ÜRÜN ODAKLI YORUM (fiyat/stok/çıkış tarihi tahmini YASAK)
+    prompt =
+`Sen bir e-ticaret asistanısın.
+
+Ürün: ${title}
+Site: ${site || "—"}
+
+Görev:
+- Fiyat yoksa fiyatla ilgili yorum yapma.
+- "piyasaya sürülmedi", "stokta yok", "satışta değil" gibi TAHMİN/İDDİA yazma.
+- Uydurma teknik özellik yazma. Emin değilsen "linkten kontrol et" de.
+- 3-5 cümle, Türkçe, pratik.
+
+Odak:
+- Doğru varyantı seçme (kapasite/renk/model uyumu)
+- Satıcı/garanti kontrolü (resmi satıcı, ithalatçı, iade şartı)
+- Yanlış ürün/sahte ürün risklerine kısa uyarı
+- Kullanıcıya “neyi kontrol etmeli?” checklist tarzı öneri`;
+  } else {
+    // ✅ FİYAT VARSA: fiyat + (varsa) geçmişe göre konum
+    const stats = (minP && avgP)
+      ? `Geçmiş: min ${minP} TL • ort ${avgP} TL`
+      : `Geçmiş: veri yok`;
+
+    prompt =
+`Sen bir e-ticaret asistanısın.
+
+Ürün: ${title}
+Site: ${site || "—"}
+Güncel fiyat: ${priceNum} TL
+${stats}
+
+Görev:
+- Fiyatın geçmişe göre durumunu kısaca yorumla (ucuz/normal/yüksek gibi).
+- Garanti/satıcı/iade ve varyant kontrolü öner.
+- Tahmin/uydurma yapma.
+- 3-5 cümle, Türkçe.`;
+  }
+
   const t = await aiText(prompt);
-  return t.trim();
+  return String(t || "").trim();
 }
 
 function formatPrice(p){
