@@ -727,6 +727,9 @@ function setAuthedUI(isAuthed){
 
 // Boot
 window.addEventListener("DOMContentLoaded", ()=>{
+  // Safety: show login immediately; auth will close it when ready
+  try{ openLogin(); }catch(e){}
+
   setPersistence(auth, browserLocalPersistence).catch(()=>{});
   // Google redirect dönüşünü işle (mobil)
   getRedirectResult(auth).catch(()=>{});
