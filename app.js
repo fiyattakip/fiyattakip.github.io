@@ -734,3 +734,16 @@ onAuthStateChanged(auth, async (u)=>{
     renderFavorites();
   });
 });
+
+/* --- EN ALT KISIM --- */
+$("closeLogin").addEventListener("click", closeLogin);
+
+document.querySelectorAll(".segBtn").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll(".segBtn").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    const mode = b.dataset.auth;
+    $("authEmail").style.display = mode==="email" ? "" : "none";
+    $("authGoogle").style.display = mode==="google" ? "" : "none";
+  });
+});
