@@ -376,16 +376,31 @@ function maybeNotify(title, body){
 function openLogin(){
   const m = $("loginModal");
   if (!m) return;
+  // Force visible even if CSS cache is weird
   m.classList.add("show");
+  m.style.display = "flex";
+  m.style.pointerEvents = "auto";
   m.setAttribute("aria-hidden","false");
-  document.body.classList.add("modalOpen");
+  // Login zorunluysa kapatma engeli (X/backdrop)
+  if (!currentUser){
+    const x = $("closeLogin");
+    if (x){ x.disabled = true; x.style.opacity = ".35"; }
+    const back = $("loginBackdrop");
+    if (back){ back.style.pointerEvents = "none"; }
+  }
 }
 function closeLogin(){
   const m = $("loginModal");
   if (!m) return;
   m.classList.remove("show");
+  m.style.display = "";
+  m.style.pointerEvents = "";
   m.setAttribute("aria-hidden","true");
-  document.body.classList.remove("modalOpen");
+  // allow close when authed
+  const x = $("closeLogin");
+  if (x){ x.disabled = false; x.style.opacity = ""; }
+  const back = $("loginBackdrop");
+  if (back){ back.style.pointerEvents = ""; }
 }
 
 // ---------- Sites (link-only) ----------
