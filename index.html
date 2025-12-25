@@ -168,63 +168,41 @@
       <div class="modalTop">
         <div>
           <div style="font-weight:950;font-size:20px">AI Ayarları</div>
-          <div class="smallNote">Gemini / OpenAI • PIN ile şifreli saklama • Kota biterse otomatik diğerine geçer</div>
+          <div class="smallNote">Gemini / OpenAI • PIN ile şifreli saklama (tarayıcıda şifreli)</div>
         </div>
         <button id="closeAi" class="pill" style="padding:8px 12px">✕</button>
       </div>
 
-      
-<div class="form">
+      <div class="form">
         <div class="lbl">Tercih edilen AI</div>
         <select id="aiProvider" class="input">
-          <option value="auto">Otomatik (Gemini → OpenAI → Rules)</option>
           <option value="gemini">Gemini</option>
           <option value="openai">OpenAI</option>
-          <option value="rules">Sadece Rules (ücretsiz)</option>
         </select>
+        <div class="smallNote">Birinin kotası biterse otomatik diğerine düşer (key kayıtlıysa).</div>
 
         <div class="lbl">Gemini API Key</div>
         <input id="gemKey" class="input" placeholder="AIza..." />
 
         <div class="lbl">OpenAI API Key</div>
-        <input id="openKey" class="input" placeholder="sk-..." />
+        <input id="openaiKey" class="input" placeholder="sk-..." />
 
         <div class="lbl">PIN / Şifre</div>
-        <input id="gemPin" type="password" class="input" placeholder="En az 4 hane" />
+        <input id="gemPin" class="input" placeholder="Sadece sen bileceksin" />
 
         <div class="checkRow">
           <input id="rememberPin" type="checkbox" />
           <label for="rememberPin">Oturumu hatırla (PIN sadece bu oturumda tutulur)</label>
         </div>
 
-<button id="saveAi"<button id="saveAi" class="btnPrimary" style="width:100%; height:46px">Kaydet</button>
+        <button id="saveAi" class="btnPrimary" style="width:100%; height:46px">Kaydet</button>
         <button id="clearAi" class="btnDelete" style="width:100%; height:46px">AI Key Sil</button>
-        <div class="smallNote" id="aiSavedNote">AI key kayıtlı. PIN doğruysa AI arama çalışır.</div>
+        <div class="smallNote" id="aiSavedNote">AI key kayıtlı. PIN doğruysa AI çalışır.</div>
       </div>
     </div>
   </div>
 
-  
-  <!-- PICK TOP3 MODAL -->
-  <div id="pickModal" class="modalwrap" style="display:none">
-    <div class="modal" style="max-width:720px">
-      <div class="modalTop">
-        <div>
-          <div style="font-weight:950;font-size:20px">En alakalı ürün</div>
-          <div class="smallNote" id="pickHint">Top 3 sonuç listeleniyor. Emin değilsen “Hiçbiri değil” seç.</div>
-        </div>
-        <button id="closePick" class="pill" style="padding:8px 12px">✕</button>
-      </div>
-
-      <div id="pickList" class="pickList"></div>
-
-      <div style="display:flex; gap:10px; margin-top:12px">
-        <button id="pickNone" class="btnDelete" style="flex:1; height:44px">Hiçbiri değil</button>
-      </div>
-    </div>
-  </div>
-
-<!-- GRAPH MODAL -->
+  <!-- GRAPH MODAL -->
   <div id="graphModal" class="modalwrap" style="display:none">
     <div class="modal">
       <div class="modalTop">

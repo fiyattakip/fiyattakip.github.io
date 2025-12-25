@@ -301,20 +301,3 @@ body{
   .hero h1{font-size:40px}
   .btnPrimary{min-width:86px}
 }
-
-/* --- Picker modal --- */
-.pickList{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
-.pickItem{ border:1px solid rgba(0,0,0,.08); border-radius:14px; padding:12px; background:rgba(255,255,255,.92); }
-.pickTitle{ font-weight:900; }
-.pickMeta{ color:var(--muted); font-size:13px; margin-top:4px; }
-.pickActions{ display:flex; gap:10px; margin-top:10px; }
-.pickActions button{ flex:1; height:42px; }
-
-/* Make header pill buttons less "soluk" */
-.pill{
-  background: rgba(255,255,255,.18);
-  border: 1px solid rgba(255,255,255,.25);
-  color: #fff;
-  opacity: 1 !important;
-}
-.pill:hover{ background: rgba(255,255,255,.26); }
