@@ -184,7 +184,8 @@ let unsubFav = null;
 function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
-  document.body.classList.add("modalOpen"); // scroll kilidi
+  document.body.classList.add("modalOpen");
+  $("app").style.display = "none"; // 👈 arka plan kapalı
 }
 
 function closeLogin(){
@@ -706,6 +707,7 @@ onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
   if (!u){
+    $("app").style.display = "none";          // 👈 EKLE
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -714,8 +716,10 @@ onAuthStateChanged(auth, async (u)=>{
     return;
   }
 
+  $("app").style.display = "";               // 👈 EKLE
   closeLogin();
   $("logoutBtn").style.display = "";
+
 
   // listen favorites
   const qFav = query(userFavCol());
