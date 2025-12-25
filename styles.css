@@ -173,7 +173,15 @@ body{
   background:rgba(241,245,255,.75);
   font-weight:800;
   color:#1f2a62;
+
+  /* 👇 YARIM KALMASIN FIX */
+  max-height: 220px;        /* mobilde taşmasın */
+  overflow-y: auto;         /* uzun metinlerde scroll */
+  white-space: pre-wrap;    /* satır kır + \n koru */
+  word-break: break-word;   /* uzun kelimeleri böl */
+  line-height: 1.45;
 }
+
 .aiBubble small{display:block;color:var(--muted);font-weight:700;margin-top:6px}
 
 /* Favorites */
