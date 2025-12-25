@@ -706,8 +706,10 @@ $("btnClearCache").addEventListener("click", clearAllCaches);
 onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
+  $("loginModal").style.display = "none"; // ✅ BURAYA (import değil)
+
   if (!u){
-    $("app").style.display = "none";          // 👈 EKLE
+    $("app").style.display = "none";
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -716,9 +718,10 @@ onAuthStateChanged(auth, async (u)=>{
     return;
   }
 
-  $("app").style.display = "";               // 👈 EKLE
+  $("app").style.display = "";
   closeLogin();
   $("logoutBtn").style.display = "";
+});
 
 
   // listen favorites
