@@ -410,3 +410,9 @@ body{
   margin-top: 10px;
   width: 100%;
 }
+
+
+/* AUTH LOCK (login olmadan arka taraf flu ve tıklanamaz) */
+body.authLocked #app{ filter: blur(10px); -webkit-filter: blur(10px); pointer-events:none; user-select:none; }
+body.authLocked::before{ content:""; position:fixed; inset:0; background: rgba(0,0,0,.55); z-index: 40; }
+#loginModal{ z-index: 60; }

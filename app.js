@@ -41,38 +41,35 @@ function toast(msg){
 }
 window.toast = toast;
 
+function lockUI(){
+  document.body.classList.add("authLocked");
+}
+
 function openLogin(){
   const m = $("loginModal");
   if (!m) return;
+  lockUI();
   m.classList.add("show");
   m.setAttribute("aria-hidden","false");
+  m.style.pointerEvents = "";
   document.body.classList.add("modalOpen");
 }
+
 
 function closeLogin(){
   const m = $("loginModal");
   if (!m) return;
   m.classList.remove("show");
   m.setAttribute("aria-hidden","true");
+  m.style.pointerEvents = "none";
   document.body.classList.remove("modalOpen");
-  unlockUI();
 }
+
 
 function unlockUI(){
-  const m = $("loginModal");
-  if (m && !m.classList.contains("show")){
-    m.style.pointerEvents = "none";
-  }else if(m){
-    m.style.pointerEvents = "";
-  }
-  document.body.classList.remove("modalOpen");
-
-  document.querySelectorAll(".modalWrap,.modalBack,.overlay,.backdrop").forEach(el=>{
-    const cs = getComputedStyle(el);
-    const invisible = (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0);
-    if (invisible) el.style.pointerEvents = "none";
-  });
+  document.body.classList.remove("authLocked");
 }
+
 
 window.addEventListener("load", ()=> setTimeout(unlockUI, 60));
 document.addEventListener("click", ()=> setTimeout(unlockUI, 60), true);
@@ -208,11 +205,10 @@ function wireUI(){
 
 window.addEventListener("DOMContentLoaded", ()=>{
   wireUI();
-  unlockUI();
-  if (window.currentUser === null) openLogin();
+  wireAuthUI();
+  // Auth durumu gelene kadar arka taraf kilitli kalsın
+  lockUI();
 });
-
-setTimeout(()=>{ wireUI(); unlockUI(); }, 600);
 
 
 
@@ -324,8 +320,22 @@ window.doLogout = async ()=> {
 onAuthStateChanged(auth, (u)=>{
   currentUser = u || null;
   window.currentUser = currentUser;
+
   if (!currentUser){
+    // Giriş yokken: uygulama blur + tıklanamaz, login modal açık
+    if ($("favList")) $("favList").innerHTML = "";
+    if ($("graphRoot")) $("graphRoot").textContent = "Grafik alanı";
     openLogin();
+    return;
+  }
+
+  // Giriş varsa: kilidi kaldır, modal kapat
+  unlockUI();
+  closeLogin();
+  renderFavorites();
+  renderGraphs();
+});
+
     $("favList").innerHTML = "";
     $("graphRoot").textContent = "Grafik alanı";
     return;
