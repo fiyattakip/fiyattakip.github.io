@@ -10,11 +10,33 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
-  signOut
+  signOut,
+  setPersistence,
+  browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { aiConfigured, saveGeminiKey, clearAiCfg, geminiText, geminiVision, setSessionPin } from "./ai.js";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut,
+  setPersistence,
+  browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  setSessionPin,
+  clearSessionPin,
+  saveGeminiKey,
+  clearAiCfg,
+  aiConfigured,
+  improveQueryWithAI,
+  productCommentWithAI,
+  visionFileToQuery,
+  testAI
+} from "./ai.js";
 
 
 const $ = (id) => document.getElementById(id);
@@ -76,6 +98,11 @@ function favIdFromUrl(url){
 }
 
 let favCache = [];
+function isFavUrl(url){
+  const id = favIdFromUrl(url);
+  return favCache.some(f=>f.id===id);
+}
+
 
 function fmtPrice(p){
   if (p === null || p === undefined || p === "") return "—";
@@ -317,10 +344,26 @@ function renderSiteList(container, query){
     card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
       window.open(url, "_blank", "noopener");
     });
-    card.querySelector(".btnFav")?.addEventListener("click", async ()=>{
+    const favBtn = card.querySelector(".btnFav");
+    const applyFavUI = ()=>{
+      const fav = isFavUrl(url);
+      if (!favBtn) return;
+      favBtn.classList.toggle("isFav", fav);
+      favBtn.textContent = fav ? "❤️ Favoride" : "🤍 Favori";
+    };
+    applyFavUI();
+
+    favBtn?.addEventListener("click", async ()=>{
       if (!currentUser) return toast("Favori için giriş yap.");
-      await addFavorite({ siteKey: s.key, siteName: s.name, query: q, url });
-      toast("Favoriye eklendi.");
+      const id = favIdFromUrl(url);
+      if (isFavUrl(url)){
+        await removeFavorite(id);
+        toast("Favoriden kaldırıldı.");
+      } else {
+        await addFavorite({ siteKey: s.key, siteName: s.name, query: q, url });
+        toast("Favoriye eklendi.");
+      }
+      applyFavUI();
     });
     container.appendChild(card);
   }
@@ -358,7 +401,7 @@ async function doEmailLogin(isRegister){
   }
 }
 
-async async function doGoogleLogin(){
+async function doGoogleLogin(){
   try{
     // mobilde popup bazen bloklanır
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -438,10 +481,7 @@ function wireUI(){
       }
       toast("AI sorgu hazırlanıyor…");
       try{
-        const built = await geminiText(
-          "Kullanıcının yazdığını e-ticaret araması için 2-6 kelimelik kısa Türkçe sorguya çevir. Sadece sorguyu yaz. Kullanıcı: " + q,
-          { maxTokens: 32 }
-        );
+        const built = await testAI();
         const qq = String(built||q).replace(/\s+/g," ").trim().slice(0,80);
         $("qNormal").value = qq;
         window.doNormalSearch(qq);
@@ -514,7 +554,7 @@ function wireUI(){
   });
   $("aiTest")?.addEventListener("click", async ()=>{
     try{
-      const out = await geminiText("Sadece 'ok' yaz.", { maxTokens: 8 });
+      const out = await testAI();
       toast("AI test: " + String(out||"ok").slice(0,30));
       refreshAiStatus("Test OK");
     }catch(e){
@@ -550,26 +590,18 @@ function wireUI(){
   camInput.addEventListener("change", async ()=>{
     const file = camInput.files?.[0];
     if (!file) return;
-    if (!aiConfigured()){
-      toast("AI için Ayarlar > AI Ayarları'ndan API Key gir.");
-      showPage("settings");
-      return;
-    }
+
     toast("Görsel analiz ediliyor…");
     try{
-      const buf = await file.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      const prompt = "Bu görseldeki ürünü e-ticaret araması için 2-5 kelimelik kısa Türkçe sorgu olarak yaz. Sadece sorguyu yaz.";
-      const q = (await geminiVision(prompt, b64, file.type))?.trim?.() || "";
-      if (!q) throw new Error("empty");
-      $("qNormal").value = q;
+      const q = await visionFileToQuery(file);
+      // Sorguyu arama kutusuna yaz ve AI modunda çalıştır
+      if ($("qNormal")) $("qNormal").value = q;
       setSearchMode("ai");
       showPage("home");
-      window.doNormalSearch(q);
-      toast("AI sorgu: " + q);
+      window.doAISearch(q);
     }catch(e){
       console.error(e);
-      toast("Görsel analiz başarısız.");
+      toast("Kamera analizi başarısız.");
     }
   });
 

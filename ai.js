@@ -1,51 +1,59 @@
-const LS_CFG = "fiyattakip_ai_cfg_v4";
+// ai.js — Gemini + Rules AI (stabil, modül)
+// - API key cihazda saklanır (opsiyonel PIN ile şifreli)
+// - AI yoksa bile sistem çalışır (Rules AI fallback)
+
+const LS_CFG = "fiyattakip_ai_cfg_v5";
 let sessionPin = null;
 
-function rulesGenerate(task, input){
+// ---------- Rules AI (fallback) ----------
+export function rulesGenerate(task, input){
   const text = String(input||"").trim();
-  if (!text) return "Bir şey yaz (ör: 'iphone 13 128gb').";
+  if (!text) return task === "improve_query"
+    ? "iphone 13 128gb"
+    : "Ürüne göre genel değerlendirme: (ürün adı girilmedi).";
   if (task === "improve_query"){
-    // Basit temizlik: gereksiz kelimeleri azalt
-    return text.replace(/\s+/g," ").slice(0,80);
+    return text.replace(/\s+/g," ").slice(0, 80);
   }
   // product_comment
-  return `Ürüne göre genel değerlendirme: ${text}.\n- Artılar: fiyat/performans, garanti, stok\n- Eksiler: satıcı puanı, iade koşulları\nNot: Fiyat verisi yoksa linkten açıp satıcı/yorum kontrol et.`;
+  return `Ürüne göre genel değerlendirme: ${text}\n- Artılar: İhtiyaca göre değişir.\n- Eksiler: Satıcı/garanti/yorumları kontrol et.\nNot: Fiyat yoksa karşılaştırma için manuel fiyat gir.`;
 }
 
+// ---------- Crypto helpers ----------
+const te = (s)=>new TextEncoder().encode(String(s));
+const td = (buf)=>new TextDecoder().decode(buf);
 
-function te(str){ return new TextEncoder().encode(str); }
-function td(buf){ return new TextDecoder().decode(buf); }
-function b64(buf){
-  const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
+const b64 = (ab)=>{
+  const bytes = new Uint8Array(ab);
   let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
+  for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
   return btoa(bin);
-}
-function unb64(s){
-  const bin = atob(s);
+};
+const unb64 = (s)=>{
+  const bin = atob(String(s||""));
   const bytes = new Uint8Array(bin.length);
   for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
   return bytes.buffer;
-}
+};
 
 async function deriveKeyFromPin(pin, saltB64){
-  const salt = saltB64 ? new Uint8Array(unb64(saltB64)) : crypto.getRandomValues(new Uint8Array(16));
+  const salt = new Uint8Array(unb64(saltB64));
   const baseKey = await crypto.subtle.importKey("raw", te(pin), "PBKDF2", false, ["deriveKey"]);
   const key = await crypto.subtle.deriveKey(
-    { name:"PBKDF2", salt, iterations:120000, hash:"SHA-256" },
+    { name:"PBKDF2", salt, iterations: 120000, hash:"SHA-256" },
     baseKey,
-    { name:"AES-GCM", length:256 },
+    { name:"AES-GCM", length: 256 },
     false,
     ["encrypt","decrypt"]
   );
-  return { key, saltB64: saltB64 || b64(salt) };
+  return { key, salt };
 }
 
 async function encryptString(pin, plain){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const { key } = await deriveKeyFromPin(pin, b64(salt));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const { key, saltB64 } = await deriveKeyFromPin(pin, null);
   const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, te(plain));
-  return { saltB64, ivB64: b64(iv), ctB64: b64(ct) };
+  return { saltB64: b64(salt), ivB64: b64(iv), ctB64: b64(ct) };
 }
 async function decryptString(pin, blob){
   const { key } = await deriveKeyFromPin(pin, blob.saltB64);
@@ -55,217 +63,148 @@ async function decryptString(pin, blob){
   return td(pt);
 }
 
+// ---------- Public config API ----------
 export function setSessionPin(pin){ sessionPin = pin || null; }
 export function clearSessionPin(){ sessionPin = null; }
 
-export function loadAiCfg(){
+function loadCfg(){
   try{ return JSON.parse(localStorage.getItem(LS_CFG) || "null"); }catch{ return null; }
 }
+function saveCfg(obj){
+  localStorage.setItem(LS_CFG, JSON.stringify(obj));
+}
+export function clearAiCfg(){ localStorage.removeItem(LS_CFG); sessionPin = null; }
+
 export function aiConfigured(){
-  const cfg = loadAiCfg();
-  return !!(cfg && cfg.provider === "gemini" && cfg.encKey);
+  const cfg = loadCfg();
+  return !!(cfg && (cfg.keyPlain || cfg.keyEnc));
+}
+
+export async function saveGeminiKey(key, pin=null){
+  const clean = String(key||"").trim();
+  if (!clean) throw new Error("API key boş");
+  if (pin){
+    const enc = await encryptString(pin, clean);
+    saveCfg({ keyEnc: enc, hasPin: true, savedAt: Date.now() });
+  } else {
+    saveCfg({ keyPlain: clean, hasPin: false, savedAt: Date.now() });
+  }
 }
 
 export async function getGeminiKeyOrThrow(){
-  const cfg = loadAiCfg();
-  if (!cfg || cfg.provider !== "gemini" || !cfg.encKey) throw new Error("AI key kayıtlı değil.");
-  const pin = sessionPin || prompt("PIN gir (AI için):");
-  if (!pin) throw new Error("PIN gerekli.");
-  const key = await decryptString(pin, cfg.encKey);
-  setSessionPin(pin);
-  return key;
-}
-
-export async function saveGeminiKey({ apiKey, pin, rememberPin }){
-  if (!apiKey?.startsWith("AIza")) throw new Error("Gemini API key hatalı görünüyor.");
-  if (!pin || pin.length < 4) throw new Error("PIN en az 4 karakter olmalı.");
-
-  const encKey = await encryptString(pin, apiKey.trim());
-  const cfg = {
-    provider: "gemini",
-    model: "gemini-2.5-flash",
-    encKey,
-    updatedAt: Date.now()
-  };
-  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
-  sessionPin = rememberPin ? pin : null;
-  return true;
-}
-
-export function clearAiCfg(){
-  localStorage.removeItem(LS_CFG);
-  sessionPin = null;
-}
-
-/** Gemini text */
-
-  }catch(e){
-    return rulesGenerate('product_comment', prompt);
+  const cfg = loadCfg();
+  if (!cfg) throw new Error("AI ayarı yok");
+  if (cfg.keyPlain) return cfg.keyPlain;
+  if (cfg.keyEnc){
+    const pin = sessionPin;
+    if (!pin) throw new Error("PIN gerekli");
+    return await decryptString(pin, cfg.keyEnc);
   }
-}
-nst LS_CFG = "fiyattakip_ai_cfg_v4";
-let sessionPin = null;
-
-function rulesGenerate(task, input){
-  const text = String(input||"").trim();
-  if (!text) return "Bir şey yaz (ör: 'iphone 13 128gb').";
-  if (task === "improve_query"){
-    // Basit temizlik: gereksiz kelimeleri azalt
-    return text.replace(/\s+/g," ").slice(0,80);
-  }
-  // product_comment
-  return `Ürüne göre genel değerlendirme: ${text}.\n- Artılar: fiyat/performans, garanti, stok\n- Eksiler: satıcı puanı, iade koşulları\nNot: Fiyat verisi yoksa linkten açıp satıcı/yorum kontrol et.`;
+  throw new Error("AI ayarı yok");
 }
 
-
-function te(str){ return new TextEncoder().encode(str); }
-function td(buf){ return new TextDecoder().decode(buf); }
-function b64(buf){
-  const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin);
-}
-function unb64(s){
-  const bin = atob(s);
-  const bytes = new Uint8Array(bin.length);
-  for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
-  return bytes.buffer;
-}
-
-async function deriveKeyFromPin(pin, saltB64){
-  const salt = saltB64 ? new Uint8Array(unb64(saltB64)) : crypto.getRandomValues(new Uint8Array(16));
-  const baseKey = await crypto.subtle.importKey("raw", te(pin), "PBKDF2", false, ["deriveKey"]);
-  const key = await crypto.subtle.deriveKey(
-    { name:"PBKDF2", salt, iterations:120000, hash:"SHA-256" },
-    baseKey,
-    { name:"AES-GCM", length:256 },
-    false,
-    ["encrypt","decrypt"]
-  );
-  return { key, saltB64: saltB64 || b64(salt) };
-}
-
-async function encryptString(pin, plain){
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const { key, saltB64 } = await deriveKeyFromPin(pin, null);
-  const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, te(plain));
-  return { saltB64, ivB64: b64(iv), ctB64: b64(ct) };
-}
-async function decryptString(pin, blob){
-  const { key } = await deriveKeyFromPin(pin, blob.saltB64);
-  const iv = new Uint8Array(unb64(blob.ivB64));
-  const ct = unb64(blob.ctB64);
-  const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, ct);
-  return td(pt);
-}
-
-export function setSessionPin(pin){ sessionPin = pin || null; }
-export function clearSessionPin(){ sessionPin = null; }
-
-export function loadAiCfg(){
-  try{ return JSON.parse(localStorage.getItem(LS_CFG) || "null"); }catch{ return null; }
-}
-export function aiConfigured(){
-  const cfg = loadAiCfg();
-  return !!(cfg && cfg.provider === "gemini" && cfg.encKey);
-}
-
-export async function getGeminiKeyOrThrow(){
-  const cfg = loadAiCfg();
-  if (!cfg || cfg.provider !== "gemini" || !cfg.encKey) throw new Error("AI key kayıtlı değil.");
-  const pin = sessionPin || prompt("PIN gir (AI için):");
-  if (!pin) throw new Error("PIN gerekli.");
-  const key = await decryptString(pin, cfg.encKey);
-  setSessionPin(pin);
-  return key;
-}
-
-export async function saveGeminiKey({ apiKey, pin, rememberPin }){
-  if (!apiKey?.startsWith("AIza")) throw new Error("Gemini API key hatalı görünüyor.");
-  if (!pin || pin.length < 4) throw new Error("PIN en az 4 karakter olmalı.");
-
-  const encKey = await encryptString(pin, apiKey.trim());
-  const cfg = {
-    provider: "gemini",
-    model: "gemini-2.5-flash",
-    encKey,
-    updatedAt: Date.now()
-  };
-  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
-  sessionPin = rememberPin ? pin : null;
-  return true;
-}
-
-export function clearAiCfg(){
-  localStorage.removeItem(LS_CFG);
-  sessionPin = null;
-}
-
-/** Gemini text */
-export async function geminiText(prompt){
-  try{
-    const key = await getGeminiKeyOrThrow();
-const model = "gemini-2.5-flash";
+// ---------- Gemini calls ----------
+async function geminiTextRaw({ key, prompt, model="gemini-2.0-flash" }){
   const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
-
   const body = {
-    contents: [{ role:"user", parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.5, maxOutputTokens: 700 }
+    contents: [{ parts: [{ text: String(prompt||"") }] }],
+    generationConfig: { temperature: 0.4, maxOutputTokens: 300 }
   };
-
   const r = await fetch(url, {
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify(body)
   });
-
-  if (!r.ok) {
+  if (!r.ok){
     const t = await r.text().catch(()=> "");
     throw new Error(`Gemini hata: ${r.status} ${t.slice(0,140)}`);
   }
-
   const j = await r.json();
   const text = j?.candidates?.[0]?.content?.parts?.map(p=>p.text).join("")?.trim();
-  if (!text) throw new Error("AI sonuç üretemedi.");
+  if (!text) throw new Error("AI sonuç üretmedi");
   return text;
 }
 
-/** Gemini vision (image -> text) */
-export async function geminiVision({ prompt, mime, base64Data 
-  }catch(e){
-    return rulesGenerate('improve_query', '');
-  }
-}){
-  try{
-    const key = await getGeminiKeyOrThrow();
-const model = "gemini-2.5-flash";
+async function geminiVisionRaw({ key, prompt, mime, base64Data, model="gemini-2.0-flash" }){
   const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
-
   const body = {
     contents: [{
-      role:"user",
       parts: [
-        { text: prompt },
+        { text: String(prompt||"") },
         { inlineData: { mimeType: mime, data: base64Data } }
       ]
     }],
-    generationConfig: { temperature: 0.2, maxOutputTokens: 550 }
+    generationConfig: { temperature: 0.2, maxOutputTokens: 120 }
   };
-
   const r = await fetch(url, {
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify(body)
   });
-
-  if (!r.ok) {
+  if (!r.ok){
     const t = await r.text().catch(()=> "");
     throw new Error(`Gemini hata: ${r.status} ${t.slice(0,140)}`);
   }
-
   const j = await r.json();
   const text = j?.candidates?.[0]?.content?.parts?.map(p=>p.text).join("")?.trim();
-  if (!text) throw new Error("Görselden metin çıkarılamadı.");
+  if (!text) throw new Error("Görselden metin çıkarılamadı");
   return text;
+}
+
+// High-level helpers used by app
+export async function improveQueryWithAI(q){
+  const text = String(q||"").trim();
+  if (!text) return rulesGenerate("improve_query", "");
+  try{
+    const key = await getGeminiKeyOrThrow();
+    const prompt = `Kullanıcının arama sorgusunu e-ticaret için daha net hale getir. Sadece sorguyu yaz, açıklama yok.\nSorgu: ${text}`;
+    const out = await geminiTextRaw({ key, prompt });
+    return out.replace(/\s+/g," ").trim().slice(0,80) || rulesGenerate("improve_query", text);
+  }catch{
+    return rulesGenerate("improve_query", text);
+  }
+}
+
+export async function productCommentWithAI({ title, lastPrice }){
+  const name = String(title||"").trim();
+  const priceStr = lastPrice!=null ? `Son bilinen fiyat: ${lastPrice}` : "Fiyat verisi yok.";
+  try{
+    const key = await getGeminiKeyOrThrow();
+    const prompt = `Aşağıdaki ürün için kısa ve dürüst bir değerlendirme yaz. Uydurma "piyasada yok/çıkmadı" gibi ifadeler kullanma. Teknik özellik uydurma.\nÜrün: ${name}\n${priceStr}\nÇıktı: 5-8 madde, artı/eksi ve öneri.`;
+    return await geminiTextRaw({ key, prompt });
+  }catch{
+    return rulesGenerate("product_comment", name);
+  }
+}
+
+export async function visionFileToQuery(file){
+  if (!file) throw new Error("Görsel yok");
+  const mime = file.type || "image/jpeg";
+  const base64Data = await new Promise((resolve, reject)=>{
+    const fr = new FileReader();
+    fr.onload = ()=> {
+      const s = String(fr.result||"");
+      const b64 = s.split(",")[1] || "";
+      resolve(b64);
+    };
+    fr.onerror = ()=>reject(new Error("Dosya okunamadı"));
+    fr.readAsDataURL(file);
+  });
+
+  try{
+    const key = await getGeminiKeyOrThrow();
+    const prompt = "Bu görseldeki ürün için e-ticaret araması yapmaya uygun kısa bir sorgu üret. Sadece sorguyu yaz.";
+    const out = await geminiVisionRaw({ key, prompt, mime, base64Data });
+    return out.replace(/\s+/g," ").trim().slice(0,80) || "ürün";
+  }catch{
+    // AI yoksa: kullanıcı en azından dosya adından
+    const fallback = (file.name||"").replace(/\.[a-z0-9]+$/i,"").replace(/[_-]+/g," ").trim();
+    return fallback ? fallback.slice(0,80) : "ürün";
+  }
+}
+
+export async function testAI(){
+  const key = await getGeminiKeyOrThrow();
+  const out = await geminiTextRaw({ key, prompt:"Sadece 'OK' yaz." });
+  return out.toUpperCase().includes("OK");
 }
