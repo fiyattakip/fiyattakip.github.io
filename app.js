@@ -480,17 +480,27 @@ async function removeFavorite(docId){
 
 async function genAiComment(fav){
   if (!aiConfigured()) return toast("AI key kayıtlı değil.");
-  const title = fav.title || fav.query || "ürün";
-  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
-  const site = fav.siteName || "";
+  const title = (fav.title || fav.query || "").trim() || "ürün";
+  const site = (fav.siteName || "").trim();
+
+  const nPrice = Number(fav.lastPrice);
+  const hasPrice = Number.isFinite(nPrice) && nPrice > 0;
+
   const prompt =
-`Ürün: ${title}
-Site: ${site}
-Fiyat: ${price}
-Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
-Maks 3-4 cümle. Türkçe.`;
+`Sen bir e-ticaret asistanısın. Kullanıcıya KISA ve PRATİK bir ürün yorumu yaz.
+
+Ürün: ${title}
+Site: ${site || "—"}
+${hasPrice ? `Fiyat: ${nPrice.toLocaleString("tr-TR")} TL` : "Fiyat: (bilinmiyor / okunamadı)"}
+
+Kurallar:
+- Ürüne odaklan. Fiyat yoksa fiyatla ilgili yorum yapma.
+- Asla uydurma bilgi yazma ("piyasaya sürülmedi", "stokta yok", "şu model çıktı" gibi doğrulanamayan iddialar YASAK).
+- Garanti/satıcı/uyumluluk/variant (renk-hafıza) kontrolü gibi güvenli kontrolleri öner.
+- En fazla 3-4 cümle. Türkçe.`;
+
   const t = await aiText(prompt);
-  return t.trim();
+  return String(t||"").trim();
 }
 
 function formatPrice(p){
