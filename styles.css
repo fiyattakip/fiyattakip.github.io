@@ -259,7 +259,6 @@ body{
 .fabIco{ font-size: 22px; }
 
 /* ========= MODAL / CLICK FREEZE FIX ========= */
-/* Modal kapalıyken kesinlikle tıklama yutmasın */
 .modalWrap{ position: fixed; inset:0; display:none; z-index: 200000; pointer-events: none; }
 .modalWrap.show{ display:flex; pointer-events: auto; }
 
