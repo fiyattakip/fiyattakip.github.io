@@ -318,6 +318,105 @@ body{
 .row2{ display:flex; gap:10px; margin-top: 10px; }
 
 
-/* LOGIN LOCK (app flu + tıklanamaz) */
-body.locked #app{ filter: blur(8px); opacity:.75; pointer-events:none; user-select:none; }
-body.locked #loginModal{ pointer-events:auto; }
+/* ---- App Gate (login blur) ---- */
+.appGate{
+  position: fixed; inset:0;
+  backdrop-filter: blur(10px);
+  background: rgba(0,0,0,.45);
+  display:none;
+  z-index: 50;
+}
+.gateInner{
+  position:absolute; left:50%; top:50%;
+  transform: translate(-50%,-50%);
+  width: min(420px, calc(100vw - 40px));
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+}
+.gateTitle{ font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+
+/* ---- Toast ---- */
+.toast{
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  background: rgba(20,26,44,.92);
+  border: 1px solid var(--stroke);
+  padding: 10px 12px;
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+  z-index: 60;
+  max-width: min(520px, calc(100vw - 24px));
+  text-align: center;
+  color: var(--text);
+}
+.toast.show{ opacity: 1; }
+
+/* ---- Lists ---- */
+.list{ display:flex; flex-direction:column; gap:10px; }
+.item{
+  display:flex;
+  gap:12px;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  padding: 12px;
+}
+.thumb{
+  width:64px; height:64px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+  flex: 0 0 64px;
+}
+.thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.meta{ flex:1; min-width:0; }
+.meta .t{ font-weight:650; font-size: 14px; line-height: 1.25; margin-bottom: 6px; }
+.meta .s{ font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.meta .p{ color: var(--text); font-weight: 650; }
+
+/* compact buttons */
+.btnGhost.sm, .btnPrimary.sm{ padding: 8px 10px; font-size: 12px; border-radius: 12px; }
+.rowGap{ display:flex; flex-wrap: wrap; gap:8px; }
+
+/* AI box */
+.aiBox{
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.18);
+  border: 1px dashed rgba(255,255,255,.18);
+}
+.aiTitle{ font-weight: 700; margin-bottom: 6px; }
+.aiText{ font-size: 13px; color: rgba(255,255,255,.88); line-height: 1.35; }
+
+/* Graph */
+.gCanvas{
+  width:100%;
+  height:auto;
+  margin-top: 12px;
+  border-radius: 16px;
+  background: rgba(0,0,0,.12);
+  border: 1px solid rgba(255,255,255,.10);
+}
+
+/* Inputs inside modal (ai settings uses .in/.lbl) */
+.lbl{ display:block; margin: 10px 0 6px; color: var(--muted); font-size: 12px; }
+.in{
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.15);
+  color: var(--text);
+  outline: none;
+}
