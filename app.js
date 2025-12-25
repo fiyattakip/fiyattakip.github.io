@@ -85,11 +85,10 @@ function currencyToNumber(tr){
 }
 
 async function fetchHTML(url){
-  // Goal: fetch raw HTML from e-commerce pages in a static/PWA context (CORS-safe).
-  // 1) Try allorigins (raw) which returns the original response body with CORS headers.
-  // 2) Fallback to r.jina.ai (may return readable/markdown content; used only if #1 fails).
+  // Fetch raw HTML in static/PWA context (CORS-safe) via public proxies.
+  // Not all proxies work on every network; we try several in order.
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 15000);
+  const t = setTimeout(() => controller.abort(), 18000);
 
   const tryFetch = async (u) => {
     const r = await fetch(u, { cache: "no-store", signal: controller.signal });
@@ -97,21 +96,63 @@ async function fetchHTML(url){
     return await r.text();
   };
 
+  const proxies = [
+    // allOrigins raw
+    (u)=>"https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+    // CodeTabs proxy (GET only, 5MB limit)
+    (u)=>"https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u),
+    // CorsProxy.io (dev/free)
+    (u)=>"https://corsproxy.io/?url=" + encodeURIComponent(u),
+    // WhateverOrigin returns JSON; we parse contents below
+    (u)=>"https://whateverorigin.org/get?url=" + encodeURIComponent(u) + "&callback=?",
+    // Jina reader fallback (may be markdown-like)
+    (u)=>"https://r.jina.ai/" + u,
+  ];
+
   try{
-    const prox = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
-    const html = await tryFetch(prox);
-    return html;
-  }catch(e){
-    console.warn("allorigins fail, fallback jina:", e);
-    try{
-      const prox2 = "https://r.jina.ai/" + url; // fallback
-      const txt = await tryFetch(prox2);
-      // If it isn't HTML, return as-is; parsers may still find JSON/links.
-      const i = txt.indexOf("<");
-      return i >= 0 ? txt.slice(i) : txt;
-    }finally{
-      clearTimeout(t);
+    let lastErr = null;
+    for (const p of proxies){
+      try{
+        const proxUrl = p(url);
+        const txt = await tryFetch(proxUrl);
+
+        // WhateverOrigin returns JSONP-ish sometimes; try to extract "contents"
+        if (proxUrl.startsWith("https://whateverorigin.org/get")){
+          // Try JSON first
+          try{
+            const j = JSON.parse(txt);
+            if (j && typeof j.contents === "string") return j.contents;
+          }catch{
+            // JSONP: callback({...})
+            const m = txt.match(/\{[\s\S]*\}/);
+            if (m){
+              try{
+                const j = JSON.parse(m[0]);
+                if (j && typeof j.contents === "string") return j.contents;
+              }catch{}
+            }
+          }
+        }
+
+        // Normalize: if response includes a lot of leading text, cut to first "<"
+        const i = txt.indexOf("<");
+        const normalized = i >= 0 ? txt.slice(i) : txt;
+
+        // crude sanity: if we got an html page with at least one "<html" or "<!doctype"
+        if (/<!doctype|<html/i.test(normalized) || normalized.includes("p-card") || normalized.includes("productListContent")){
+          clearTimeout(t);
+          return normalized;
+        }
+
+        // Accept even if not detected; parsers have their own fallbacks
+        clearTimeout(t);
+        return normalized;
+      }catch(e){
+        lastErr = e;
+        console.warn("proxy fail", e);
+      }
     }
+    throw lastErr || new Error("Tüm proxy denemeleri başarısız.");
   }finally{
     clearTimeout(t);
   }
