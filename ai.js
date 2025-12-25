@@ -1,12 +1,8 @@
-// ai.js (module) - Gemini key management + AI helpers (tema bozmaz)
-// Stores API key encrypted in localStorage using a user PIN.
-
-const LS_CFG = "fiyattakip_ai_cfg_v10";
+const LS_CFG = "fiyattakip_ai_cfg_v4";
 let sessionPin = null;
 
-const te = (s)=> new TextEncoder().encode(s);
-const td = (b)=> new TextDecoder().decode(b);
-
+function te(str){ return new TextEncoder().encode(str); }
+function td(buf){ return new TextDecoder().decode(buf); }
 function b64(buf){
   const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
   let bin = "";
@@ -16,195 +12,137 @@ function b64(buf){
 function unb64(s){
   const bin = atob(s);
   const bytes = new Uint8Array(bin.length);
-  for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
   return bytes.buffer;
 }
 
-async function deriveKey(pin, saltB64){
+async function deriveKeyFromPin(pin, saltB64){
   const salt = saltB64 ? new Uint8Array(unb64(saltB64)) : crypto.getRandomValues(new Uint8Array(16));
   const baseKey = await crypto.subtle.importKey("raw", te(pin), "PBKDF2", false, ["deriveKey"]);
   const key = await crypto.subtle.deriveKey(
-    { name:"PBKDF2", salt, iterations: 210000, hash:"SHA-256" },
+    { name:"PBKDF2", salt, iterations:120000, hash:"SHA-256" },
     baseKey,
-    { name:"AES-GCM", length: 256 },
+    { name:"AES-GCM", length:256 },
     false,
     ["encrypt","decrypt"]
   );
   return { key, saltB64: saltB64 || b64(salt) };
 }
 
-async function encryptJSON(pin, obj){
-  const { key, saltB64 } = await deriveKey(pin);
+async function encryptString(pin, plain){
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const pt = te(JSON.stringify(obj));
-  const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, pt);
+  const { key, saltB64 } = await deriveKeyFromPin(pin, null);
+  const ct = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, te(plain));
   return { saltB64, ivB64: b64(iv), ctB64: b64(ct) };
 }
-
-async function decryptJSON(pin, enc){
-  const { key } = await deriveKey(pin, enc.saltB64);
-  const iv = new Uint8Array(unb64(enc.ivB64));
-  const ct = unb64(enc.ctB64);
+async function decryptString(pin, blob){
+  const { key } = await deriveKeyFromPin(pin, blob.saltB64);
+  const iv = new Uint8Array(unb64(blob.ivB64));
+  const ct = unb64(blob.ctB64);
   const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, ct);
-  return JSON.parse(td(pt));
+  return td(pt);
 }
 
-export function aiIsConfigured(){
-  try{
-    const raw = localStorage.getItem(LS_CFG);
-    if (!raw) return false;
-    const enc = JSON.parse(raw);
-    return !!(enc && enc.ctB64);
-  }catch{ return false; }
+export function setSessionPin(pin){ sessionPin = pin || null; }
+export function clearSessionPin(){ sessionPin = null; }
+
+export function loadAiCfg(){
+  try{ return JSON.parse(localStorage.getItem(LS_CFG) || "null"); }catch{ return null; }
+}
+export function aiConfigured(){
+  const cfg = loadAiCfg();
+  return !!(cfg && cfg.provider === "gemini" && cfg.encKey);
 }
 
-export function setAiPin(pin){
-  sessionPin = String(pin || "").trim();
+export async function getGeminiKeyOrThrow(){
+  const cfg = loadAiCfg();
+  if (!cfg || cfg.provider !== "gemini" || !cfg.encKey) throw new Error("AI key kayıtlı değil.");
+  const pin = sessionPin || prompt("PIN gir (AI için):");
+  if (!pin) throw new Error("PIN gerekli.");
+  const key = await decryptString(pin, cfg.encKey);
+  setSessionPin(pin);
+  return key;
 }
 
-export async function saveAiConfig({ provider="gemini", apiKey="", model="gemini-1.5-flash" }){
-  if (!sessionPin) throw new Error("PIN gerekli.");
-  const cleanKey = String(apiKey||"").trim();
-  if (!cleanKey) throw new Error("API key boş.");
-  const payload = { provider, apiKey: cleanKey, model };
-  const enc = await encryptJSON(sessionPin, payload);
-  localStorage.setItem(LS_CFG, JSON.stringify(enc));
+export async function saveGeminiKey({ apiKey, pin, rememberPin }){
+  if (!apiKey?.startsWith("AIza")) throw new Error("Gemini API key hatalı görünüyor.");
+  if (!pin || pin.length < 4) throw new Error("PIN en az 4 karakter olmalı.");
+
+  const encKey = await encryptString(pin, apiKey.trim());
+  const cfg = {
+    provider: "gemini",
+    model: "gemini-2.5-flash",
+    encKey,
+    updatedAt: Date.now()
+  };
+  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+  sessionPin = rememberPin ? pin : null;
   return true;
 }
 
-export async function loadAiConfig(){
-  const raw = localStorage.getItem(LS_CFG);
-  if (!raw) return null;
-  if (!sessionPin) throw new Error("PIN gerekli.");
-  const enc = JSON.parse(raw);
-  return await decryptJSON(sessionPin, enc);
-}
-
-export function clearAiConfig(){
+export function clearAiCfg(){
   localStorage.removeItem(LS_CFG);
+  sessionPin = null;
 }
 
-async function geminiFetch({ apiKey, model, parts }){
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+/** Gemini text */
+export async function geminiText(prompt){
+  const key = await getGeminiKeyOrThrow();
+  const model = "gemini-2.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+
   const body = {
-    contents: [{ role:"user", parts }],
-    generationConfig: { temperature: 0.4, maxOutputTokens: 800 }
+    contents: [{ role:"user", parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.5, maxOutputTokens: 700 }
   };
+
   const r = await fetch(url, {
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify(body)
   });
-  if (!r.ok){
-    const t = await r.text().catch(()=> "");
-    throw new Error(`Gemini hata: ${r.status} ${t.slice(0,180)}`);
-  }
-  return await r.json();
-}
 
-export async function aiGenerateText(prompt){
-  const cfg = await loadAiConfig();
-  if (!cfg?.apiKey) throw new Error("AI ayarı yok.");
-  const j = await geminiFetch({
-    apiKey: cfg.apiKey,
-    model: cfg.model || "gemini-1.5-flash",
-    parts: [{ text: prompt }]
-  });
+  if (!r.ok) {
+    const t = await r.text().catch(()=> "");
+    throw new Error(`Gemini hata: ${r.status} ${t.slice(0,140)}`);
+  }
+
+  const j = await r.json();
   const text = j?.candidates?.[0]?.content?.parts?.map(p=>p.text).join("")?.trim();
-  if (!text) throw new Error("AI yanıt boş.");
+  if (!text) throw new Error("AI sonuç üretemedi.");
   return text;
 }
 
-export async function aiGenerateJSON(prompt){
-  const raw = await aiGenerateText(prompt + "\n\nSADECE JSON döndür. Kod bloğu kullanma.");
-  // strip fences if any
-  const cleaned = raw.replace(/```json|```/g,"").trim();
-  try{ return JSON.parse(cleaned); }catch{
-    // try to extract {...}
-    const m = cleaned.match(/\{[\s\S]*\}/);
-    if (m){
-      return JSON.parse(m[0]);
-    }
-    throw new Error("AI JSON parse edilemedi.");
+/** Gemini vision (image -> text) */
+export async function geminiVision({ prompt, mime, base64Data }){
+  const key = await getGeminiKeyOrThrow();
+  const model = "gemini-2.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+
+  const body = {
+    contents: [{
+      role:"user",
+      parts: [
+        { text: prompt },
+        { inlineData: { mimeType: mime, data: base64Data } }
+      ]
+    }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 550 }
+  };
+
+  const r = await fetch(url, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!r.ok) {
+    const t = await r.text().catch(()=> "");
+    throw new Error(`Gemini hata: ${r.status} ${t.slice(0,140)}`);
   }
-}
 
-// --- UI: Settings modal (PIN + key) ---
-export function openAiSettingsModal({ toast } = {}){
-  const existing = document.getElementById("aiSettingsModal");
-  if (existing) existing.remove();
-
-  const wrap = document.createElement("div");
-  wrap.id = "aiSettingsModal";
-  wrap.className = "modalWrap";
-  wrap.innerHTML = `
-    <div class="modalBack" data-close="1"></div>
-    <div class="modal">
-      <div class="modalHead">
-        <div class="modalTitle">AI Ayarları</div>
-        <button class="iconBtn" data-close="1" aria-label="Kapat">✕</button>
-      </div>
-
-      <div class="modalBody">
-        <div class="miniHint">Güvenlik için API Key cihazında şifreli saklanır (PIN ile).</div>
-
-        <label class="lbl">PIN (4-12 karakter)</label>
-        <input id="aiPin" class="in" placeholder="PIN" type="password" inputmode="numeric" />
-
-        <label class="lbl">Gemini API Key</label>
-        <input id="aiKey" class="in" placeholder="AIza..." type="password" />
-
-        <label class="lbl">Model</label>
-        <select id="aiModel" class="in">
-          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-        </select>
-
-        <div class="rowGap">
-          <button id="btnAiSave" class="btnPrimary full" type="button">Kaydet</button>
-          <button id="btnAiTest" class="btnGhost full" type="button">Test Et</button>
-          <button id="btnAiClear" class="btnGhost full" type="button">Sil</button>
-        </div>
-
-        <div class="miniHint" id="aiStatus"></div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(wrap);
-
-  const close = ()=> wrap.remove();
-  wrap.querySelectorAll('[data-close="1"]').forEach(el=> el.addEventListener("click", close));
-
-  const status = wrap.querySelector("#aiStatus");
-  const say = (m)=> { status.textContent = m; toast && toast(m); };
-
-  // prefill
-  status.textContent = aiIsConfigured() ? "Kayıt var. PIN girip Test edebilirsin." : "Kayıt yok.";
-
-  wrap.querySelector("#btnAiSave").addEventListener("click", async ()=>{
-    try{
-      const pin = wrap.querySelector("#aiPin").value.trim();
-      const key = wrap.querySelector("#aiKey").value.trim();
-      const model = wrap.querySelector("#aiModel").value;
-      if (pin.length < 4) throw new Error("PIN çok kısa.");
-      setAiPin(pin);
-      await saveAiConfig({ apiKey: key, model });
-      say("Kaydedildi ✅");
-    }catch(e){ say(e.message || String(e)); }
-  });
-
-  wrap.querySelector("#btnAiTest").addEventListener("click", async ()=>{
-    try{
-      const pin = wrap.querySelector("#aiPin").value.trim();
-      if (pin.length < 4) throw new Error("PIN gir.");
-      setAiPin(pin);
-      const out = await aiGenerateText("Tek cümleyle: 'AI hazır' yaz.");
-      say("Test ✅ " + out.slice(0,60));
-    }catch(e){ say(e.message || String(e)); }
-  });
-
-  wrap.querySelector("#btnAiClear").addEventListener("click", ()=>{
-    clearAiConfig();
-    say("Silindi.");
-  });
+  const j = await r.json();
+  const text = j?.candidates?.[0]?.content?.parts?.map(p=>p.text).join("")?.trim();
+  if (!text) throw new Error("Görselden metin çıkarılamadı.");
+  return text;
 }
