@@ -177,6 +177,12 @@ if ("serviceWorker" in navigator){
   navigator.serviceWorker.register("./sw.js").catch(()=>{});
 }
 
+/* ---------- Boot (prevent flicker) ---------- */
+document.addEventListener("DOMContentLoaded", ()=>{
+  // auth state gelene kadar hiçbir şey gösterme
+  const appEl = $("app"); if (appEl) appEl.style.display = "none";
+  $("loginModal").style.display = "none";
+});
 /* ---------- Login ---------- */
 let currentUser = null;
 let unsubFav = null;
@@ -184,9 +190,19 @@ let unsubFav = null;
 function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
+  document.body.classList.add("modalOpen");
+  const appEl = $("app"); if (appEl) appEl.style.display = "none";
 }
 function closeLogin(){
+  // giriş yoksa kapatma
+  if (!currentUser){
+    toast("Giriş yapmadan kullanamazsın.");
+    $("loginModal").style.display = "";
+    document.body.classList.add("modalOpen");
+    return;
+  }
   $("loginModal").style.display = "none";
+  document.body.classList.remove("modalOpen");
 }
 
 $("closeLogin").addEventListener("click", closeLogin);
@@ -480,27 +496,17 @@ async function removeFavorite(docId){
 
 async function genAiComment(fav){
   if (!aiConfigured()) return toast("AI key kayıtlı değil.");
-  const title = (fav.title || fav.query || "").trim() || "ürün";
-  const site = (fav.siteName || "").trim();
-
-  const nPrice = Number(fav.lastPrice);
-  const hasPrice = Number.isFinite(nPrice) && nPrice > 0;
-
+  const title = fav.title || fav.query || "ürün";
+  const price = fav.lastPrice ? `${fav.lastPrice} TL` : "fiyat yok";
+  const site = fav.siteName || "";
   const prompt =
-`Sen bir e-ticaret asistanısın. Kullanıcıya KISA ve PRATİK bir ürün yorumu yaz.
-
-Ürün: ${title}
-Site: ${site || "—"}
-${hasPrice ? `Fiyat: ${nPrice.toLocaleString("tr-TR")} TL` : "Fiyat: (bilinmiyor / okunamadı)"}
-
-Kurallar:
-- Ürüne odaklan. Fiyat yoksa fiyatla ilgili yorum yapma.
-- Asla uydurma bilgi yazma ("piyasaya sürülmedi", "stokta yok", "şu model çıktı" gibi doğrulanamayan iddialar YASAK).
-- Garanti/satıcı/uyumluluk/variant (renk-hafıza) kontrolü gibi güvenli kontrolleri öner.
-- En fazla 3-4 cümle. Türkçe.`;
-
+`Ürün: ${title}
+Site: ${site}
+Fiyat: ${price}
+Kullanıcıya kısa, pratik bir yorum yaz: (uyumluluk, satıcı, garanti, alternatif vs).
+Maks 3-4 cümle. Türkçe.`;
   const t = await aiText(prompt);
-  return String(t||"").trim();
+  return t.trim();
 }
 
 function formatPrice(p){
@@ -705,7 +711,12 @@ $("btnClearCache").addEventListener("click", clearAllCaches);
 onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
+  // flicker önleme: auth state gelince önce modalı kapat
+  $("loginModal").style.display = "none";
+
+  const appEl = $("app");
   if (!u){
+    if (appEl) appEl.style.display = "none";
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -714,8 +725,10 @@ onAuthStateChanged(auth, async (u)=>{
     return;
   }
 
+  if (appEl) appEl.style.display = "";
   closeLogin();
   $("logoutBtn").style.display = "";
+
 
   // listen favorites
   const qFav = query(userFavCol());
