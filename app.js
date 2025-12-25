@@ -249,20 +249,48 @@ let unsubFav = null;
 
 function openLogin(){
   $("loginErr").style.display = "none";
-  $("loginModal").style.display = "";
+  const m = $("loginModal");
+  m.style.display = "";
+  m.style.pointerEvents = "auto";
   document.body.classList.add("modalOpen");
 }
 function closeLogin(){
   // giriş yoksa kapatma
   if (!currentUser){
     toast("Giriş yapmadan kullanamazsın.");
-    $("loginModal").style.display = "";
+    const m = $("loginModal");
+    m.style.display = "";
+    m.style.pointerEvents = "auto";
     document.body.classList.add("modalOpen");
     return;
   }
-  $("loginModal").style.display = "none";
+  const m = $("loginModal");
+  m.style.display = "none";
+  m.style.pointerEvents = "none";
   document.body.classList.remove("modalOpen");
+  unlockUI();
 }
+
+// --- CLICK FREEZE FIX (overlay/pointer-events temizliği) ---
+function unlockUI(){
+  document.body.classList.remove("modalOpen");
+  document.documentElement.classList.remove("modalOpen");
+
+  const lm = document.getElementById("loginModal");
+  if (lm){
+    const disp = (lm.style.display || getComputedStyle(lm).display);
+    if (disp === "none") lm.style.pointerEvents = "none";
+  }
+
+  document.querySelectorAll(".modalWrap,.modalwrap,.modalBack,.backdrop,.overlay").forEach(el=>{
+    const cs = getComputedStyle(el);
+    const invisible = (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0);
+    if (invisible) el.style.pointerEvents = "none";
+  });
+}
+
+window.addEventListener("load", ()=> setTimeout(unlockUI, 60));
+
 // --- Fallback: Auth event gecikirse boş sayfada kalma (özellikle cache/slow network) ---
 const FALLBACK_LOGIN_TIMER = setTimeout(()=>{
   try{

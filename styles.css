@@ -313,3 +313,7 @@ body{
 
 body.modalOpen{ overflow:hidden; }
 body.modalOpen #app{ filter: blur(10px); }
+
+
+/* görünmeyen modal tıklama yutmasın */
+#loginModal[style*="display: none"]{ pointer-events:none !important; }
