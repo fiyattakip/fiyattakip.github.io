@@ -185,11 +185,11 @@ function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
   document.body.classList.add("modalOpen");
-  $("app").style.display = "none"; // 👈 arka plan kapalı
+  const appEl = $("app");
+  if (appEl) appEl.style.display = "none";
 }
-
 function closeLogin(){
-  // giriş yoksa kapatma
+  // Giriş yoksa kapatma
   if (!currentUser){
     toast("Giriş yapmadan kullanamazsın.");
     $("loginModal").style.display = "";
@@ -198,7 +198,7 @@ function closeLogin(){
   }
   $("loginModal").style.display = "none";
   document.body.classList.remove("modalOpen");
-} 
+}
 
 $("closeLogin").addEventListener("click", closeLogin);
 
@@ -706,10 +706,10 @@ $("btnClearCache").addEventListener("click", clearAllCaches);
 onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
-  $("loginModal").style.display = "none"; // ✅ BURAYA (import değil)
-
-  if (!u){
-    $("app").style.display = "none";
+  // Auth durumu netleşene kadar login modalını gizli tut (flicker önleme)
+  $("loginModal").style.display = "none";
+if (!u){
+    $("app") && ($("app").style.display = "none");
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -717,12 +717,9 @@ onAuthStateChanged(auth, async (u)=>{
     renderFavorites();
     return;
   }
-
-  $("app").style.display = "";
+  $("app") && ($("app").style.display = "");
   closeLogin();
   $("logoutBtn").style.display = "";
-});
-
 
   // listen favorites
   const qFav = query(userFavCol());
@@ -740,26 +737,4 @@ onAuthStateChanged(auth, async (u)=>{
     favCache = list;
     renderFavorites();
   });
-});
-
-/* --- EN ALT KISIM --- */
-$("closeLogin").addEventListener("click", closeLogin);
-
-document.querySelectorAll(".segBtn").forEach(b=>{
-  b.addEventListener("click", ()=>{
-    document.querySelectorAll(".segBtn").forEach(x=>x.classList.remove("active"));
-    b.classList.add("active");
-    const mode = b.dataset.auth;
-    $("authEmail").style.display = mode==="email" ? "" : "none";
-    $("authGoogle").style.display = mode==="google" ? "" : "none";
-  });
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-  if (!currentUser) {
-    $("app").style.display = "none";
-    openLogin();
-  } else {
-    $("app").style.display = "";
-  }
 });
