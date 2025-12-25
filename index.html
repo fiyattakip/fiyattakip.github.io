@@ -2,9 +2,9 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b1220"/>
-  <title>Fiyat Takip</title>
+  <title>FiyatTakip</title>
 
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" href="./icon-192.png" />
@@ -12,125 +12,86 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="wrap">
-
+  <div id="app" class="app" style="display:none">
+    <!-- TOP BAR -->
     <header class="topbar">
-      <div class="topbarTitle">FiyatTakip</div>
-      <button class="topbarIcon" id="notifBtn" aria-label="Bildirimler">🔔</button>
+      <div class="topTitle">FiyatTakip</div>
+      <button class="iconBtn" id="notifBtn" title="Bildirimler" aria-label="Bildirimler">
+        <!-- bell -->
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5L3 18v1h18v-1l-2-2Z"/></svg>
+      </button>
     </header>
 
-    <div class="card">
-      <div class="hero">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <img src="./icon-192.png" alt="Logo" style="width:46px;height:46px;border-radius:14px;border:1px solid rgba(15,23,42,.12)"/>
-          <div>
-            <h1>Fiyat Takip</h1>
-            <p class="sub">
-              Normal arama + AI arama + Görsel arama.
-              Favoriye ekle → otomatik takip → %10+ düşüş bildirimi.
-            </p>
+    <!-- PAGES -->
+    <main class="pages">
+      <!-- HOME -->
+      <section id="pageHome" class="page active">
+        <div class="searchWrap">
+          <div class="searchBar">
+            <span class="sIco" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M10 4a6 6 0 1 1 0 12A6 6 0 0 1 10 4Zm11 16-4.3-4.3 1.4-1.4L22.4 18.6 21 20Z"/></svg>
+            </span>
+            <input id="qNormal" class="searchInput" placeholder="Ürün ve mağaza ara..." autocomplete="off" />
+            <button class="micBtn" id="micBtn" title="Sesli arama" aria-label="Sesli arama">
+              <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V21h2v-3.07A7 7 0 0 0 19 11h-2Z"/></svg>
+            </button>
           </div>
-        </div>
 
-        <div class="pills">
-          <button id="installBtn" class="pill" style="display:none">Uygulamayı indir</button>
-          <button id="aiSettingsBtn" class="pill">AI Ayarları</button>
-          <button id="logoutBtn" class="pill danger" style="display:none">Çıkış</button>
-        </div>
-      </div>
-
-      <!-- Tabs -->
-      <div class="tabs">
-        <button class="tabBtn active" data-tab="normal" id="tabNormal">
-          <span class="tabIco" aria-hidden="true">
-            <!-- magnifier -->
-            <svg viewBox="0 0 24 24"><path d="M10 4a6 6 0 1 1 0 12A6 6 0 0 1 10 4Zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9.7 13.3-4.2-4.2 1.4-1.4 4.2 4.2-1.4 1.4Z"/></svg>
-          </span>
-          Normal
-        </button>
-
-        <button class="tabBtn" data-tab="ai" id="tabAi">
-          <span class="tabIco" aria-hidden="true">
-            <!-- sparkle AI -->
-            <svg viewBox="0 0 24 24"><path d="M12 2l1.2 4.1L17.3 7 13.2 8.2 12 12.3 10.8 8.2 6.7 7l4.1-.9L12 2Zm7 6 1 2.8 2.8 1-2.8 1L19 15.6l-1-2.8-2.8-1 2.8-1L19 8Zm-7 7 1.5 4.6 4.6 1.5-4.6 1.5L12 27l-1.5-4.6L5.9 20 10.5 18.6 12 14Z"/></svg>
-          </span>
-          AI Arama
-        </button>
-
-        <button class="tabBtn" data-tab="visual" id="tabVisual">
-          <span class="tabIco" aria-hidden="true">
-            <!-- image -->
-            <svg viewBox="0 0 24 24"><path d="M4 5a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V5Zm3-1a1 1 0 0 0-1 1v9.2l2.9-2.9a2 2 0 0 1 2.8 0l6.3 6.3a2 2 0 0 1 .5.9H17a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H7Zm-1 13v2a1 1 0 0 0 1 1h10.1l-6.8-6.8-4.3 4.3ZM15 8.5A1.5 1.5 0 1 1 12 8.5a1.5 1.5 0 0 1 3 0Z"/></svg>
-          </span>
-          Görsel
-        </button>
-      </div>
-
-      <!-- NORMAL -->
-      <section class="pane" id="paneNormal">
-        <div class="searchRow">
-          <input id="qNormal" class="input" placeholder="Ürün adı yaz (örn: iphone 13 128gb)" />
-          <button id="btnNormal" class="btnPrimary">Ara</button>
-        </div>
-        <div class="modeToggle" id="modeToggle">
-          <button class="modeBtn active" id="modeNormal" type="button">Normal</button>
-          <button class="modeBtn" id="modeAI" type="button">AI</button>
-        </div>
-
-        <div class="promoCard">
-          <div class="promoLeft">
-            <div class="promoTitle">Fırsat Takibi</div>
-            <div class="promoSub">Favorilere ekle → otomatik kontrol → %10+ düşüş bildirimi</div>
+          <div class="modeToggle" id="modeToggle">
+            <button class="modeBtn active" id="modeNormal" type="button">Normal</button>
+            <button class="modeBtn" id="modeAI" type="button">AI</button>
+            <button class="modeBtn ghost" id="aiSettingsBtn" type="button">AI Ayarları</button>
           </div>
-          <div class="promoBag">🛍️</div>
+          <div class="modeHint" id="modeHint">Normal arama: seçilen sitelerde direkt arar.</div>
+
+          <button id="btnNormal" class="ctaBtn">Ara</button>
         </div>
 
-        <div class="quickGrid">
-          <div class="qItem"><div class="qImg">🎧</div><div class="qName">Kulaklık</div><div class="qMeta">Hızlı ara</div></div>
-          <div class="qItem"><div class="qImg">📱</div><div class="qName">Telefon</div><div class="qMeta">Hızlı ara</div></div>
-          <div class="qItem"><div class="qImg">💻</div><div class="qName">Laptop</div><div class="qMeta">Hızlı ara</div></div>
-          <div class="qItem"><div class="qImg">⌚</div><div class="qName">Saat</div><div class="qMeta">Hızlı ara</div></div>
-          <div class="qItem"><div class="qImg">🧹</div><div class="qName">Süpürge</div><div class="qMeta">Hızlı ara</div></div>
-          <div class="qItem"><div class="qImg">👟</div><div class="qName">Ayakkabı</div><div class="qMeta">Hızlı ara</div></div>
+        <div class="banner">
+          <div class="bIco" aria-hidden="true">🏷️</div>
+          <div class="bTxt">
+            <div class="bTitle">Bahar Kampanyası!</div>
+            <div class="bSub">%50 indirimi kaçırmayın!</div>
+          </div>
+          <div class="bBag" aria-hidden="true">🛍️</div>
         </div>
 
-        <div class="helper">Normal arama: seçilen sitelerde arar.</div>
+        <div id="normalList" class="resultList"></div>
 
-        <div id="normalList" class="listBox"></div>
+        <!-- Hidden legacy panes (JS bazı id'leri bekliyor) -->
+        <section class="pane" id="paneNormal" style="display:none"></section>
+        <section class="pane" id="paneAi" style="display:none">
+          <div class="searchRow">
+            <input id="qAi" class="input" placeholder="AI: en alakalı arama ifadesi + kısa öneri üretir" />
+            <button id="btnAi" class="btnPrimary">AI Ara</button>
+          </div>
+          <div id="aiBox" class="emptyBox" style="display:none"></div>
+          <div id="aiList" class="listBox"></div>
+        </section>
+        <section class="pane" id="paneVisual" style="display:none">
+          <div class="searchRow">
+            <input id="fileImg" class="file" type="file" accept="image/*" />
+            <button id="btnVisual" class="btnPrimary">Görsel Ara</button>
+          </div>
+          <div id="visualOut" class="emptyBox" style="display:none"></div>
+        </section>
       </section>
 
-      <!-- AI -->
-      <section class="pane" id="paneAi" style="display:none">
-        <div class="searchRow">
-          <input id="qAi" class="input" placeholder="AI: en alakalı arama ifadesi + kısa öneri üretir" />
-          <button id="btnAi" class="btnPrimary">AI Ara</button>
+      <!-- CHARTS -->
+      <section id="pageCharts" class="page">
+        <div class="pageHead">
+          <div class="pageTitle">Grafik</div>
+          <div class="pageSub">Favorilerin fiyat geçmişine bak.</div>
         </div>
-        <div class="helper">AI arama: daha doğru arama ifadesi + kısa yorum üretir.</div>
-        <div id="aiBox" class="emptyBox" style="display:none"></div>
-        <div id="aiList" class="listBox"></div>
-      </section>
-
-      <!-- VISUAL -->
-      <section class="pane" id="paneVisual" style="display:none">
-        <div class="imgRow">
-          <input id="fileImg" class="file" type="file" accept="image/*" />
-          <button id="btnVisual" class="btnPrimary">Görseli Ara</button>
-        </div>
-        <div class="helper">
-          Görselden ürün/metin çıkarır → Google’da arar (alışveriş/arama).
-          İstersen çıkan metni Normal/AI aramaya aktarır.
-        </div>
-        <div id="visualOut" class="emptyBox" style="display:none"></div>
+        <div id="chartsList" class="favList"></div>
       </section>
 
       <!-- FAVORITES -->
-      <section class="card favCard" style="margin-top:14px">
+      <section id="pageFavs" class="page">
         <div class="favHeader">
           <div>
-            <div class="favTitle"><span style="color:#d21b5f">❤</span> Favoriler</div>
-            <div class="favSub">
-              20 dk otomatik kontrol. Engel olursa: Link Aç → Tekrar dene. “AI Yorum” ile ürün yorumu üretir (favori kartında görünür).
-            </div>
+            <div class="favTitle"><span style="color:#d21b5f">♥</span> Favoriler</div>
+            <div class="favSub">Favoriye eklediklerin burada. Engel olursa: Link Aç → Tekrar dene. 'AI Yorum' ile ürün yorumu üretir.</div>
           </div>
           <div class="favHeaderRight">
             <select id="favSort" class="select">
@@ -143,27 +104,70 @@
             <button id="btnClearCache" class="btnAction">Önbelleği Temizle</button>
           </div>
         </div>
-
         <div id="favList" class="favList"></div>
       </section>
-    </div>
-  </div>
 
-  
-    <nav class="bottomNav" aria-label="Alt menü">
-      <button class="navBtn active" data-nav="home" id="navHome"><span class="nIco">🏠</span><span class="nLbl">Ana</span></button>
-      <button class="navBtn" data-nav="graph" id="navGraph"><span class="nIco">📈</span><span class="nLbl">Grafik</span></button>
+      <!-- SETTINGS -->
+      <section id="pageSettings" class="page">
+        <div class="pageHead">
+          <div class="pageTitle">Ayarlar</div>
+          <div class="pageSub">Kurulum / çıkış / PWA</div>
+        </div>
+        <div class="settingsCard">
+          <button id="installBtn" class="pill" style="display:none">Uygulamayı indir</button>
+          <button id="logoutBtn" class="pill danger" style="display:none">Çıkış</button>
+          <button id="goWeb" class="pill">Web</button>
+          <button id="goShop" class="pill">Mağazalar</button>
+          <button id="goLens" class="pill">AI Lens</button>
+          <button id="toNormal" class="pill" style="display:none">Normal sekme</button>
+          <button id="toAi" class="pill" style="display:none">AI sekme</button>
+        </div>
+        <div class="smallNote">AI anahtarlarını <b>AI Ayarları</b> butonundan gir.</div>
+      </section>
+    </main>
 
-      <button class="navFab" id="fabCamera" aria-label="AI Kamera">
-        <span class="fabRing"></span>
-        <span class="fabIcon">📷</span>
+    <!-- BOTTOM NAV -->
+    <nav class="tabbar" role="navigation" aria-label="Alt menü">
+      <button class="tab active" id="navHome" type="button">
+        <span class="ico">
+          <svg viewBox="0 0 24 24"><path d="M12 3 3 10v10h6v-6h6v6h6V10l-9-7Z"/></svg>
+        </span>
+        <span class="lbl">Ana</span>
       </button>
 
-      <button class="navBtn" data-nav="favs" id="navFavs"><span class="nIco">❤️</span><span class="nLbl">Favori</span></button>
-      <button class="navBtn" data-nav="settings" id="navSettings"><span class="nIco">⚙️</span><span class="nLbl">Ayar</span></button>
-    </nav>
+      <button class="tab" id="navCharts" type="button">
+        <span class="ico">
+          <svg viewBox="0 0 24 24"><path d="M4 19V5h2v14H4Zm7 0V9h2v10h-2Zm7 0V12h2v7h-2Z"/></svg>
+        </span>
+        <span class="lbl">Grafik</span>
+      </button>
 
-<!-- LOGIN MODAL -->
+      <div class="tabSpacer" aria-hidden="true"></div>
+
+      <button class="tab" id="navFavs" type="button">
+        <span class="ico">
+          <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-8.6C.7 9.3 2.6 6 6.2 6c2 0 3.2 1 3.8 2 .6-1 1.8-2 3.8-2 3.6 0 5.5 3.3 3.7 6.4C19 16.4 12 21 12 21Z"/></svg>
+        </span>
+        <span class="lbl">Favori</span>
+      </button>
+
+      <button class="tab" id="navSettings" type="button">
+        <span class="ico">
+          <svg viewBox="0 0 24 24"><path d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6-2-3.4-2.4 1a8.2 8.2 0 0 0-1.7-1L15 2h-4l-.3 3a8.2 8.2 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.7 7.7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a8.2 8.2 0 0 0 1.7 1L11 22h4l.3-3a8.2 8.2 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6ZM13 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>
+        </span>
+        <span class="lbl">Ayar</span>
+      </button>
+
+      <button class="fab" id="fabCamera" type="button" title="AI Kamera" aria-label="AI Kamera">
+        <span class="fabIco">
+          <svg viewBox="0 0 24 24"><path d="M9 5 10.2 3h3.6L15 5h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4Zm3 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/></svg>
+        </span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- LOGIN MODAL (aynı) -->
+  
   <div id="loginModal" class="modalwrap" style="display:none">
     <div class="modal">
       <div class="modalTop">
@@ -258,6 +262,10 @@
   </div>
 
   <div id="toast" class="toast" style="display:none"></div>
+
+  <script type="module" src="./firebase.js"></script>
+  <script type="module" src="./ai.js"></script>
+  <script type="module" src="./app.js"></script>
 
   <script type="module" src="./firebase.js"></script>
   <script type="module" src="./ai.js"></script>

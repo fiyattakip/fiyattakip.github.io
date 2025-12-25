@@ -145,17 +145,77 @@ function renderSiteList(targetEl, queryText, extra = {}){
   });
 }
 
-/* ---------- Tabs ---------- */
+/* ---------- Tabs (legacy, hidden) ---------- */
 function setTab(name){
-  const btns = document.querySelectorAll(".tabBtn");
-  btns.forEach(b => b.classList.toggle("active", b.dataset.tab === name));
-  $("paneNormal").style.display = name==="normal" ? "" : "none";
-  $("paneAi").style.display = name==="ai" ? "" : "none";
-  $("paneVisual").style.display = name==="visual" ? "" : "none";
+  // legacy panes exist for backwards compatibility
+  try{
+    $("paneNormal").style.display = name==="normal" ? "" : "none";
+    $("paneAi").style.display = name==="ai" ? "" : "none";
+    $("paneVisual").style.display = name==="visual" ? "" : "none";
+  }catch{}
 }
-document.querySelectorAll(".tabBtn").forEach(btn=>{
-  btn.addEventListener("click", ()=> setTab(btn.dataset.tab));
+
+/* ---------- New UI: pages + bottom nav ---------- */
+function setPage(pageId){
+  const pages = ["pageHome","pageCharts","pageFavs","pageSettings"];
+  pages.forEach(id=>{
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle("active", id===pageId);
+  });
+
+  const tabs = [
+    {id:"navHome", page:"pageHome"},
+    {id:"navCharts", page:"pageCharts"},
+    {id:"navFavs", page:"pageFavs"},
+    {id:"navSettings", page:"pageSettings"}
+  ];
+  tabs.forEach(t=>{
+    const b = document.getElementById(t.id);
+    if (b) b.classList.toggle("active", t.page===pageId);
+  });
+
+  // scroll top for better UX
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function getSearchMode(){
+  return localStorage.getItem("ft_mode") || "normal";
+}
+function setSearchMode(mode){
+  localStorage.setItem("ft_mode", mode);
+  const bN = document.getElementById("modeNormal");
+  const bA = document.getElementById("modeAI");
+  const hint = document.getElementById("modeHint");
+  if (bN) bN.classList.toggle("active", mode==="normal");
+  if (bA) bA.classList.toggle("active", mode==="ai");
+  if (hint){
+    hint.textContent = mode==="normal"
+      ? "Normal arama: seçilen sitelerde direkt arar."
+      : "AI arama: önce en alakalı sorguyu üretir, sonra sitelerde arar.";
+  }
+}
+
+document.getElementById("navHome")?.addEventListener("click", ()=> setPage("pageHome"));
+document.getElementById("navCharts")?.addEventListener("click", ()=> setPage("pageCharts"));
+document.getElementById("navFavs")?.addEventListener("click", ()=> setPage("pageFavs"));
+document.getElementById("navSettings")?.addEventListener("click", ()=> setPage("pageSettings"));
+
+document.getElementById("modeNormal")?.addEventListener("click", ()=> setSearchMode("normal"));
+document.getElementById("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
+
+document.getElementById("fabCamera")?.addEventListener("click", ()=>{
+  // quick visual search: open file chooser
+  const fi = document.getElementById("fileImg");
+  if (fi) fi.click();
 });
+
+document.getElementById("fileImg")?.addEventListener("change", ()=>{
+  // run visual search when a file is selected
+  const b = document.getElementById("btnVisual");
+  if (b) b.click();
+});
+
 
 /* ---------- PWA install ---------- */
 let deferredPrompt = null;
@@ -164,6 +224,12 @@ window.addEventListener("beforeinstallprompt", (e)=>{
   deferredPrompt = e;
   $("installBtn").style.display = "";
 });
+
+// init UI state
+setSearchMode(getSearchMode());
+setPage('pageHome');
+
+
 $("installBtn").addEventListener("click", async ()=>{
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
@@ -278,60 +344,45 @@ $("clearAi").addEventListener("click", ()=>{
 
 /* ---------- Normal / AI / Visual ---------- */
 $("btnNormal").addEventListener("click", async ()=>{
-  const q = $("qNormal").value.trim();
-  if (!q) return toast("Ürün adı yaz.");
+  const raw = $("qNormal").value.trim();
+  if (!raw) return toast("Ürün adı yaz.");
+  const mode = getSearchMode();
 
-  const mode = localStorage.getItem("searchMode") || "normal";
-  if (mode === "ai"){
-    $("qAi").value = q;
-    await triggerAiSearch();
+  if (mode === "normal"){
+    renderSiteList($("normalList"), raw);
     return;
   }
-  renderSiteList($("normalList"), q);
-});
 
-async function triggerAiSearch(){
-  const q = $("qAi").value.trim();
-  if (!q) return toast("Bir şey yaz.");
-  if (!aiConfigured()) return toast("AI key kayıtlı değil. AI Ayarları'ndan gir.");
+  // AI mode: produce a better query, then search like normal
+  if (!aiConfigured()){
+    toast("AI key kayıtlı değil. AI Ayarları'ndan gir.");
+    renderSiteList($("normalList"), raw);
+    return;
+  }
 
-  $("btnAi").disabled = true;
-  $("aiBox").style.display = "";
-  $("aiList").innerHTML = "";
+  $("btnNormal").disabled = true;
   try{
     const prompt =
-`Kullanıcının arama niyetini anla ve e-ticaret sitelerinde aramaya uygun net bir sorgu üret.
-Sadece JSON döndür:
-{"query":"...","alts":["...","..."],"avoid":["..."]}
+`Kullanıcının aradığı ürün ifadesi: "${raw}"
+Amaç: E-ticarette EN ALAKALI arama sorgusunu üretmek.
 
-Kullanıcı metni: ${q}`;
+Kurallar:
+- Mutlaka ürünün ana tipini koru (telefon, tablet, ekran kartı, kılıf vb).
+- Gereksiz kelimeleri temizle, marka/model/kapasite gibi ana bilgileri tut.
+- Çıktı SADECE tek satır olsun. Başka metin yazma.
 
-    const raw = await aiText(prompt);
-    let txt = String(raw||"").trim();
-    const m = txt.match(/\{[\s\S]*\}/);
-    if (m) txt = m[0];
-    let obj;
-    try{ obj = JSON.parse(txt); }catch{ obj = null; }
+Çıktı:`;
 
-    const query = (obj?.query || q).toString().trim();
-
-    // Bilgi kutusu (isteğe bağlı)
-    $("aiBox").style.display = "";
-    $("aiList").innerHTML =
-      `<div class="aiHint">AI sorgusu: <b>${esc(query)}</b></div>`;
-
-    // Sonuçları normal listeye basıyoruz
-    renderSiteList($("normalList"), query);
-
+    const out = await aiText(prompt);
+    const q = String(out || raw).replace(/\s+/g," ").trim() || raw;
+    renderSiteList($("normalList"), q, { aiQuery: q, originalQuery: raw });
   }catch(e){
-    console.error(e);
-    toast("AI arama hata: " + (e?.message || e));
-    renderSiteList($("normalList"), q);
+    toast(e?.message || String(e));
+    renderSiteList($("normalList"), raw);
   }finally{
-    $("btnAi").disabled = false;
+    $("btnNormal").disabled = false;
   }
-}
-
+});
 $("btnAi").addEventListener("click", async ()=>{
   const q = $("qAi").value.trim();
   if (!q) return toast("Bir şey yaz.");
@@ -641,6 +692,8 @@ function renderFavorites(){
 
   if (!list.length){
     $("favList").innerHTML = `<div class="emptyBox">Favori yok.</div>`;
+    const charts = document.getElementById("chartsList");
+    if (charts) charts.innerHTML = `<div class="emptyBox">Grafik için favori ekle.</div>`;
     return;
   }
 
@@ -673,6 +726,30 @@ function renderFavorites(){
       </div>
     `;
   }).join("");
+  // Charts page (simplified list)
+  const charts = document.getElementById("chartsList");
+  if (charts){
+    charts.innerHTML = list.map(f=>{
+      const price = formatPrice(f.lastPrice);
+      const meta = `${esc(f.siteName || "")} • Son kontrol: ${esc(f.lastCheckedAt || "—")}`;
+      return `
+        <div class="favItem" data-id="${esc(f.id)}">
+          <div class="favTop">
+            <div style="min-width:0">
+              <div class="favName">${esc(f.title || f.query || "")}</div>
+              <div class="favMeta">${meta}</div>
+            </div>
+            <div class="favPrice">${esc(price)}</div>
+          </div>
+          <div class="favBtns">
+            <button class="btnOpen" data-openfav="${esc(f.id)}">Siteyi Aç</button>
+            <button class="btnAction" data-graph="${esc(f.id)}">Grafik</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
 
   $("favList").querySelectorAll("[data-openfav]").forEach(b=>{
     b.addEventListener("click", ()=>{
@@ -740,6 +817,25 @@ $("favSort").addEventListener("change", renderFavorites);
 $("btnRefreshFav").addEventListener("click", ()=> renderFavorites());
 $("btnClearCache").addEventListener("click", clearAllCaches);
 
+
+/* ---------- Charts interactions (delegated) ---------- */
+document.addEventListener("click", (e)=>{
+  const t = e.target;
+  if (!(t instanceof HTMLElement)) return;
+
+  if (t.matches("#chartsList [data-openfav]")){
+    const id = t.getAttribute("data-openfav");
+    const f = favCache.find(x=>x.id===id);
+    if (f?.url) openUrl(f.url);
+  }
+
+  if (t.matches("#chartsList [data-graph]")){
+    const id = t.getAttribute("data-graph");
+    const f = favCache.find(x=>x.id===id);
+    if (f) openGraph(f);
+  }
+});
+
 /* ---------- Auth state ---------- */
 onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
@@ -772,51 +868,4 @@ onAuthStateChanged(auth, async (u)=>{
     favCache = list;
     renderFavorites();
   });
-});
-
-/* ===== Search Mode Toggle + Bottom Nav (UI) ===== */
-function setSearchMode(mode){
-  localStorage.setItem("searchMode", mode);
-  const bn = document.getElementById("modeNormal");
-  const ba = document.getElementById("modeAI");
-  if (bn && ba){
-    bn.classList.toggle("active", mode==="normal");
-    ba.classList.toggle("active", mode==="ai");
-  }
-}
-setSearchMode(localStorage.getItem("searchMode") || "normal");
-document.getElementById("modeNormal")?.addEventListener("click", ()=> setSearchMode("normal"));
-document.getElementById("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
-
-document.querySelectorAll(".qItem").forEach(el=>{
-  el.addEventListener("click", ()=>{
-    const name = el.querySelector(".qName")?.textContent?.trim() || "";
-    if (!name) return;
-    $("qNormal").value = name;
-    $("btnNormal").click();
-    window.scrollTo({top:0, behavior:"smooth"});
-  });
-});
-
-function navActivate(key){
-  document.querySelectorAll(".navBtn").forEach(b=>b.classList.toggle("active", b.dataset.nav===key));
-  if (key === "settings"){
-    $("aiSettingsBtn")?.click();
-    return;
-  }
-  if (key === "favs" || key === "graph"){
-    const fav = document.querySelector(".favCard") || $("favList")?.closest("section");
-    fav?.scrollIntoView({behavior:"smooth", block:"start"});
-    return;
-  }
-  window.scrollTo({top:0, behavior:"smooth"});
-}
-document.getElementById("navHome")?.addEventListener("click", ()=> navActivate("home"));
-document.getElementById("navGraph")?.addEventListener("click", ()=> navActivate("graph"));
-document.getElementById("navFavs")?.addEventListener("click", ()=> navActivate("favs"));
-document.getElementById("navSettings")?.addEventListener("click", ()=> navActivate("settings"));
-
-document.getElementById("fabCamera")?.addEventListener("click", ()=>{
-  document.getElementById("tabVisual")?.click();
-  setTimeout(()=> document.getElementById("btnVisual")?.click(), 120);
 });
