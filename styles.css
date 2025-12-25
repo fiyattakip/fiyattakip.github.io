@@ -301,13 +301,3 @@ body{
   .hero h1{font-size:40px}
   .btnPrimary{min-width:86px}
 }
-
-
-/* --- AI bubble readability fix --- */
-.aiBubble{
-  max-height: 180px;
-  overflow-y: auto;
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.45;
-}
