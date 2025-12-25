@@ -1,3 +1,5 @@
+alert("APP JS ÇALIŞIYOR");
+
 import { auth, db, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
 import {
   onAuthStateChanged,
@@ -427,10 +429,6 @@ $("installBtn").addEventListener("click", async ()=>{
   $("installBtn").style.display = "none";
 });
 
-/* ---------- SW register ---------- */
-if ("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./sw.js").catch(()=>{});
-}
 
 /* ---------- Login ---------- */
 let currentUser = null;
@@ -1041,4 +1039,10 @@ onAuthStateChanged(auth, async (u)=>{
     favCache = list;
     renderFavorites();
   });
+});
+document.body.addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+
+  console.log("CLICK ALINDI:", btn);
 });
