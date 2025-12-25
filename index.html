@@ -10,7 +10,7 @@
 
 <body>
   <!-- LOGIN MODAL: APP DIŞINDA (boş ekranda kalmasın diye) -->
-  <div id="loginModal" class="modalWrap show" aria-hidden="false" style="display:flex;pointer-events:auto;">
+  <div id="loginModal" class="modalWrap" aria-hidden="true">
     <div class="modalBack" id="loginBackdrop"></div>
     <div class="modalCard" role="dialog" aria-modal="true" aria-label="Giriş">
       <div class="modalTop">
@@ -140,7 +140,6 @@
           <button id="btnClearSearch" class="btnGhost" type="button">Temizle</button>
         </div>
         <div id="normalList" class="list"></div>
-        <div id="normalPager" class="pager"></div>
       </section>
 
       <!-- GRAPH -->
@@ -151,7 +150,6 @@
         </div>
         <div class="miniHint">Favorilerinin fiyat geçmişi burada görünecek.</div>
         <div id="graphRoot" class="cardBox">Grafik alanı</div>
-        <div id="graphPager" class="pager"></div>
       </section>
 
       <!-- FAVORITES -->
@@ -161,7 +159,6 @@
           <button id="btnFavRefresh" class="btnGhost" type="button">Yenile</button>
         </div>
         <div id="favList" class="list"></div>
-        <div id="favPager" class="pager"></div>
       </section>
 
       <!-- SETTINGS -->
