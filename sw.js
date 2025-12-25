@@ -1,4 +1,5 @@
-const CACHE = "fiyattakip-cache-v5";
+// sw.js — cache + update (v3)
+const CACHE = "fiyattakip-cache-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,34 +7,39 @@ const ASSETS = [
   "./app.js",
   "./ai.js",
   "./firebase.js",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./manifest.json"
 ];
 
-self.addEventListener("install", (e)=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
+self.addEventListener("install", (event) => {
+  event.waitUntil((async ()=>{
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ASSETS);
+    await self.skipWaiting();
+  })());
 });
 
-self.addEventListener("activate", (e)=>{
-  e.waitUntil((async ()=>{
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async ()=>{
     const keys = await caches.keys();
-    await Promise.all(keys.map(k => (k===CACHE ? null : caches.delete(k))));
+    await Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)));
     await self.clients.claim();
   })());
 });
 
-self.addEventListener("fetch", (e)=>{
-  const req = e.request;
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
   if (req.method !== "GET") return;
-
-  e.respondWith((async ()=>{
+  event.respondWith((async ()=>{
     const cache = await caches.open(CACHE);
-    const cached = await cache.match(req);
+    const cached = await cache.match(req, { ignoreSearch: false });
     if (cached) return cached;
     try{
       const fresh = await fetch(req);
-      if (fresh && fresh.ok && fresh.type !== "opaque") cache.put(req, fresh.clone());
+      // cache only same-origin
+      const url = new URL(req.url);
+      if (url.origin === self.location.origin && fresh.ok){
+        cache.put(req, fresh.clone());
+      }
       return fresh;
     }catch{
       return cached || new Response("Offline", { status: 503 });

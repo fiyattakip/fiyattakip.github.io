@@ -188,45 +188,6 @@
 
   </div>
 
-
-  <!-- TOAST -->
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <!-- AI SETTINGS MODAL -->
-  <div id="aiModal" class="modalWrap" aria-hidden="true">
-    <div class="modalBack" id="aiBackdrop"></div>
-    <div class="modalCard" role="dialog" aria-modal="true" aria-label="AI Ayarları">
-      <div class="modalTop">
-        <div class="modalTitle">AI Ayarları (Gemini)</div>
-        <button id="closeAi" class="iconBtn" type="button" aria-label="Kapat">✕</button>
-      </div>
-
-      <div class="miniHint" style="margin-top:0">
-        API key cihazında şifrelenmiş saklanır. PIN’i unutursan tekrar girmen gerekir.
-      </div>
-
-      <input id="aiKey" placeholder="Gemini API Key (AIza...)" autocomplete="off" />
-      <input id="aiPin" placeholder="PIN (en az 4 karakter)" type="password" autocomplete="off" />
-      <label class="chkRow">
-        <input id="aiRememberPin" type="checkbox" />
-        <span>PIN’i bu oturumda hatırla</span>
-      </label>
-
-      <div class="row2">
-        <button id="btnAiSave" class="btnPrimary" type="button">Kaydet</button>
-        <button id="btnAiClear" class="btnGhost" type="button">Sıfırla</button>
-      </div>
-
-      <div class="miniHint">
-        Not: AI yorumları “ürün bulunamadı / piyasaya sürülmedi” gibi uydurma cümle kurmaz; elindeki bilgilere göre özellik bazlı analiz yapar.
-      </div>
-    </div>
-  </div>
-
-  <!-- AI GÖRSEL ARAMA -->
-  <input id="imgInput" type="file" accept="image/*" capture="environment" style="display:none" />
-
-
   <!-- SCRIPTS: TEK SEFER -->
   <script type="module" src="app.js"></script>
 </body>
