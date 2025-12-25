@@ -112,7 +112,32 @@ function parseTrendyol(html){
     const imgUrl = img?.getAttribute("src") || img?.getAttribute("data-src") || "";
     if (href) out.push({ site:"Trendyol", title, url: href, price, priceText: priceTxt || "", img: imgUrl });
   }
-  return out;
+  
+  // Fallback: try to extract from embedded JSON if DOM selectors fail (bot page / different markup)
+  if (!out.length){
+    try{
+      const m = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+      if (m && m[1]){
+        const data = JSON.parse(m[1]);
+        const blob = JSON.stringify(data);
+        // crude: find product URLs and names
+        const urlRe = /"url":"(\/[^"]*?-p-\d+[^"]*)"/g;
+        const nameRe = /"name":"([^"]{3,120})"/g;
+        const imgRe  = /"image":"([^"]+)"/g;
+        const names = [];
+        let mn; while((mn=nameRe.exec(blob)) && names.length<60){ names.push(mn[1]); }
+        const imgs = [];
+        let mi; while((mi=imgRe.exec(blob)) && imgs.length<60){ imgs.push(mi[1]); }
+        let mu, k=0;
+        while((mu=urlRe.exec(blob)) && out.length<24){
+          const href = new URL(mu[1].replace(/\\u002F/g,"/"), "https://www.trendyol.com").toString();
+          out.push({ site:"Trendyol", title: (names[k]||"Ürün"), url: href, price:null, priceText:"", img:(imgs[k]||"") });
+          k++;
+        }
+      }
+    }catch(e){}
+  }
+return out;
 }
 
 function parseHepsiburada(html){
@@ -136,7 +161,39 @@ function parseHepsiburada(html){
     const price = currencyToNumber(priceTxt);
     if (href) out.push({ site:"Hepsiburada", title, url: href, price, priceText: priceTxt || "", img: imgUrl });
   }
-  return out;
+  
+  if (!out.length){
+    try{
+      // HB pages often embed JSON in window.__APOLLO_STATE__ or ld+json
+      const ld = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)].map(x=>x[1]);
+      for (const s of ld){
+        try{
+          const j = JSON.parse(s);
+          const items = j.itemListElement || j["@graph"] || [];
+          for (const it of items){
+            const u = it?.url || it?.item?.url;
+            const n = it?.name || it?.item?.name;
+            if (u && !out.length){
+              // keep adding
+            }
+            if (u){
+              out.push({ site:"Hepsiburada", title:(n||"Ürün"), url: u.startsWith("http")?u:new URL(u,"https://www.hepsiburada.com").toString(), price:null, priceText:"", img:"" });
+              if (out.length>=24) break;
+            }
+          }
+        }catch(e){}
+        if (out.length) break;
+      }
+      if (!out.length){
+        const blob = html;
+        const urlRe = /href="(\/[^"\s]*?\/p-\d+[^"\s]*)"/g;
+        let m; while((m=urlRe.exec(blob)) && out.length<24){
+          out.push({ site:"Hepsiburada", title:"Ürün", url:new URL(m[1],"https://www.hepsiburada.com").toString(), price:null, priceText:"", img:"" });
+        }
+      }
+    }catch(e){}
+  }
+return out;
 }
 
 async function searchAllSites(queryText){
@@ -592,8 +649,9 @@ function wireUI(){
   });
 
   $("btnLogin")?.addEventListener("click", async ()=>{
-    const email = $("authEmail").value.trim();
-    const pass = $("authPass").value;
+    const email = ($("email")?.value || "").trim();
+    const pass = $("pass")?.value || "";
+    if (!email || !pass){ toast("E-posta ve şifre gir."); return; }
     try{
       await signInWithEmailAndPassword(auth, email, pass);
       toast("Giriş başarılı ✅");
@@ -604,8 +662,9 @@ function wireUI(){
   });
 
   $("btnRegister")?.addEventListener("click", async ()=>{
-    const email = $("authEmail").value.trim();
-    const pass = $("authPass").value;
+    const email = ($("email")?.value || "").trim();
+    const pass = $("pass")?.value || "";
+    if (!email || !pass){ toast("E-posta ve şifre gir."); return; }
     try{
       await createUserWithEmailAndPassword(auth, email, pass);
       toast("Kayıt başarılı ✅");
