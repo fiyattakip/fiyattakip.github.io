@@ -53,16 +53,6 @@ function hashId(str){
 }
 
 
-
-function favDocIdFor({ siteId, url, query, title }){
-  const keySrc = `${siteId}|${(url || "").trim()}|${(query || title || "").trim()}`;
-  return hashId(keySrc);
-}
-
-function hasFavoriteId(favId){
-  return !!favCache.find(x => x.id === favId);
-}
-
 function openUrl(url){
   window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -105,13 +95,13 @@ const SITES = [
 function renderSiteList(targetEl, queryText, extra = {}){
   const html = SITES.map(s => {
     const hint = extra?.hintMap?.[s.id] || queryText;
+    const q = (hint || "").trim();
+    const url = s.build(q);
+    const favId = hashId(`${s.id}|${(url||"").trim()}|${q}`);
+    const isFav = !!favCache.find(x=>x.id===favId);
+    const favText = isFav ? "Favoride" : "Favoriye ekle";
     const comment = extra?.commentMap?.[s.id] || "";
     const btnLabel = extra?.btnLabel || "Ara";
-
-    const q = (hint || queryText || "").trim();
-    const url = s.build(q);
-    const favId = favDocIdFor({ siteId: s.id, url, query: q, title: q });
-    const isOn = !!currentUser && hasFavoriteId(favId);
 
     return `
       <div class="item">
@@ -122,9 +112,9 @@ function renderSiteList(targetEl, queryText, extra = {}){
         </div>
         <div class="itemRight">
           <button class="btnOpen" data-open="${esc(s.id)}">${esc(btnLabel)}</button>
-          <button class="btnFav ${isOn ? "on" : ""}" data-favsite="${esc(s.id)}" data-favid="${esc(favId)}" title="Favori">
-            <svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg>
-            ${isOn ? "Favoride" : "Favoriye ekle"}
+          <button class="btnFav ${isFav ? "on" : ""}" data-fav="${esc(s.id)}" data-favid="${esc(favId)}" title="${esc(favText)}">
+            <svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-8-4.5-10.5-9A6.6 6.6 0 0 1 12 5.1 6.6 6.6 0 0 1 22.5 12c-2.5 4.5-10.5 9-10.5 9Z"/></svg>
+            <span class="favLabel">${esc(favText)}</span>
           </button>
         </div>
       </div>
@@ -143,24 +133,24 @@ function renderSiteList(targetEl, queryText, extra = {}){
     });
   });
 
-  targetEl.querySelectorAll("[data-favid]").forEach(btn=>{
+  targetEl.querySelectorAll("[data-fav]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       if (!currentUser) return toast("Giriş gerekli.");
 
-      const siteId = btn.getAttribute("data-favsite");
-      const favId = btn.getAttribute("data-favid");
+      const siteId = btn.getAttribute("data-fav");
       const site = SITES.find(x=>x.id===siteId);
-
-      // aynı q/url üretimi
       const q = (extra?.hintMap?.[siteId] || queryText || "").trim();
       const url = site.build(q);
+      const favId = btn.getAttribute("data-favid") || hashId(`${site.id}|${(url||"").trim()}|${q}`);
+      const isFav = !!favCache.find(x=>x.id===favId);
 
       try{
-        if (hasFavoriteId(favId)){
+        if (isFav){
           await removeFavorite(favId);
-          // UI güncelle
           btn.classList.remove("on");
-          btn.innerHTML = `<svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg> Favoriye ekle`;
+          btn.title = "Favoriye ekle";
+          const lab = btn.querySelector(".favLabel");
+          if (lab) lab.textContent = "Favoriye ekle";
           toast("Favoriden kaldırıldı.");
         }else{
           await addFavorite({
@@ -171,8 +161,9 @@ function renderSiteList(targetEl, queryText, extra = {}){
             url,
           });
           btn.classList.add("on");
-          btn.innerHTML = `<svg class="miniIco" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C.5 7.8 3.2 5 6.6 5c1.7 0 3.2.8 4.1 2 1-1.2 2.4-2 4.1-2 3.4 0 6.1 2.8 4.1 7-2.5 4.4-9 9-9 9Z"/></svg> Favoride`;
-          toast("Favoriye eklendi.");
+          btn.title = "Favoride";
+          const lab = btn.querySelector(".favLabel");
+          if (lab) lab.textContent = "Favoride";
         }
       }catch(e){
         toast(e?.message || String(e));
@@ -220,9 +211,20 @@ let unsubFav = null;
 function openLogin(){
   $("loginErr").style.display = "none";
   $("loginModal").style.display = "";
+  document.body.classList.add("modalOpen");
+  const appEl = $("app");
+  if (appEl) appEl.style.display = "none";
 }
 function closeLogin(){
+  // giriş yoksa kapatma
+  if (!auth.currentUser){
+    toast("Giriş yapmadan kullanamazsın.");
+    $("loginModal").style.display = "";
+    document.body.classList.add("modalOpen");
+    return;
+  }
   $("loginModal").style.display = "none";
+  document.body.classList.remove("modalOpen");
 }
 
 $("closeLogin").addEventListener("click", closeLogin);
@@ -511,6 +513,7 @@ async function addFavorite({ title, siteId, siteName, query, url }){
 }
 
 async function removeFavorite(docId){
+  if (!currentUser) return;
   await deleteDoc(doc(db, "users", currentUser.uid, "favorites", docId));
 }
 
@@ -731,7 +734,11 @@ $("btnClearCache").addEventListener("click", clearAllCaches);
 onAuthStateChanged(auth, async (u)=>{
   currentUser = u || null;
 
+  // flicker önleme: auth sonucu gelene kadar login'i kapalı tut
+  $("loginModal").style.display = "none";
+
   if (!u){
+    $("app").style.display = "none";
     $("logoutBtn").style.display = "none";
     openLogin();
     if (unsubFav){ unsubFav(); unsubFav = null; }
@@ -740,6 +747,7 @@ onAuthStateChanged(auth, async (u)=>{
     return;
   }
 
+  $("app").style.display = "";
   closeLogin();
   $("logoutBtn").style.display = "";
 
