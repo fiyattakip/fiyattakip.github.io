@@ -721,3 +721,135 @@ window.addEventListener("DOMContentLoaded", ()=>{
 
 // Fix: remove broken references if present
 try{ $("tabVisual")?.remove(); }catch{}
+
+
+
+/* ====== NORMAL SEARCH IMPLEMENTATION (Trendyol) ======
+   Not: Statik/PWA projede CORS engeli olabileceği için önce direkt fetch dener,
+   olmazsa Jina Reader proxy üzerinden alıp JSON'u ayıklar.
+*/
+async function fetchTextSmart(url){
+  // 1) direct
+  try{
+    const r = await fetch(url, { credentials:"omit" });
+    if (r.ok){
+      return await r.text();
+    }
+  }catch(e){}
+  // 2) jina proxy
+  const prox = "https://r.jina.ai/" + url;
+  const r2 = await fetch(prox, { credentials:"omit" });
+  if (!r2.ok) throw new Error("Fetch failed: " + r2.status);
+  return await r2.text();
+}
+async function fetchJsonSmart(url){
+  const txt = await fetchTextSmart(url);
+  const i = txt.indexOf("{");
+  const j = txt.lastIndexOf("}");
+  if (i === -1 || j === -1 || j <= i) throw new Error("JSON parse: gövde bulunamadı");
+  const jsonStr = txt.slice(i, j+1);
+  return JSON.parse(jsonStr);
+}
+
+function normPriceTry(p){
+  if (p == null) return null;
+  if (typeof p === "number") return p;
+  if (typeof p === "string"){
+    const cleaned = p.replace(/[^0-9.,]/g,"").replace(/\./g,"").replace(",",".");
+    const v = Number(cleaned);
+    return isFinite(v) ? v : null;
+  }
+  if (typeof p === "object"){
+    const cand = p.sellingPrice ?? p.discountedPrice ?? p.originalPrice ?? p.price ?? null;
+    return normPriceTry(cand);
+  }
+  return null;
+}
+
+function pickProducts(data){
+  // try common shapes
+  const res = data?.result ?? data?.data?.result ?? data;
+  const list = res?.products ?? res?.productCards ?? res?.productList ?? res?.items ?? [];
+  return Array.isArray(list) ? list : [];
+}
+
+function toTrendyolUrl(u){
+  if (!u) return "";
+  const s = String(u);
+  if (s.startsWith("http")) return s;
+  if (s.startsWith("//")) return "https:" + s;
+  if (s.startsWith("/")) return "https://www.trendyol.com" + s;
+  return "https://www.trendyol.com/" + s.replace(/^\/+/, "");
+}
+
+function renderSearchResults(root, items){
+  if (!root) return;
+  if (!items.length){
+    root.innerHTML = '<div class="cardBox">Sonuç bulunamadı.</div>';
+    return;
+  }
+  root.innerHTML = "";
+  for (const it of items){
+    const title = safeText(it?.name || it?.title || it?.productName || "Ürün", 140);
+    const url = toTrendyolUrl(it?.url || it?.link || it?.productUrl || it?.webUrl);
+    const img = it?.imageUrl || it?.image || it?.images?.[0] || it?.imageUrls?.[0] || "";
+    const price = normPriceTry(it?.price);
+    const merchant = it?.merchantName || it?.storeName || it?.boutiqueName || "Trendyol";
+    const priceText = (price!=null) ? (price.toLocaleString("tr-TR")+" TL") : "—";
+
+    const card = document.createElement("div");
+    card.className = "resultCard";
+    card.innerHTML = `
+      <div class="rLeft">
+        <div class="rImg" style="${img ? `background-image:url('${img.replace(/'/g,"%27")}')` : ""}"></div>
+      </div>
+      <div class="rMid">
+        <div class="rTitle">${title}</div>
+        <div class="rMeta">
+          <span class="rPrice">${priceText}</span>
+          <span class="rShop">${safeText(merchant, 40)}</span>
+        </div>
+      </div>
+      <div class="rRight">
+        <button class="iconBtn rFav" type="button" aria-label="Favori">♡</button>
+      </div>
+    `;
+    // open product
+    card.querySelector(".rImg")?.addEventListener("click", ()=> url && window.open(url, "_blank"));
+    card.querySelector(".rTitle")?.addEventListener("click", ()=> url && window.open(url, "_blank"));
+
+    // favorite
+    card.querySelector(".rFav")?.addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      try{
+        await addFavorite({ title, url, source:"trendyol" });
+        toast("Favorilere eklendi");
+      }catch(err){
+        toast(err?.message || "Favori eklenemedi");
+      }
+    });
+
+    root.appendChild(card);
+  }
+}
+
+// Exported hook expected by UI
+window.doNormalSearch = async function(query){
+  const root = $("normalList");
+  if (root) root.innerHTML = '<div class="cardBox">Aranıyor…</div>';
+  const q = String(query||"").trim();
+  localStorage.setItem(LS_LAST_QUERY, q);
+
+  // Trendyol search API (infinite scroll)
+  const url = "https://public.trendyol.com/discovery-web-searchgw-service/v2/api/infinite-scroll/sr"
+            + "?q=" + encodeURIComponent(q)
+            + "&pi=1&os=1&culture=tr-TR&userGenderId=1";
+  try{
+    const data = await fetchJsonSmart(url);
+    const items = pickProducts(data);
+    renderSearchResults(root, items.slice(0, 30));
+  }catch(e){
+    if (root) root.innerHTML = '<div class="cardBox">Arama alınamadı. (CORS/engel olabilir) <div style="opacity:.75;margin-top:6px;font-size:12px">'+safeText(String(e?.message||e), 120)+'</div></div>';
+  }
+};
+window.renderSiteList = (root, query)=> window.doNormalSearch(query);
