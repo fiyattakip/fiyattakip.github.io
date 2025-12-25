@@ -173,15 +173,7 @@ body{
   background:rgba(241,245,255,.75);
   font-weight:800;
   color:#1f2a62;
-
-  /* 👇 YARIM KALMASIN FIX */
-  max-height: 220px;        /* mobilde taşmasın */
-  overflow-y: auto;         /* uzun metinlerde scroll */
-  white-space: pre-wrap;    /* satır kır + \n koru */
-  word-break: break-word;   /* uzun kelimeleri böl */
-  line-height: 1.45;
 }
-
 .aiBubble small{display:block;color:var(--muted);font-weight:700;margin-top:6px}
 
 /* Favorites */
@@ -309,31 +301,41 @@ body{
   .hero h1{font-size:40px}
   .btnPrimary{min-width:86px}
 }
-/* --- Pill buttons contrast fix --- */
-.pill{
-  background: rgba(255,255,255,.92) !important;
-  border: 1px solid rgba(15,23,42,.14) !important;
-  color: #0f172a !important;
-}
-.pill:hover{ filter: brightness(.98); }
-.pill:active{ transform: translateY(1px); }
 
-.pill.danger{
-  background: rgba(255,107,139,.18) !important;
-  border-color: rgba(138,21,56,.20) !important;
-  color: #7a0d31 !important;
+/* ==== Normal/AI arama modu toggle (UI) ==== */
+.modeToggle{
+  display:flex;
+  gap:8px;
+  padding:8px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  margin-top:10px;
 }
-/* Modal açıkken arka plan scroll kilidi */
-body.modalOpen {
-  overflow: hidden;
-  height: 100vh;
-  touch-action: none;
+
+.modeBtn{
+  flex:1;
+  border:0;
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:900;
+  background: transparent;
+  color: rgba(15,23,42,.72);
+  transition: transform .12s ease, background .12s ease, color .12s ease;
 }
-/* AI yorumu taşma / devamı görünmüyor fix */
-.aiBubble{
-  max-height: 180px;
-  overflow-y: auto;
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.45;
+
+.modeBtn.active{
+  background: linear-gradient(180deg, rgba(124,92,255,1), rgba(72,56,220,1));
+  color:#fff;
+  box-shadow: 0 10px 22px rgba(124,92,255,.25);
+}
+
+.modeBtn:active{ transform: scale(.98); }
+
+.modeHint{
+  margin-top:8px;
+  font-size:12px;
+  color: rgba(15,23,42,.65);
 }
