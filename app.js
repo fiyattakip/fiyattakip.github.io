@@ -254,6 +254,18 @@ function openLogin(){
 function closeLogin(){
   $("loginModal").style.display = "none";
 }
+// --- Fallback: Auth event gecikirse boş sayfada kalma (özellikle cache/slow network) ---
+const FALLBACK_LOGIN_TIMER = setTimeout(()=>{
+  try{
+    if (!currentUser){
+      // app gizliyse login göster
+      const appEl = document.getElementById("app");
+      if (appEl) appEl.style.display = "none";
+      if (typeof openLogin === "function") openLogin();
+    }
+  }catch(_){}
+}, 1200);
+
 
 $("closeLogin").addEventListener("click", closeLogin);
 
@@ -838,6 +850,7 @@ document.addEventListener("click", (e)=>{
 
 /* ---------- Auth state ---------- */
 onAuthStateChanged(auth, async (u)=>{
+  try{ clearTimeout(FALLBACK_LOGIN_TIMER); }catch(_){ }
   currentUser = u || null;
 
   if (!u){
