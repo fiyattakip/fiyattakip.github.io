@@ -590,3 +590,10 @@ function closeAIModal(){
   m.classList.remove("show");
   m.setAttribute("aria-hidden","true");
 }
+function goTab(tab) {
+  // hepsini gizle
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+
+  const page = document.getElementById(tab + '-page');
+  if (page) page.style.display = 'block';
+}
