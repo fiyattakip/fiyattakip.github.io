@@ -24,6 +24,28 @@ function toast(msg){
   clearTimeout(toast._t);
   toast._t = setTimeout(()=>t.classList.add("hidden"), 2200);
 }
+// ---- Favori UI Sync ----
+function isFavCached(siteKey, query, url){
+  if (!Array.isArray(window.__favCache)) return false;
+  return window.__favCache.some(f=>{
+    if (url && f.url === url) return true;
+    if (siteKey && query && f.siteKey === siteKey && String(f.query||"") === String(query||"")) return true;
+    return false;
+  });
+}
+
+function applyFavUI(){
+  document.querySelectorAll('[data-fav-btn="1"]').forEach(btn=>{
+    const siteKey = btn.getAttribute("data-site-key") || "";
+    const query = btn.getAttribute("data-query") || "";
+    const url = btn.getAttribute("data-url") || "";
+    const fav = isFavCached(siteKey, query, url);
+    btn.classList.toggle("isFav", fav);
+    btn.textContent = fav ? "❤️" : "🤍";
+    btn.title = fav ? "Favoride" : "Favoriye ekle";
+  });
+}
+
 
 // ---------- Pages / Tabs ----------
 function showPage(key){
