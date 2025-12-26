@@ -7,7 +7,31 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
 </head>
+<nav class="bottom-nav">
+  <button onclick="goTab('home')" id="tab-home">
+    <img src="home.png" />
+    <span>Ana</span>
+  </button>
 
+  <button onclick="goTab('chart')" id="tab-chart">
+    <img src="chart.png" />
+    <span>Grafik</span>
+  </button>
+
+  <button class="camera-btn" onclick="goTab('camera')">
+    <img src="camera.png" />
+  </button>
+
+  <button onclick="goTab('fav')" id="tab-fav">
+    <img src="favorite.png" />
+    <span>Fav</span>
+  </button>
+
+  <button onclick="goTab('settings')" id="tab-settings">
+    <img src="settings.png" />
+    <span>Ayar</span>
+  </button>
+</nav>
 <body>
   <!-- LOGIN MODAL: APP DIŞINDA (boş ekranda kalmasın diye) -->
   <div id="loginModal" class="modalWrap" aria-hidden="true">
