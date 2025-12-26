@@ -19,6 +19,8 @@ function normalizeUrl(raw){
 // Tema/HTML bozulmaz.
 
 import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
+import { generateFavoriteAIComment, loadCachedFavComment, saveCachedFavComment } from "./ai.js";
+
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -236,10 +238,14 @@ function renderFavoritesPage(uid){
         </div>
         <div class="actions">
           <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}" data-copy-url="${it.url||""}">Aç</button>
+          <button class="btnGhost sm btnAI" type="button" data-ai-url="${it.url||""}">🤖</button>
           <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
         </div>
       </div>
-      
+      <div class="aiBox hidden">
+        <div class="aiHdr">AI Yorum</div>
+        <div class="aiTxt"></div>
+      </div>
     `;
     card.querySelector("[data-open-url]")?.addEventListener("click", ()=>{
       if (it.url) window.open(it.url, "_blank", "noopener");
@@ -247,6 +253,37 @@ function renderFavoritesPage(uid){
     card.querySelector("[data-fav-url]")?.addEventListener("click", async ()=>{
       await toggleFavorite(uid, { url: it.url, siteKey: it.siteKey||"", siteName: it.siteName||"", query: it.query||"" });
       renderFavoritesPage(uid);
+    });
+
+    // AI comment toggle
+    card.querySelector("[data-ai-url]")?.addEventListener("click", async ()=>{
+      const box = card.querySelector(".aiBox");
+      const txtEl = card.querySelector(".aiTxt");
+      if (!box || !txtEl) return;
+      box.classList.toggle("hidden");
+      if (box.classList.contains("hidden")) return;
+
+      // load cached
+      const cached = loadCachedFavComment(uid, it.url||"");
+      if (cached){
+        txtEl.textContent = cached;
+        return;
+      }
+
+      txtEl.textContent = "Yükleniyor...";
+      try{
+        const text = await generateFavoriteAIComment({
+          uid,
+          siteName: it.siteName||"",
+          query: it.query||"",
+          url: it.url||""
+        });
+        txtEl.textContent = text || "AI yanıtı boş.";
+        saveCachedFavComment(uid, it.url||"", txtEl.textContent);
+      }catch(e){
+        console.error(e);
+        txtEl.textContent = "AI çağrısı başarısız. (Key/CORS/bağlantı)\nAyarlar > AI Ayarları'ndan key kontrol et.";
+      }
     });
     list.appendChild(card);
   }
@@ -278,7 +315,10 @@ function renderSiteList(container, query){
           <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
         </div>
       </div>
-      
+      <div class="aiBox hidden">
+        <div class="aiHdr">AI Yorum</div>
+        <div class="aiTxt"></div>
+      </div>
     `;
     card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
       window.open(url, "_blank", "noopener");
