@@ -376,3 +376,23 @@ body{
   margin:10px 0 6px;
   font-size:13px;
 }
+
+/* --- Login modal mobile centering fix --- */
+.modal{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px 14px;
+}
+.modalCard{
+  margin:0 auto;
+  width:min(420px, 92vw);
+  box-sizing:border-box;
+}
+@media (max-width:480px){
+  .modalCard{
+    width:92vw;
+    max-width:380px;
+    padding:22px 18px 18px;
+  }
+}
