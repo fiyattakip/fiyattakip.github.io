@@ -42,6 +42,17 @@ function ensurePager(afterEl, id){
   return el;
 }
 
+function getPagerEl(id){
+  let el=document.getElementById(id);
+  if(!el){
+    el=document.createElement('div');
+    el.id=id;
+    el.className='pagerHost';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
 function renderPager(container, meta, onChange){
   if (!container) return;
   container.innerHTML = `
