@@ -286,7 +286,7 @@ async function doEmailLogin(isRegister){
     if (code.includes("auth/email-already-in-use")) return toast("Bu e-posta zaten kayıtlı. Giriş yap.");
     if (code.includes("auth/weak-password")) return toast("Şifre çok zayıf (en az 6 karakter).");
     if (code.includes("auth/invalid-email")) return toast("E-posta formatı hatalı.");
-    if (code.includes("auth/operation-not-allowed")) return toast("E-posta/Şifre ile kayıt kapalı. Firebase Console > Authentication > Sign-in method bölümünden Email/Password'u aç.");
+    if (code.includes("auth/operation-not-allowed")) return toast("Email/Şifre ile kayıt kapalı. Firebase Console > Auth > Sign-in method: Email/Password aç.");
     toast("Hata: " + msg.replace(/^Firebase:\s*/,""));
   }finally{
     if (btnL) btnL.disabled = false;

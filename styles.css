@@ -324,3 +324,20 @@ body{
 
 
 .btnCopy{min-width:44px}
+
+/* Toast */
+.toast{
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.78);
+  color: #fff;
+  z-index: 99999;
+  max-width: 92vw;
+  text-align: center;
+  font-size: 14px;
+}
+.hidden{display:none!important}
