@@ -379,6 +379,11 @@ getRedirectResult(auth).catch(()=>{});
 
 // ---------- Wire UI ----------
 function wireUI(){
+  $("btnAiSettings")?.addEventListener("click", openAIModal);
+  $("closeAi")?.addEventListener("click", closeAIModal);
+  $("aiBackdrop")?.addEventListener("click", closeAIModal);
+  $("btnSaveAI")?.addEventListener("click", saveAISettings);
+
   $("btnClearCache")?.addEventListener("click", ()=>clearAppCache());
 
   $("tabLogin")?.addEventListener("click", ()=>setAuthPane("login"));
@@ -524,6 +529,7 @@ function wireUI(){
     const url = b.getAttribute("data-copy-url") || "";
     if (url) await copyToClipboard(url);
   });
+  loadAISettings();
   loadAISettings();
 }
 
