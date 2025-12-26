@@ -19,8 +19,6 @@ function normalizeUrl(raw){
 // Tema/HTML bozulmaz.
 
 import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
-import { generateFavoriteAIComment, loadCachedFavComment, saveCachedFavComment } from "./ai.js";
-
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -238,14 +236,10 @@ function renderFavoritesPage(uid){
         </div>
         <div class="actions">
           <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}" data-copy-url="${it.url||""}">Aç</button>
-          <button class="btnGhost sm btnAI" type="button" data-ai-url="${it.url||""}">🤖</button>
           <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
         </div>
       </div>
-      <div class="aiBox hidden">
-        <div class="aiHdr">AI Yorum</div>
-        <div class="aiTxt"></div>
-      </div>
+      
     `;
     card.querySelector("[data-open-url]")?.addEventListener("click", ()=>{
       if (it.url) window.open(it.url, "_blank", "noopener");
@@ -253,37 +247,6 @@ function renderFavoritesPage(uid){
     card.querySelector("[data-fav-url]")?.addEventListener("click", async ()=>{
       await toggleFavorite(uid, { url: it.url, siteKey: it.siteKey||"", siteName: it.siteName||"", query: it.query||"" });
       renderFavoritesPage(uid);
-    });
-
-    // AI comment toggle
-    card.querySelector("[data-ai-url]")?.addEventListener("click", async ()=>{
-      const box = card.querySelector(".aiBox");
-      const txtEl = card.querySelector(".aiTxt");
-      if (!box || !txtEl) return;
-      box.classList.toggle("hidden");
-      if (box.classList.contains("hidden")) return;
-
-      // load cached
-      const cached = loadCachedFavComment(uid, it.url||"");
-      if (cached){
-        txtEl.textContent = cached;
-        return;
-      }
-
-      txtEl.textContent = "Yükleniyor...";
-      try{
-        const text = await generateFavoriteAIComment({
-          uid,
-          siteName: it.siteName||"",
-          query: it.query||"",
-          url: it.url||""
-        });
-        txtEl.textContent = text || "AI yanıtı boş.";
-        saveCachedFavComment(uid, it.url||"", txtEl.textContent);
-      }catch(e){
-        console.error(e);
-        txtEl.textContent = "AI çağrısı başarısız. (Key/CORS/bağlantı)\nAyarlar > AI Ayarları'ndan key kontrol et.";
-      }
     });
     list.appendChild(card);
   }
@@ -315,10 +278,7 @@ function renderSiteList(container, query){
           <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
         </div>
       </div>
-      <div class="aiBox hidden">
-        <div class="aiHdr">AI Yorum</div>
-        <div class="aiTxt"></div>
-      </div>
+      
     `;
     card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
       window.open(url, "_blank", "noopener");
@@ -569,6 +529,30 @@ function wireUI(){
     const url = b.getAttribute("data-copy-url") || "";
     if (url) await copyToClipboard(url);
   });
+  // Favorite AI comment
+  document.addEventListener("click", async (e)=>{
+    const b = e.target?.closest?.(".btnAiFav");
+    if(!b) return;
+    e.preventDefault();
+    const card = b.closest(".cardItem") || b.closest(".favItem") || b.closest(".card");
+    const key = b.getAttribute("data-ai-fav") || "";
+    const box = document.querySelector(`.favAiBox[data-ai-box="${CSS.escape(key)}"]`);
+    if(!box) return;
+    box.classList.remove("hidden");
+    box.innerHTML = '<div class="mini muted">AI yorum hazırlanıyor...</div>';
+    try{
+      // best effort: extract item info from DOM
+      const title = card?.querySelector(".t")?.textContent?.trim() || card?.querySelector(".title")?.textContent?.trim() || "";
+      const site = card?.querySelector(".sub")?.textContent?.trim() || card?.querySelector(".site")?.textContent?.trim() || "";
+      const item = {title, site, url: ""};
+      const txt = await getFavoriteAIComment(item);
+      box.textContent = txt;
+    }catch(err){
+      console.error(err);
+      box.textContent = "AI yorum alınamadı. (Proxy yoksa Kurallı yorum devrede olmalı.)";
+    }
+  });
+
 }
 
 // ---------- Auth visibility ----------
@@ -606,21 +590,17 @@ function loadAISettings(){
     $("aiEnabled") && ($("aiEnabled").value = s.enabled || "on");
     $("aiProvider") && ($("aiProvider").value = s.provider || "gemini");
     $("aiApiKey") && ($("aiApiKey").value = s.key || "");
-    const legacy = (localStorage.getItem("aiProxyUrl")||"").trim();
-    $("aiProxyUrl") && ($("aiProxyUrl").value = (s.proxy || legacy || ""));
-  }catch(e){}
+      $("aiProxyUrl") && ($("aiProxyUrl").value = s.proxy || "");
 }catch(e){}
 }
 function saveAISettings(){
   const s={
     enabled: $("aiEnabled")?.value || "on",
     provider: $("aiProvider")?.value || "gemini",
-    key: $("aiApiKey")?.value || "",
-    proxy: $("aiProxyUrl")?.value || ""
-  };
+    key: $("aiApiKey")?.value || ""
+  ,
+    proxy: $("aiProxyUrl")?.value || ""};
   localStorage.setItem("aiSettings", JSON.stringify(s));
-  // legacy key (older builds)
-  try{ localStorage.setItem("aiProxyUrl", s.proxy || ""); }catch(e){}
   toast("AI ayarları kaydedildi");
 }
 function openAIModal(){

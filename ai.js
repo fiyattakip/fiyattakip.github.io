@@ -1,3 +1,48 @@
+
+function getAISettings(){
+  try{ return JSON.parse(localStorage.getItem("aiSettings")||"{}"); }catch(e){ return {}; }
+}
+function rulesComment(item){
+  const title = (item?.title||item?.name||"").toString().slice(0,120);
+  const site = (item?.site||"").toString();
+  const price = item?.price || item?.lastPrice || item?.manualPrice || "";
+  const parts=[];
+  if(title) parts.push(`Ürün: ${title}`);
+  if(site) parts.push(`Site: ${site}`);
+  if(price) parts.push(`Fiyat: ${price}`);
+  parts.push("Kısa yorum:");
+  parts.push("• Kullanım amacına göre (ders/oyun/iş) uygunluğunu kontrol et.");
+  parts.push("• Öne çıkan özellik: (RAM/dep./ekran/garanti) ilan açıklamasından doğrula.");
+  parts.push("• Benzer ürünlerle kıyas: daha iyi/benzer fiyat-performans olabilir.");
+  return parts.join("\n");
+}
+async function callAIProxy(prompt){
+  const s=getAISettings();
+  const proxy=(s.proxy||"").trim();
+  if(!proxy) throw new Error("no-proxy");
+  const provider=(s.provider||"gemini");
+  const key=(s.key||"");
+  const r=await fetch(proxy,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider,key,prompt})});
+  if(!r.ok) throw new Error("proxy-http-"+r.status);
+  const j=await r.json();
+  return (j && (j.text||j.result||j.output)) ? String(j.text||j.result||j.output) : "";
+}
+async function getFavoriteAIComment(item){
+  const s=getAISettings();
+  if((s.enabled||"on")==="off") return "AI kapalı (Ayarlar > AI Ayarları).";
+  // Try proxy if provided, otherwise rules
+  const prompt = `Aşağıdaki ürünü uydurma yapmadan kısa değerlendir. Fiyat yoksa özellik odaklı yaz.\n\nÜrün adı: ${item?.title||item?.name||""}\nSite: ${item?.site||""}\nLink: ${item?.url||""}\nFiyat: ${item?.price||item?.lastPrice||item?.manualPrice||""}`;
+  try{
+    const s2=getAISettings();
+    if((s2.provider||"")!=="rules" && (s2.proxy||"").trim()){
+      const t=await callAIProxy(prompt);
+      if(t) return t;
+    }
+  }catch(e){}
+  return rulesComment(item);
+}
+
+
 const LS_CFG = "fiyattakip_ai_cfg_v4";
 let sessionPin = null;
 
@@ -145,140 +190,4 @@ export async function geminiVision({ prompt, mime, base64Data }){
   const text = j?.candidates?.[0]?.content?.parts?.map(p=>p.text).join("")?.trim();
   if (!text) throw new Error("Görselden metin çıkarılamadı.");
   return text;
-}
-
-// === AI SETTINGS + COMMENT (STEP 5C) ===
-export function getAISettings(){
-  try{
-    return JSON.parse(localStorage.getItem("aiSettings")||"{}") || {};
-  }catch(e){
-    return {};
-  }
-}
-
-function keyForFav(uid, url){
-  const u = String(uid||"");
-  const x = String(url||"");
-  // deterministic short key
-  return "aiComment:" + btoa(unescape(encodeURIComponent(u+"|"+x))).slice(0,80);
-}
-
-export function loadCachedFavComment(uid, url){
-  try{
-    return localStorage.getItem(keyForFav(uid,url)) || "";
-  }catch(e){ return ""; }
-}
-
-export function saveCachedFavComment(uid, url, text){
-  try{
-    localStorage.setItem(keyForFav(uid,url), String(text||""));
-  }catch(e){}
-}
-
-async function callGemini({apiKey, prompt}){
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const body = {
-    contents: [{ role:"user", parts:[{text: prompt}]}],
-    generationConfig: { temperature: 0.6, maxOutputTokens: 450 }
-  };
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type":"application/json" },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok){
-    const t = await res.text().catch(()=> "");
-    throw new Error(`Gemini hata: ${res.status} ${t}`);
-  }
-  const data = await res.json();
-  const txt = data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join("") || "";
-  return txt.trim();
-}
-
-async function callOpenAI({apiKey, prompt}){
-  const endpoint = "https://api.openai.com/v1/chat/completions";
-  const body = {
-    model: "gpt-4o-mini",
-    messages: [
-      { role:"system", content: "You are a product comparison assistant. Do not claim a product is unreleased/unavailable. If details are missing, ask to check the listing and focus on comparison criteria."},
-      { role:"user", content: prompt }
-    ],
-    temperature: 0.6,
-    max_tokens: 500
-  };
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type":"application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok){
-    const t = await res.text().catch(()=> "");
-    throw new Error(`OpenAI hata: ${res.status} ${t}`);
-  }
-  const data = await res.json();
-  const txt = data?.choices?.[0]?.message?.content || "";
-  return String(txt).trim();
-}
-
-export async function generateFavoriteAIComment({uid, siteName, query, url}){
-  const s = getAISettings();
-  const enabled = (s.enabled || "on") !== "off";
-  const provider = s.provider || "gemini";
-  const apiKey = s.key || "";
-  if (!enabled) return "AI kapalı. Ayarlardan açabilirsin.";
-  if (!apiKey) return "API Key yok. Ayarlar > AI Ayarları kısmından key gir.";
-  const q = String(query||"").trim();
-  const shop = String(siteName||"").trim();
-  const link = String(url||"").trim();
-
-  const prompt = `Aşağıdaki ürün araması/favorisi için kısa, pratik bir değerlendirme yaz.
-- Site: ${shop || "Bilinmiyor"}
-- Arama: ${q || "Bilinmiyor"}
-- Link: ${link || "-"}
-
-Kurallar:
-- "piyasada yok/çıkmadı" gibi iddia etme.
-- Ürün detayları bilinmiyorsa bunu açıkça söyle ve linkte bakılması gereken kritik özellikleri listele.
-- 6-10 madde halinde: hangi özelliklere bakmalı + kimler için uygun + alternatif/uyarı.
-- Fiyat bilgisi yoksa fiyatla konuşma.`;
-
-  // Proxy (CORS için önerilir)
-  const proxyUrl = String(s.proxy || (localStorage.getItem("aiProxyUrl")||"") || "").trim();
-  if (proxyUrl){
-    return await callAIProxy({provider, key: apiKey, proxyUrl, prompt, meta:{kind:"fav_comment"}});
-  }
-,
-      body: JSON.stringify({ provider, apiKey, prompt })
-    });
-    if (!res.ok){
-      const t = await res.text().catch(()=> "");
-      throw new Error(`Proxy hata: ${res.status} ${t}`);
-    }
-    const data = await res.json().catch(()=> ({}));
-    const txt = data?.text || data?.result || "";
-    return String(txt||"").trim() || "AI yanıtı boş döndü.";
-  }
-
-  if (provider === "openai") return await callOpenAI({apiKey, prompt});
-  return await callGemini({apiKey, prompt});
-}
-
-async function callAIProxy({provider, key, proxyUrl, prompt, meta}){
-  const url = (proxyUrl||"").trim();
-  if(!url) throw new Error("Proxy URL yok");
-  const r = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({provider, key, prompt, meta})
-  });
-  if(!r.ok){
-    const t = await r.text().catch(()=> "");
-    throw new Error("Proxy hata: " + r.status + " " + t);
-  }
-  const j = await r.json();
-  if(!j || !j.text) throw new Error("Proxy cevap boş");
-  return String(j.text);
 }

@@ -237,6 +237,7 @@
           <select id="aiProvider" class="input inputDark">
             <option value="gemini">Gemini</option>
             <option value="openai">OpenAI</option>
+            <option value="rules">Kurallı (Offline)</option>
           </select>
         </div>
 
@@ -246,9 +247,9 @@
         </div>
 
         <div class="row">
-          <label class="lbl">Proxy URL (önerilen)</label>
+          <label class="lbl">Proxy URL (opsiyonel)</label>
           <input id="aiProxyUrl" class="input inputDark" type="text" placeholder="https://xxxx.workers.dev" />
-          <div class="mini muted">Not: Tarayıcıda AI çağrıları CORS yüzünden genelde proxy olmadan çalışmaz.</div>
+          <div class="mini muted">Tarayıcıda CORS olursa, proxy ile çözülür. Proxy yoksa Kurallı AI devreye girer.</div>
         </div>
 
         <div class="row">
