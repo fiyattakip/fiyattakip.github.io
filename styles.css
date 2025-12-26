@@ -260,7 +260,7 @@ body{
 
 /* ========= MODAL / CLICK FREEZE FIX ========= */
 .modalWrap{ position: fixed; inset:0; display:none; z-index: 200000; pointer-events: none; }
-.modalWrap.show{ display:flex; pointer-events: auto; }
+.modalWrap.show{ display:flex; pointer-events: auto; align-items:center; justify-content:center; }
 
 .modalBack{
   position:absolute; inset:0;
@@ -269,8 +269,8 @@ body{
 
 .modalCard{
   position: relative;
-  margin: auto 16px;
-  width: calc(100% - 32px);
+  margin: auto;
+  width: min(460px, calc(100% - 32px));
   max-width: 460px;
   border-radius: 26px;
   border: 1px solid rgba(255,255,255,.14);
@@ -375,24 +375,4 @@ body{
 .lbl{
   margin:10px 0 6px;
   font-size:13px;
-}
-
-/* --- Login modal mobile centering fix --- */
-.modal{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:18px 14px;
-}
-.modalCard{
-  margin:0 auto;
-  width:min(420px, 92vw);
-  box-sizing:border-box;
-}
-@media (max-width:480px){
-  .modalCard{
-    width:92vw;
-    max-width:380px;
-    padding:22px 18px 18px;
-  }
 }
