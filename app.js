@@ -606,14 +606,16 @@ function loadAISettings(){
     $("aiEnabled") && ($("aiEnabled").value = s.enabled || "on");
     $("aiProvider") && ($("aiProvider").value = s.provider || "gemini");
     $("aiApiKey") && ($("aiApiKey").value = s.key || "");
-  }catch(e){}
+      $("aiProxyUrl") && ($("aiProxyUrl").value = s.proxy || "");
+}catch(e){}
 }
 function saveAISettings(){
   const s={
     enabled: $("aiEnabled")?.value || "on",
     provider: $("aiProvider")?.value || "gemini",
     key: $("aiApiKey")?.value || ""
-  };
+  ,
+    proxy: $("aiProxyUrl")?.value || ""};
   localStorage.setItem("aiSettings", JSON.stringify(s));
   toast("AI ayarları kaydedildi");
 }

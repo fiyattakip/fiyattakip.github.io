@@ -265,3 +265,20 @@ Kurallar:
   if (provider === "openai") return await callOpenAI({apiKey, prompt});
   return await callGemini({apiKey, prompt});
 }
+
+async function callAIProxy({provider, key, proxyUrl, prompt, meta}){
+  const url = (proxyUrl||"").trim();
+  if(!url) throw new Error("Proxy URL yok");
+  const r = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({provider, key, prompt, meta})
+  });
+  if(!r.ok){
+    const t = await r.text().catch(()=> "");
+    throw new Error("Proxy hata: " + r.status + " " + t);
+  }
+  const j = await r.json();
+  if(!j || !j.text) throw new Error("Proxy cevap boş");
+  return String(j.text);
+}
