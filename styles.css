@@ -1,7 +1,17 @@
 
-/* === Bottom navigation overlap fix === */
+/* === Bottom nav shrink & lift === */
+.bottom-nav {
+  height: 64px !important;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 .main-content,
 #results,
 #favorites {
-  padding-bottom: 160px;
+  padding-bottom: 120px !important;
+}
+
+/* slightly raise cards container */
+#results, #favorites {
+  transform: translateY(-8px);
 }
