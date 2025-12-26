@@ -1,3 +1,19 @@
+
+function normalizeUrl(raw){
+  try{
+    const u = new URL(raw);
+    // strip tracking params
+    const drop = new Set(["utm_source","utm_medium","utm_campaign","utm_term","utm_content","gclid","fbclid","yclid","mc_eid","ref","referrer","source","spm"]);
+    [...u.searchParams.keys()].forEach(k=>{ if(drop.has(k)) u.searchParams.delete(k); });
+    u.hash = "";
+    // normalize protocol+host+pathname (remove trailing slash)
+    let path = u.pathname.replace(/\/$/,"");
+    return (u.origin + path + (u.searchParams.toString()?("?"+u.searchParams.toString()):"")).toLowerCase();
+  }catch{
+    return String(raw||"").trim().toLowerCase();
+  }
+}
+
 // app.js (theme preserved) — Link-only normal search + Firebase auth (email + Google)
 // Normal arama: e-ticaret sitelerinden ÜRÜN ÇEKMEZ; sadece arama LİNKİ üretir (stabil).
 // Tema/HTML bozulmaz.
