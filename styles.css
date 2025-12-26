@@ -318,23 +318,33 @@ body{
 .row2{ display:flex; gap:10px; margin-top: 10px; }
 
 
-/* --- PNG icons for bottom tabbar --- */
-.ico img{
-  width: 18px;
-  height: 18px;
-  display: block;
-  object-fit: contain;
-  filter: drop-shadow(0 0 6px rgba(124,92,255,.22));
-  opacity: .92;
+/* --- Icon tabbar (PNG) overrides --- */
+.tabbar .tab .ico{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  line-height:0;
 }
-.tab.active .ico img{
-  opacity: 1;
-  filter: drop-shadow(0 0 10px rgba(124,92,255,.45));
+.tabbar .tabIcon{
+  width:22px;
+  height:22px;
+  object-fit:contain;
+  opacity:.9;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.25));
 }
-.fabIco img{
-  width: 22px;
-  height: 22px;
-  display: block;
-  object-fit: contain;
-  filter: drop-shadow(0 0 10px rgba(124,92,255,.5));
+.tabbar .tab.active .tabIcon{
+  opacity:1;
+  filter: brightness(1.25) saturate(1.15) drop-shadow(0 3px 10px rgba(0,0,0,.32));
 }
+#fabCamera{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#fabCamera .fabImg{
+  width:34px;
+  height:34px;
+  object-fit:contain;
+  filter: drop-shadow(0 3px 10px rgba(0,0,0,.35));
+}
+
