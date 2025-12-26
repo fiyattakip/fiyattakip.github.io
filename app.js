@@ -256,25 +256,38 @@ window.doNormalSearch = (query)=>{
 window.currentUser = null;
 
 async function doEmailLogin(isRegister){
+  const btnL = $("btnLogin");
+  const btnR = $("btnRegister");
+  if (btnL) btnL.disabled = true;
+  if (btnR) btnR.disabled = true;
+
   const email = ($("email")?.value || "").trim();
   const pass  = ($("pass")?.value || "");
-  if (!email || !pass) return toast("E-posta ve şifre gir.");
+  if (!email || !pass){
+    if (btnL) btnL.disabled = false;
+    if (btnR) btnR.disabled = false;
+    return toast("E-posta ve şifre gir.");
+  }
 
   try{
     if (isRegister){
       await createUserWithEmailAndPassword(auth, email, pass);
-      toast("Kayıt tamam.");
+      toast("Kayıt tamam. Giriş yapıldı.");
     } else {
       await signInWithEmailAndPassword(auth, email, pass);
       toast("Giriş başarılı.");
     }
   }catch(e){
+    console.error(e);
+    const code = String(e?.code || "");
     const msg = String(e?.message || e || "");
-    if (msg.includes("auth/unauthorized-domain")){
-      toast("Google giriş hatası (unauthorized-domain). Firebase > Auth > Settings > Authorized domains: fiyattakip.github.io ekle.");
-      return;
-    }
+    if (code.includes("auth/email-already-in-use")) return toast("Bu e-posta zaten kayıtlı. Giriş yap.");
+    if (code.includes("auth/weak-password")) return toast("Şifre çok zayıf (en az 6 karakter).");
+    if (code.includes("auth/invalid-email")) return toast("E-posta formatı hatalı.");
     toast("Hata: " + msg.replace(/^Firebase:\s*/,""));
+  }finally{
+    if (btnL) btnL.disabled = false;
+    if (btnR) btnR.disabled = false;
   }
 }
 
