@@ -153,7 +153,7 @@ body{
     rgba(255,255,255,.06);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-}
+}nasılsın 
 .bannerLeft,.bannerRight{ font-size: 22px; }
 .bannerTitle{ font-weight: 1000; }
 .bannerSub{ color: rgba(255,255,255,.72); font-size: 12px; margin-top: 2px; }
@@ -460,10 +460,10 @@ html, body { transform: none !important; }
 
 /* === Tabbar PNG Icon Patch (safe scoped) === */
 :root{
-  --ft-tabbar-h: 108px;      /* total bar height */
-  --ft-tab-ico: 64px;        /* side icons */
-  --ft-fab-ico: 96px;        /* camera icon */
-  --ft-fab-btn: 112px;       /* camera button */
+  --ft-tabbar-h: 96px;      /* total bar height */
+  --ft-tab-ico: 56px;        /* side icons */
+  --ft-fab-ico: 80px;        /* camera icon */
+  --ft-fab-btn: 96px;       /* camera button */
 }
 
 /* keep content above the bar */
