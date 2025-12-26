@@ -318,6 +318,6 @@ body{
 .row2{ display:flex; gap:10px; margin-top: 10px; }
 
 
-/* Favori kalp (toggle) */
+/* Favori kalp */
+.btnFav{min-width:44px;}
 .btnFav.isFav{background:rgba(255,0,90,.18)!important;border-color:rgba(255,0,90,.35)!important}
-.btnFav.isFav::after{content:'  Favoride';opacity:.85;font-size:.9em}

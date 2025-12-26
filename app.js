@@ -13,6 +13,13 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
+import {
+  getFirestore, collection, getDocs, doc, setDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const db = getFirestore();
+
+
 const $ = (id) => document.getElementById(id);
 
 // ---------- Toast ----------
@@ -24,28 +31,6 @@ function toast(msg){
   clearTimeout(toast._t);
   toast._t = setTimeout(()=>t.classList.add("hidden"), 2200);
 }
-// ---- Favori UI Sync ----
-function isFavCached(siteKey, query, url){
-  if (!Array.isArray(window.__favCache)) return false;
-  return window.__favCache.some(f=>{
-    if (url && f.url === url) return true;
-    if (siteKey && query && f.siteKey === siteKey && String(f.query||"") === String(query||"")) return true;
-    return false;
-  });
-}
-
-function applyFavUI(){
-  document.querySelectorAll('[data-fav-btn="1"]').forEach(btn=>{
-    const siteKey = btn.getAttribute("data-site-key") || "";
-    const query = btn.getAttribute("data-query") || "";
-    const url = btn.getAttribute("data-url") || "";
-    const fav = isFavCached(siteKey, query, url);
-    btn.classList.toggle("isFav", fav);
-    btn.textContent = fav ? "❤️" : "🤍";
-    btn.title = fav ? "Favoride" : "Favoriye ekle";
-  });
-}
-
 
 // ---------- Pages / Tabs ----------
 function showPage(key){
@@ -102,6 +87,95 @@ const SITES = [
   { key:"idefix", name:"idefix", build:q=>`https://www.idefix.com/arama/?q=${encodeURIComponent(q)}` },
 ];
 
+// ---------- Favorites (Firestore) ----------
+let favCache = []; // [{id, url, siteKey, siteName, query, ...}]
+
+function favIdFromUrl(url){
+  try{
+    const u = new URL(url);
+    const key = (u.hostname + u.pathname + u.search).toLowerCase();
+    let h=0; for (let i=0;i<key.length;i++){ h=((h<<5)-h)+key.charCodeAt(i); h|=0; }
+    return "fav_" + Math.abs(h);
+  }catch{
+    return "fav_" + Math.random().toString(36).slice(2);
+  }
+}
+
+const FAV_COLL = (uid)=> collection(db, "users", uid, "favorites");
+
+async function loadFavorites(uid){
+  if (!uid){ favCache=[]; return favCache; }
+  const snap = await getDocs(FAV_COLL(uid));
+  favCache = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+  return favCache;
+}
+
+function isFav(url){
+  const id = favIdFromUrl(url);
+  return favCache.some(f=>f.id===id);
+}
+
+async function toggleFavorite(uid, fav){
+  const id = favIdFromUrl(fav.url);
+  const ref = doc(db, "users", uid, "favorites", id);
+  if (favCache.some(f=>f.id===id)){
+    await deleteDoc(ref);
+  } else {
+    await setDoc(ref, {
+      ...fav,
+      createdAt: Date.now(),
+    }, { merge:true });
+  }
+  await loadFavorites(uid);
+  applyFavUI();
+}
+
+function applyFavUI(){
+  document.querySelectorAll("[data-fav-url]").forEach(btn=>{
+    const url = btn.getAttribute("data-fav-url") || "";
+    const fav = isFav(url);
+    btn.classList.toggle("isFav", fav);
+    btn.textContent = fav ? "❤️" : "🤍";
+    btn.title = fav ? "Favoride" : "Favoriye ekle";
+  });
+}
+
+function renderFavoritesPage(uid){
+  const list = $("favList");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!favCache.length){
+    list.innerHTML = `<div class="empty">Favori yok.</div>`;
+    return;
+  }
+  for (const it of favCache){
+    const card = document.createElement("div");
+    card.className = "cardBox";
+    card.innerHTML = `
+      <div class="rowLine">
+        <div>
+          <div class="ttl">${it.siteName || "Favori"}</div>
+          <div class="sub">${it.query || ""}</div>
+        </div>
+        <div class="actions">
+          <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}">Aç</button>
+          <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}">❤️</button>
+        </div>
+      </div>
+      <div class="mini">${it.url||""}</div>
+    `;
+    card.querySelector("[data-open-url]")?.addEventListener("click", ()=>{
+      if (it.url) window.open(it.url, "_blank", "noopener");
+    });
+    card.querySelector("[data-fav-url]")?.addEventListener("click", async ()=>{
+      await toggleFavorite(uid, { url: it.url, siteKey: it.siteKey||"", siteName: it.siteName||"", query: it.query||"" });
+      renderFavoritesPage(uid);
+    });
+    list.appendChild(card);
+  }
+  applyFavUI();
+}
+
 function renderSiteList(container, query){
   if (!container) return;
   const q = String(query||"").trim();
@@ -123,6 +197,7 @@ function renderSiteList(container, query){
         </div>
         <div class="actions">
           <button class="btnPrimary sm btnOpen" type="button">Aç</button>
+          <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}">🤍</button>
         </div>
       </div>
       <div class="mini">${url}</div>
@@ -130,7 +205,11 @@ function renderSiteList(container, query){
     card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
       window.open(url, "_blank", "noopener");
     });
-    container.appendChild(card);
+        card.querySelector(".btnFav")?.addEventListener("click", async ()=>{
+      if (!window.__uid) return toast("Favori için giriş yap.");
+      await toggleFavorite(window.__uid, { url, siteKey: s.key, siteName: s.name, query: q });
+    });
+container.appendChild(card);
   }
 }
 
