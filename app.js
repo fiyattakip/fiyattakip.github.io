@@ -14,6 +14,36 @@ function normalizeUrl(raw){
   }
 }
 
+/* ===== Pagination (4 per page) ===== */
+const PAGINATION = {
+  search: { page: 1, perPage: 4, lastQuery: "" },
+  fav:    { page: 1, perPage: 4 },
+};
+
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+function paginate(items, page, perPage){
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const p = clamp(page, 1, totalPages);
+  const start = (p - 1) * perPage;
+  return { page: p, perPage, total, totalPages, slice: items.slice(start, start + perPage) };
+}
+
+function renderPager(container, meta, onChange){
+  if (!container) return;
+  container.innerHTML = `
+    <div class="pager">
+      <button class="btnGhost sm" type="button" ${meta.page<=1?'disabled':''} data-act="prev">‹</button>
+      <span class="pagerInfo">${meta.page} / ${meta.totalPages}</span>
+      <button class="btnGhost sm" type="button" ${meta.page>=meta.totalPages?'disabled':''} data-act="next">›</button>
+    </div>
+  `;
+  container.querySelector('[data-act="prev"]')?.addEventListener("click", ()=> onChange(meta.page-1));
+  container.querySelector('[data-act="next"]')?.addEventListener("click", ()=> onChange(meta.page+1));
+}
+
+
 // app.js (theme preserved) — Link-only normal search + Firebase auth (email + Google)
 // Normal arama: e-ticaret sitelerinden ÜRÜN ÇEKMEZ; sadece arama LİNKİ üretir (stabil).
 // Tema/HTML bozulmaz.
@@ -225,7 +255,9 @@ function renderFavoritesPage(uid){
     list.innerHTML = `<div class="empty">Favori yok.</div>`;
     return;
   }
-  for (const it of favCache){
+  const pg = paginate(favCache, PAGINATION.fav.page, PAGINATION.fav.perPage);
+  PAGINATION.fav.page = pg.page;
+  for (const it of pg.slice){
     const card = document.createElement("div");
     card.className = "cardBox";
     card.innerHTML = `
@@ -236,7 +268,6 @@ function renderFavoritesPage(uid){
         </div>
         <div class="actions">
           <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}" data-copy-url="${it.url||""}">Aç</button>
-          <button class="btnGhost sm btnAiFav" type="button" data-ai-fav="${it.url||""}" title="AI Yorum">🤖</button>
           <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
         </div>
       </div>
@@ -251,6 +282,12 @@ function renderFavoritesPage(uid){
     });
     list.appendChild(card);
   }
+  const pagerEl = $("favPager");
+  renderPager(pagerEl, {page: pg.page, totalPages: pg.totalPages, total: pg.total}, (newPage)=>{
+    PAGINATION.fav.page = newPage;
+    renderFavoritesPage(uid);
+    window.scrollTo({top:0, behavior:"smooth"});
+  });
   applyFavUI();
 }
 
@@ -263,7 +300,10 @@ function renderSiteList(container, query){
   }
 
   container.innerHTML = "";
-  for (const s of SITES){
+  PAGINATION.search.lastQuery = q;
+  const pg = paginate(SITES, PAGINATION.search.page, PAGINATION.search.perPage);
+  PAGINATION.search.page = pg.page;
+  for (const s of pg.slice){
     const url = s.build(q);
     const card = document.createElement("div");
     card.className = "cardBox";
@@ -295,6 +335,7 @@ container.appendChild(card);
 window.renderSiteList = renderSiteList;
 window.doNormalSearch = (query)=>{
   showPage("search");
+  PAGINATION.search.page = 1;
   renderSiteList($("normalList"), query);
 };
 
@@ -530,30 +571,6 @@ function wireUI(){
     const url = b.getAttribute("data-copy-url") || "";
     if (url) await copyToClipboard(url);
   });
-  // Favorite AI comment
-  document.addEventListener("click", async (e)=>{
-    const b = e.target?.closest?.(".btnAiFav");
-    if(!b) return;
-    e.preventDefault();
-    const card = b.closest(".cardItem") || b.closest(".favItem") || b.closest(".card");
-    const key = b.getAttribute("data-ai-fav") || "";
-    const box = document.querySelector(`.favAiBox[data-ai-box="${CSS.escape(key)}"]`);
-    if(!box) return;
-    box.classList.remove("hidden");
-    box.innerHTML = '<div class="mini muted">AI yorum hazırlanıyor...</div>';
-    try{
-      // best effort: extract item info from DOM
-      const title = card?.querySelector(".t")?.textContent?.trim() || card?.querySelector(".title")?.textContent?.trim() || "";
-      const site = card?.querySelector(".sub")?.textContent?.trim() || card?.querySelector(".site")?.textContent?.trim() || "";
-      const item = {title, site, url: ""};
-      const txt = await getFavoriteAIComment(item);
-      box.textContent = txt;
-    }catch(err){
-      console.error(err);
-      box.textContent = "AI yorum alınamadı. (Proxy yoksa Kurallı yorum devrede olmalı.)";
-    }
-  });
-
 }
 
 // ---------- Auth visibility ----------
@@ -591,16 +608,14 @@ function loadAISettings(){
     $("aiEnabled") && ($("aiEnabled").value = s.enabled || "on");
     $("aiProvider") && ($("aiProvider").value = s.provider || "gemini");
     $("aiApiKey") && ($("aiApiKey").value = s.key || "");
-      $("aiProxyUrl") && ($("aiProxyUrl").value = s.proxy || "");
-}catch(e){}
+  }catch(e){}
 }
 function saveAISettings(){
   const s={
     enabled: $("aiEnabled")?.value || "on",
     provider: $("aiProvider")?.value || "gemini",
     key: $("aiApiKey")?.value || ""
-  ,
-    proxy: $("aiProxyUrl")?.value || ""};
+  };
   localStorage.setItem("aiSettings", JSON.stringify(s));
   toast("AI ayarları kaydedildi");
 }

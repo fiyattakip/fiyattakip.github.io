@@ -458,7 +458,5 @@ html, body { transform: none !important; }
 .iconBtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.9);border-radius:14px;padding:10px 12px}
 .modalBody .row{margin-top:12px}
 
-/* Favorite AI comment box */
-.favAiBox{margin-top:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);border-radius:16px;max-height:160px;overflow:auto}
-.favAiBox.hidden{display:none!important}
-.btnAiFav{min-width:44px}
+.pager{display:flex;justify-content:center;align-items:center;gap:10px;margin:14px 0 6px}
+.pagerInfo{opacity:.85;font-size:.9rem}
