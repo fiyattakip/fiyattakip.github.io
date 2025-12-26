@@ -7,31 +7,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
 </head>
-<nav class="bottom-nav">
-  <button onclick="goTab('home')" id="tab-home">
-    <img src="home.png" />
-    <span>Ana</span>
-  </button>
 
-  <button onclick="goTab('chart')" id="tab-chart">
-    <img src="chart.png" />
-    <span>Grafik</span>
-  </button>
-
-  <button class="camera-btn" onclick="goTab('camera')">
-    <img src="camera.png" />
-  </button>
-
-  <button onclick="goTab('fav')" id="tab-fav">
-    <img src="favorite.png" />
-    <span>Fav</span>
-  </button>
-
-  <button onclick="goTab('settings')" id="tab-settings">
-    <img src="settings.png" />
-    <span>Ayar</span>
-  </button>
-</nav>
 <body>
   <!-- LOGIN MODAL: APP DIŞINDA (boş ekranda kalmasın diye) -->
   <div id="loginModal" class="modalWrap" aria-hidden="true">
@@ -42,40 +18,18 @@
         <button id="closeLogin" class="iconBtn" type="button" aria-label="Kapat">✕</button>
       </div>
 
-      <div class="authTabs">
-  <button id="tabLogin" class="btnGhost sm isActive" type="button">Giriş</button>
-  <button id="tabRegister" class="btnGhost sm" type="button">Kayıt</button>
-</div>
+      <div class="segRow">
+        <button class="segBtn active" data-auth="email" type="button">E-posta</button>
+        <button class="segBtn" data-auth="google" type="button">Google</button>
+      </div>
 
-<div class="authTools">
-  <button id="btnClearCache" class="btnGhost sm" type="button">🧹 Temizle</button>
-</div>
-
-<div id="loginPane" class="authPane">
-  <label class="lbl">E-posta</label>
-  <input id="loginEmail" type="email" autocomplete="email" placeholder="ornek@mail.com" />
-  <label class="lbl">Şifre</label>
-  <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" />
-  <div class="row">
-    <button id="btnLogin" class="btnPrimary" type="button">Giriş Yap</button>
-    <button id="btnGoogleLogin" class="btnGhost" type="button">Google ile</button>
-  </div>
-</div>
-
-<div id="registerPane" class="authPane hidden">
-  <label class="lbl">E-posta</label>
-  <input id="regEmail" type="email" autocomplete="email" placeholder="ornek@mail.com" />
-  <label class="lbl">Şifre</label>
-  <input id="regPass" type="password" autocomplete="new-password" placeholder="en az 6 karakter" />
-  <label class="lbl">Şifre (Tekrar)</label>
-  <input id="regPass2" type="password" autocomplete="new-password" placeholder="şifreyi tekrar yaz" />
-  <div class="row">
-    <button id="btnRegister" class="btnPrimary" type="button">Kayıt Ol</button>
-    <button id="btnGoogleLogin2" class="btnGhost" type="button">Google ile</button>
-  </div>
-  <div class="mini muted">Kayıt olunca otomatik giriş yapılır.</div>
-</div>
-
+      <div id="authEmail">
+        <input id="email" placeholder="E-posta" autocomplete="email" />
+        <input id="pass" placeholder="Şifre" type="password" autocomplete="current-password" />
+        <div class="row2">
+          <button id="btnLogin" class="btnPrimary" type="button">Giriş</button>
+          <button id="btnRegister" class="btnGhost" type="button">Kayıt</button>
+        </div>
       </div>
 
       <div id="authGoogle" style="display:none">
@@ -228,7 +182,7 @@
       </button>
 
       <button class="fab" id="fabCamera" type="button" aria-label="AI Kamera">
-        <span class="fabIco">📷</span>
+        <span class="fabIco"><img src="camera.png" alt="" /></span>
       </button>
     </nav>
 
@@ -236,47 +190,5 @@
 
   <!-- SCRIPTS: TEK SEFER -->
   <script type="module" src="app.js"></script>
-
-  <div id="toast" class="toast hidden"></div>
-
-  <div id="aiModal" class="modalWrap" aria-hidden="true">
-    <div class="modalBack" id="aiBackdrop"></div>
-    <div class="modalCard" role="dialog" aria-modal="true" aria-label="AI Ayarları">
-      <div class="modalTop">
-        <div class="modalTitle">AI Ayarları</div>
-        <button id="closeAi" class="iconBtn" type="button" aria-label="Kapat">✕</button>
-      </div>
-
-      <div class="modalBody">
-        <div class="row">
-          <label class="lbl">AI Durumu</label>
-          <select id="aiEnabled" class="input inputDark">
-            <option value="on">Açık</option>
-            <option value="off">Kapalı</option>
-          </select>
-        </div>
-
-        <div class="row">
-          <label class="lbl">Sağlayıcı</label>
-          <select id="aiProvider" class="input inputDark">
-            <option value="gemini">Gemini</option>
-            <option value="openai">OpenAI</option>
-          </select>
-        </div>
-
-        <div class="row">
-          <label class="lbl">API Key</label>
-          <input id="aiApiKey" class="input inputDark" type="password" placeholder="anahtarınızı girin" />
-        </div>
-
-        <div class="row">
-          <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
-        </div>
-
-        <div class="mini muted">Test butonu bir sonraki adımda eklenecek.</div>
-      </div>
-    </div>
-  </div>
-
 </body>
 </html>
