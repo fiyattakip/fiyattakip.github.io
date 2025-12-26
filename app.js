@@ -35,6 +35,13 @@ import {
 
 const db = getFirestore();
 
+// ===== Pagination (4 items per page) =====
+const PAGE_SIZE = 4;
+let __searchPage = 1;
+let __searchQueryLast = "";
+let __favPage = 1;
+
+
 
 const $ = (id) => document.getElementById(id);
 
@@ -93,6 +100,54 @@ async function clearAppCache(){
 }
 
 
+
+// ===== Pager UI helpers (no CSS change needed) =====
+function ensurePager(id, mountEl){
+  let el = document.getElementById(id);
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = id;
+  el.style.display = "flex";
+  el.style.justifyContent = "center";
+  el.style.alignItems = "center";
+  el.style.gap = "10px";
+  el.style.margin = "14px 0 22px";
+  el.style.paddingBottom = "10px";
+  el.style.position = "relative";
+  el.style.zIndex = "6";
+  (mountEl || document.body).appendChild(el);
+  return el;
+}
+
+function renderPagerInto(el, page, totalPages, onPrev, onNext){
+  if (!el) return;
+  el.innerHTML = "";
+  if (totalPages <= 1) return;
+
+  const bPrev = document.createElement("button");
+  bPrev.type = "button";
+  bPrev.className = "btnGhost sm";
+  bPrev.textContent = "‹";
+  bPrev.disabled = page <= 1;
+  bPrev.addEventListener("click", onPrev);
+
+  const mid = document.createElement("div");
+  mid.style.minWidth = "74px";
+  mid.style.textAlign = "center";
+  mid.style.fontWeight = "900";
+  mid.textContent = `${page} / ${totalPages}`;
+
+  const bNext = document.createElement("button");
+  bNext.type = "button";
+  bNext.className = "btnGhost sm";
+  bNext.textContent = "›";
+  bNext.disabled = page >= totalPages;
+  bNext.addEventListener("click", onNext);
+
+  el.appendChild(bPrev);
+  el.appendChild(mid);
+  el.appendChild(bNext);
+}
 
 // ---------- Pages / Tabs ----------
 function showPage(key){
@@ -221,11 +276,24 @@ function renderFavoritesPage(uid){
   const list = $("favList");
   if (!list) return;
   list.innerHTML = "";
-  if (!favCache.length){
+
+  const total = (favCache || []).length;
+  if (!total){
     list.innerHTML = `<div class="empty">Favori yok.</div>`;
+    const p = document.getElementById("favPager");
+    if (p) p.innerHTML = "";
     return;
   }
-  for (const it of favCache){
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (__favPage > totalPages) __favPage = totalPages;
+  if (__favPage < 1) __favPage = 1;
+
+  const start = (__favPage - 1) * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  const pageFavs = favCache.slice(start, end);
+
+  for (const it of pageFavs){
     const card = document.createElement("div");
     card.className = "cardBox";
     card.innerHTML = `
@@ -239,17 +307,32 @@ function renderFavoritesPage(uid){
           <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
         </div>
       </div>
-      
     `;
     card.querySelector("[data-open-url]")?.addEventListener("click", ()=>{
       if (it.url) window.open(it.url, "_blank", "noopener");
     });
     card.querySelector("[data-fav-url]")?.addEventListener("click", async ()=>{
       await toggleFavorite(uid, { url: it.url, siteKey: it.siteKey||"", siteName: it.siteName||"", query: it.query||"" });
+      // keep current page valid after deletion
+      const total2 = (favCache||[]).length;
+      const tp2 = Math.max(1, Math.ceil(total2 / PAGE_SIZE));
+      if (__favPage > tp2) __favPage = tp2;
       renderFavoritesPage(uid);
     });
     list.appendChild(card);
   }
+
+  // pager under favorites list
+  const favPageEl = document.getElementById("page-favs");
+  const pager = ensurePager("favPager", favPageEl);
+  renderPagerInto(
+    pager,
+    __favPage,
+    totalPages,
+    ()=>{ __favPage = Math.max(1, __favPage-1); renderFavoritesPage(uid); },
+    ()=>{ __favPage = Math.min(totalPages, __favPage+1); renderFavoritesPage(uid); }
+  );
+
   applyFavUI();
 }
 
@@ -258,11 +341,28 @@ function renderSiteList(container, query){
   const q = String(query||"").trim();
   if (!q){
     container.innerHTML = `<div class="cardBox"><b>Bir şey yaz.</b></div>`;
+    // clear pager
+    const p = document.getElementById("searchPager");
+    if (p) p.innerHTML = "";
     return;
   }
 
+  // reset page when query changes
+  if (q !== __searchQueryLast){
+    __searchQueryLast = q;
+    __searchPage = 1;
+  }
+
+  const total = SITES.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (__searchPage > totalPages) __searchPage = totalPages;
+
+  const start = (__searchPage - 1) * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  const pageSites = SITES.slice(start, end);
+
   container.innerHTML = "";
-  for (const s of SITES){
+  for (const s of pageSites){
     const url = s.build(q);
     const card = document.createElement("div");
     card.className = "cardBox";
@@ -278,18 +378,34 @@ function renderSiteList(container, query){
           <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
         </div>
       </div>
-      
     `;
     card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
       window.open(url, "_blank", "noopener");
     });
-        card.querySelector(".btnFav")?.addEventListener("click", async ()=>{
-      if (!window.__uid) return toast("Favori için giriş yap.");
-      await toggleFavorite(window.__uid, { url, siteKey: s.key, siteName: s.name, query: q });
+    card.querySelector(".btnFav")?.addEventListener("click", async ()=>{
+      if (!window.currentUser?.uid) return toast("Favori için giriş yap.");
+      await toggleFavorite(window.currentUser.uid, { url, siteKey: s.key, siteName: s.name, query: q });
+      renderFavoritesPage(window.currentUser.uid);
+      applyFavUI();
     });
-container.appendChild(card);
+    container.appendChild(card);
   }
+
+  // pager under normal list (mount inside search page)
+  const searchPageEl = document.getElementById("page-search");
+  const pager = ensurePager("searchPager", searchPageEl);
+  renderPagerInto(
+    pager,
+    __searchPage,
+    totalPages,
+    ()=>{ __searchPage = Math.max(1, __searchPage-1); renderSiteList(container, q); },
+    ()=>{ __searchPage = Math.min(totalPages, __searchPage+1); renderSiteList(container, q); }
+  );
+
+  applyFavUI();
 }
+
+window.renderSiteList = renderSiteList;
 
 window.renderSiteList = renderSiteList;
 window.doNormalSearch = (query)=>{
@@ -471,6 +587,7 @@ function wireUI(){
   $("btnLogin")?.addEventListener("click", ()=>doEmailLogin(false));
   $("btnRegister")?.addEventListener("click", ()=>doEmailLogin(true));
   $("btnGoogle")?.addEventListener("click", ()=>doGoogleLogin());
+  $("btnGoogleLogin")?.addEventListener("click", ()=>doGoogleLogin());
 
   // auth tab switch (email/google) if present
   document.querySelectorAll(".segBtn[data-auth]").forEach(b=>{
