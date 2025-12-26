@@ -245,12 +245,12 @@ Kurallar:
 - 6-10 madde halinde: hangi özelliklere bakmalı + kimler için uygun + alternatif/uyarı.
 - Fiyat bilgisi yoksa fiyatla konuşma.`;
 
-  // Optional proxy (user can set later): localStorage.aiProxyUrl
-  const proxy = (localStorage.getItem("aiProxyUrl")||"").trim();
-  if (proxy){
-    const res = await fetch(proxy, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
+  // Proxy (CORS için önerilir)
+  const proxyUrl = String(s.proxy || (localStorage.getItem("aiProxyUrl")||"") || "").trim();
+  if (proxyUrl){
+    return await callAIProxy({provider, key: apiKey, proxyUrl, prompt, meta:{kind:"fav_comment"}});
+  }
+,
       body: JSON.stringify({ provider, apiKey, prompt })
     });
     if (!res.ok){

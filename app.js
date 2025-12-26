@@ -606,17 +606,21 @@ function loadAISettings(){
     $("aiEnabled") && ($("aiEnabled").value = s.enabled || "on");
     $("aiProvider") && ($("aiProvider").value = s.provider || "gemini");
     $("aiApiKey") && ($("aiApiKey").value = s.key || "");
-      $("aiProxyUrl") && ($("aiProxyUrl").value = s.proxy || "");
+    const legacy = (localStorage.getItem("aiProxyUrl")||"").trim();
+    $("aiProxyUrl") && ($("aiProxyUrl").value = (s.proxy || legacy || ""));
+  }catch(e){}
 }catch(e){}
 }
 function saveAISettings(){
   const s={
     enabled: $("aiEnabled")?.value || "on",
     provider: $("aiProvider")?.value || "gemini",
-    key: $("aiApiKey")?.value || ""
-  ,
-    proxy: $("aiProxyUrl")?.value || ""};
+    key: $("aiApiKey")?.value || "",
+    proxy: $("aiProxyUrl")?.value || ""
+  };
   localStorage.setItem("aiSettings", JSON.stringify(s));
+  // legacy key (older builds)
+  try{ localStorage.setItem("aiProxyUrl", s.proxy || ""); }catch(e){}
   toast("AI ayarları kaydedildi");
 }
 function openAIModal(){
