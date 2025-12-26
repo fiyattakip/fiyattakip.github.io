@@ -323,6 +323,6 @@ body{
 .btnFav.isFav{background:rgba(255,0,90,.18)!important;border-color:rgba(255,0,90,.35)!important}
 
 
-/* Link metnini gizle */
-.urlText{display:none!important}
+/* URL satırını gizle (JS işaretler) */
+.urlLine{display:none!important}
 .btnCopy{min-width:44px}

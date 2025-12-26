@@ -63,6 +63,19 @@ async function copyToClipboard(text){
   }
 }
 
+function hideUrlLines(root=document){
+  const nodes = root.querySelectorAll("div,span,p");
+  nodes.forEach(el=>{
+    if (el.classList.contains("urlLine")) return;
+    if (el.querySelector("a,button,input,textarea")) return;
+    const t = (el.textContent||"").trim();
+    if (!t) return;
+    if (t.startsWith("http://") || t.startsWith("https://")){
+      el.classList.add("urlLine");
+    }
+  });
+}
+
 
 // ---------- Pages / Tabs ----------
 function showPage(key){
@@ -207,6 +220,7 @@ function renderFavoritesPage(uid){
     list.appendChild(card);
   }
   applyFavUI();
+  hideUrlLines();
 }
 
 function renderSiteList(container, query){
@@ -466,6 +480,7 @@ window.addEventListener("DOMContentLoaded", ()=>{
         await loadFavorites(u.uid);
         renderFavoritesPage(u.uid);
         applyFavUI();
+        hideUrlLines();
       }catch(e){ console.error(e); }
     }
   });
