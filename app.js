@@ -53,9 +53,8 @@ async function copyToClipboard(text){
     await navigator.clipboard.writeText(text);
     toast("Kopyalandı");
   }catch(e){
-    // fallback
-    const ta = document.createElement("textarea");
-    ta.value = text;
+    const ta=document.createElement("textarea");
+    ta.value=text;
     ta.style.position="fixed"; ta.style.left="-9999px";
     document.body.appendChild(ta);
     ta.focus(); ta.select();
@@ -305,7 +304,6 @@ getRedirectResult(auth).catch(()=>{});
 
 // ---------- Wire UI ----------
 function wireUI(){
-
   // Copy URL delegation
   document.addEventListener("click", async (e)=>{
     const cbtn = e.target && e.target.closest ? e.target.closest("[data-copy-url]") : null;
