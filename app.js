@@ -32,6 +32,9 @@ function paginate(items, page, perPage){
 
 
 function ensurePager(afterEl, id){
+  // prefer existing host in HTML
+  const existing = document.getElementById(id);
+  if(existing) return existing;
   if(!afterEl) return null;
   let el = document.getElementById(id);
   if(el) return el;
