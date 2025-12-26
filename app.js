@@ -524,6 +524,7 @@ function wireUI(){
     const url = b.getAttribute("data-copy-url") || "";
     if (url) await copyToClipboard(url);
   });
+  loadAISettings();
 }
 
 // ---------- Auth visibility ----------
@@ -572,7 +573,17 @@ function saveAISettings(){
   localStorage.setItem("aiSettings", JSON.stringify(s));
   toast("AI ayarları kaydedildi");
 }
-document.addEventListener("DOMContentLoaded", ()=>{
+
+function openAIModal(){
+  const m = document.getElementById("aiModal");
+  if(!m) return;
+  m.classList.add("show");
+  m.setAttribute("aria-hidden","false");
   loadAISettings();
-  $("btnSaveAI")?.addEventListener("click", saveAISettings);
-});
+}
+function closeAIModal(){
+  const m = document.getElementById("aiModal");
+  if(!m) return;
+  m.classList.remove("show");
+  m.setAttribute("aria-hidden","true");
+}

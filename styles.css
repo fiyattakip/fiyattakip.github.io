@@ -444,3 +444,12 @@ html, body { transform: none !important; }
   #btnClearCache{right:14px; top:90px; padding:7px 11px !important; font-size:12px !important;}
 }
 #btnClearCache:active{transform:scale(.98)}
+
+/* Dark input/select to match theme */
+.inputDark{
+  background: rgba(255,255,255,.06) !important;
+  color: rgba(255,255,255,.92) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+}
+.inputDark::placeholder{color: rgba(255,255,255,.55)}
+.inputDark option{color:#111}
