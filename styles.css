@@ -457,22 +457,3 @@ html, body { transform: none !important; }
 .modalTitle{font-size:18px;font-weight:900}
 .iconBtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.9);border-radius:14px;padding:10px 12px}
 .modalBody .row{margin-top:12px}
-
-.pager{display:flex;justify-content:center;align-items:center;gap:10px;margin:14px 0 6px}
-.pagerInfo{opacity:.85;font-size:.9rem}
-
-.pagerHost{width:100%;display:flex;justify-content:center;margin:14px 0 22px;padding-bottom:18px;position:relative;z-index:10;}
-
-/* Pager always visible */
-.pagerTop{margin-top:10px;margin-bottom:12px}
-.pagerHost{width:100%;display:flex;justify-content:center;position:relative;z-index:6}
-.pager{display:flex;align-items:center;justify-content:center;gap:10px}
-.pager button{min-width:44px}
-/* give scroll area room above bottom nav */
-#resultsList, #favList, #graphList{padding-bottom:120px}
-
-.pageHead{flex-wrap:wrap;gap:12px}
-.pageHead .pageTitle{flex:1 1 100%}
-.pagerTop{flex:1 1 100%}
-
-.pagerHost.pagerTop{justify-content:center}

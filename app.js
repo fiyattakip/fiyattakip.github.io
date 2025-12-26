@@ -14,63 +14,6 @@ function normalizeUrl(raw){
   }
 }
 
-/* ===== Pagination (4 per page) ===== */
-const PAGINATION = {
-  search: { page: 1, perPage: 4, lastQuery: "" },
-  fav:    { page: 1, perPage: 4 },
-};
-
-function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
-
-function paginate(items, page, perPage){
-  const total = items.length;
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
-  const p = clamp(page, 1, totalPages);
-  const start = (p - 1) * perPage;
-  return { page: p, perPage, total, totalPages, slice: items.slice(start, start + perPage) };
-}
-
-
-function ensurePager(afterEl, id){
-  // prefer existing host in HTML
-  const existing = document.getElementById(id);
-  if(existing) return existing;
-  if(!afterEl) return null;
-  let el = document.getElementById(id);
-  if(el) return el;
-  el = document.createElement("div");
-  el.id = id;
-  el.className = "pagerHost";
-  afterEl.insertAdjacentElement("afterend", el);
-  return el;
-}
-
-function getPagerEl(id){
-  let el=document.getElementById(id);
-  if(!el){
-    el=document.createElement('div');
-    el.id=id;
-    el.className='pagerHost';
-    document.body.appendChild(el);
-  }
-  return el;
-}
-
-function renderPager(container, meta, onChange){
-  if(!container){ return; }
-if (!container) return;
-  container.innerHTML = `
-    <div class="pager">
-      <button class="btnGhost sm" type="button" ${meta.page<=1?'disabled':''} data-act="prev">‹</button>
-      <span class="pagerInfo">${meta.page} / ${meta.totalPages}</span>
-      <button class="btnGhost sm" type="button" ${meta.page>=meta.totalPages?'disabled':''} data-act="next">›</button>
-    </div>
-  `;
-  container.querySelector('[data-act="prev"]')?.addEventListener("click", ()=> onChange(meta.page-1));
-  container.querySelector('[data-act="next"]')?.addEventListener("click", ()=> onChange(meta.page+1));
-}
-
-
 // app.js (theme preserved) — Link-only normal search + Firebase auth (email + Google)
 // Normal arama: e-ticaret sitelerinden ÜRÜN ÇEKMEZ; sadece arama LİNKİ üretir (stabil).
 // Tema/HTML bozulmaz.
@@ -282,9 +225,7 @@ function renderFavoritesPage(uid){
     list.innerHTML = `<div class="empty">Favori yok.</div>`;
     return;
   }
-  const pg = paginate(favCache, PAGINATION.fav.page, PAGINATION.fav.perPage);
-  PAGINATION.fav.page = pg.page;
-  for (const it of pg.slice){
+  for (const it of favCache){
     const card = document.createElement("div");
     card.className = "cardBox";
     card.innerHTML = `
@@ -309,12 +250,6 @@ function renderFavoritesPage(uid){
     });
     list.appendChild(card);
   }
-  const pagerEl = $("favPager");
-  renderPager(pagerEl, {page: pg.page, totalPages: pg.totalPages, total: pg.total}, (newPage)=>{
-    PAGINATION.fav.page = newPage;
-    renderFavoritesPage(uid);
-    window.scrollTo({top:0, behavior:"smooth"});
-  });
   applyFavUI();
 }
 
@@ -327,10 +262,7 @@ function renderSiteList(container, query){
   }
 
   container.innerHTML = "";
-  PAGINATION.search.lastQuery = q;
-  const pg = paginate(SITES, PAGINATION.search.page, PAGINATION.search.perPage);
-  PAGINATION.search.page = pg.page;
-  for (const s of pg.slice){
+  for (const s of SITES){
     const url = s.build(q);
     const card = document.createElement("div");
     card.className = "cardBox";
@@ -357,27 +289,11 @@ function renderSiteList(container, query){
     });
 container.appendChild(card);
   }
-  // pager
-  const pagerEl = ensurePager(container, "normalPager");
-  if (pagerEl){
-    renderPager({
-      container: pagerEl,
-      stateKey: "search",
-      meta: { page: pg.page, totalPages: pg.totalPages, total: pg.total },
-      onChange: (newPage)=>{
-        PAGINATION.search.page = newPage;
-        renderSiteList(container, PAGINATION.search.lastQuery || q);
-        window.scrollTo({top:0, behavior:"smooth"});
-      }
-    });
-  }
-
 }
 
 window.renderSiteList = renderSiteList;
 window.doNormalSearch = (query)=>{
   showPage("search");
-  PAGINATION.search.page = 1;
   renderSiteList($("normalList"), query);
 };
 
