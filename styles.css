@@ -457,3 +457,48 @@ html, body { transform: none !important; }
 .modalTitle{font-size:18px;font-weight:900}
 .iconBtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.9);border-radius:14px;padding:10px 12px}
 .modalBody .row{margin-top:12px}
+
+/* === Tabbar PNG Icon Patch (safe scoped) === */
+:root{
+  --ft-tabbar-h: 108px;      /* total bar height */
+  --ft-tab-ico: 64px;        /* side icons */
+  --ft-fab-ico: 96px;        /* camera icon */
+  --ft-fab-btn: 112px;       /* camera button */
+}
+
+/* keep content above the bar */
+body{ padding-bottom: calc(var(--ft-tabbar-h) + env(safe-area-inset-bottom)); }
+
+/* tabbar height & safe area */
+.tabbar{
+  height: var(--ft-tabbar-h);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* side tabs */
+.tabbar .tab{
+  padding-top: 10px;
+}
+.tabbar .tab .ico{
+  width: var(--ft-tab-ico);
+  height: var(--ft-tab-ico);
+  display: grid;
+  place-items: center;
+  font-size: 0; /* hide emoji if any */
+}
+.tabbar .tab .tabIcon{
+  width: var(--ft-tab-ico);
+  height: var(--ft-tab-ico);
+  object-fit: contain;
+}
+
+/* camera FAB */
+.tabbar .fab{
+  width: var(--ft-fab-btn);
+  height: var(--ft-fab-btn);
+}
+.tabbar .fab .fabIcon{
+  width: var(--ft-fab-ico);
+  height: var(--ft-fab-ico);
+  object-fit: contain;
+}
