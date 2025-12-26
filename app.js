@@ -175,7 +175,7 @@ function renderFavoritesPage(uid){
         </div>
         <div class="actions">
           <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}">Aç</button>
-          <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
+          <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
         </div>
       </div>
       <div class="mini">${it.url||""}</div>
@@ -294,7 +294,31 @@ function wireUI(){
     e.preventDefault();
     const u = window.currentUser;
     if (!u){ openLogin(); return; }
-    const url = btn.getAttribute("data-fav-url") || "";
+
+    const favId = btn.getAttribute("data-fav-id") || "";
+    const urlRaw = btn.getAttribute("data-fav-url") || "";
+    const norm = normalizeUrl(urlRaw);
+
+    // Favoriler sayfasından kaldırma: id varsa direkt sil + duplicate cleanup
+    if (favId){
+      try{ await deleteDoc(doc(db, "users", u.uid, "favorites", favId)); }catch(e){ console.error(e); }
+      // aynı ürünün diğer kopyalarını da temizle
+      const dups = (window.__favCache||[]).filter(f=>{
+        const fNorm = f.normUrl || normalizeUrl(f.url||"");
+        return norm && fNorm === norm;
+      });
+      for (const it of dups){
+        if (it.id === favId) continue;
+        try{ await deleteDoc(doc(db, "users", u.uid, "favorites", it.id)); }catch(e){ console.error(e); }
+      }
+      await loadFavorites(u.uid);
+      renderFavoritesPage(u.uid);
+      applyFavUI();
+      return;
+    }
+
+    // Arama listesinden toggle
+    const url = urlRaw;
     const siteKey = btn.getAttribute("data-site-key") || "";
     const siteName = btn.getAttribute("data-site-name") || "";
     const query = btn.getAttribute("data-query") || "";
