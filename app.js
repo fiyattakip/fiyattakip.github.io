@@ -553,3 +553,26 @@ window.addEventListener("DOMContentLoaded", ()=>{
     }
   });
 });
+
+// === AI SETTINGS (STEP 5A) ===
+function loadAISettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem("aiSettings")||"{}");
+    if($("aiEnabled")) $("aiEnabled").value = s.enabled || "on";
+    if($("aiProvider")) $("aiProvider").value = s.provider || "gemini";
+    if($("aiApiKey")) $("aiApiKey").value = s.key || "";
+  }catch(e){}
+}
+function saveAISettings(){
+  const s={
+    enabled: $("aiEnabled").value,
+    provider: $("aiProvider").value,
+    key: $("aiApiKey").value
+  };
+  localStorage.setItem("aiSettings", JSON.stringify(s));
+  toast("AI ayarları kaydedildi");
+}
+document.addEventListener("DOMContentLoaded", ()=>{
+  loadAISettings();
+  $("btnSaveAI")?.addEventListener("click", saveAISettings);
+});

@@ -158,6 +158,36 @@
           <div class="pageTitle">Ayarlar</div>
         </div>
 
+        
+        <div class="cardBox">
+          <div class="cardTitle">AI Ayarları</div>
+          <div class="row">
+            <label class="lbl">AI Durumu</label>
+            <select id="aiEnabled" class="input">
+              <option value="on">Açık</option>
+              <option value="off">Kapalı</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label class="lbl">Sağlayıcı</label>
+            <select id="aiProvider" class="input">
+              <option value="gemini">Gemini</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label class="lbl">API Key</label>
+            <input id="aiApiKey" class="input" type="password" placeholder="anahtarınızı girin">
+          </div>
+
+          <div class="row">
+            <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
+          </div>
+        </div>
+
+
         <div class="cardBox">
           <div class="rowBetween">
             <div>
