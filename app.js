@@ -529,27 +529,29 @@ function wireUI(){
     const url = b.getAttribute("data-copy-url") || "";
     if (url) await copyToClipboard(url);
   });
-  // Favorite AI comment
+  
+  // Favorite AI comment (use saved favorite data attributes)
   document.addEventListener("click", async (e)=>{
     const b = e.target?.closest?.(".btnAiFav");
     if(!b) return;
     e.preventDefault();
-    const card = b.closest(".cardItem") || b.closest(".favItem") || b.closest(".card");
     const key = b.getAttribute("data-ai-fav") || "";
+    const card = b.closest(".cardItem") || b.closest(".favItem") || b.closest(".card");
     const box = document.querySelector(`.favAiBox[data-ai-box="${CSS.escape(key)}"]`);
     if(!box) return;
     box.classList.remove("hidden");
     box.innerHTML = '<div class="mini muted">AI yorum hazırlanıyor...</div>';
+
     try{
-      // best effort: extract item info from DOM
-      const title = card?.querySelector(".t")?.textContent?.trim() || card?.querySelector(".title")?.textContent?.trim() || "";
-      const site = card?.querySelector(".sub")?.textContent?.trim() || card?.querySelector(".site")?.textContent?.trim() || "";
-      const item = {title, site, url: ""};
+      const title = card?.getAttribute("data-fav-title") || "";
+      const site  = card?.getAttribute("data-fav-site") || "";
+      const url   = card?.getAttribute("data-fav-url") || key || "";
+      const item = {title, site, url};
       const txt = await getFavoriteAIComment(item);
       box.textContent = txt;
     }catch(err){
       console.error(err);
-      box.textContent = "AI yorum alınamadı. (Proxy yoksa Kurallı yorum devrede olmalı.)";
+      box.textContent = "AI yorum alınamadı (offline yorum da üretilemedi).";
     }
   });
 
