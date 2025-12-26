@@ -460,8 +460,8 @@ html, body { transform: none !important; }
 
 /* === Tabbar PNG Icon Patch (safe scoped) === */
 :root{
-  --ft-tabbar-h: 80px;      /* total bar height */
-  --ft-tab-ico: 50px;        /* side icons */
+  --ft-tabbar-h: 70px;      /* total bar height */
+  --ft-tab-ico: 40px;        /* side icons */
   --ft-fab-ico: 75px;        /* camera icon */
   --ft-fab-btn: 80px;       /* camera button */
 }
