@@ -63,6 +63,36 @@ async function copyToClipboard(text){
   }
 }
 
+async function clearAppCache(){
+  try{
+    // Clear Cache Storage
+    if (window.caches && caches.keys){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    // Clear storages
+    try{ localStorage.clear(); }catch(e){}
+    try{ sessionStorage.clear(); }catch(e){}
+    // Clear IndexedDB (best effort)
+    if (indexedDB && indexedDB.databases){
+      const dbs = await indexedDB.databases();
+      await Promise.all((dbs||[]).map(db=>{
+        if (!db || !db.name) return Promise.resolve();
+        return new Promise(res=>{
+          const req = indexedDB.deleteDatabase(db.name);
+          req.onsuccess=req.onerror=req.onblocked=()=>res();
+        });
+      }));
+    }
+    toast("Önbellek temizlendi. Yenileniyor...");
+  }catch(e){
+    console.error(e);
+    toast("Temizleme hatası");
+  }
+  setTimeout(()=>location.reload(true), 600);
+}
+
+
 
 // ---------- Pages / Tabs ----------
 function showPage(key){
@@ -349,6 +379,8 @@ getRedirectResult(auth).catch(()=>{});
 
 // ---------- Wire UI ----------
 function wireUI(){
+  $("btnClearCache")?.addEventListener("click", ()=>clearAppCache());
+
   $("tabLogin")?.addEventListener("click", ()=>setAuthPane("login"));
   $("tabRegister")?.addEventListener("click", ()=>setAuthPane("register"));
   // ikinci Google butonu (kayıt paneli)
