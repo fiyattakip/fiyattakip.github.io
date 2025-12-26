@@ -11,21 +11,21 @@
 <body>
   <!-- LOGIN MODAL: APP DIŞINDA (boş ekranda kalmasın diye) -->
   <div id="loginModal" class="modalWrap" aria-hidden="true">
-    <div class="modalBack" id="loginBackdrop"></div>
+    <div class="modalBack" id="loginBackdrop"><
     <div class="modalCard" role="dialog" aria-modal="true" aria-label="Giriş">
       <div class="modalTop">
-        <div class="modalTitle">Giriş Yap</div>
+        <div class="modalTitle">Giriş Yap<
         <button id="closeLogin" class="iconBtn" type="button" aria-label="Kapat">✕</button>
-      </div>
+      <
 
       <div class="authTabs">
   <button id="tabLogin" class="btnGhost sm isActive" type="button">Giriş</button>
   <button id="tabRegister" class="btnGhost sm" type="button">Kayıt</button>
-</div>
+<
 
 <div class="authTools">
   <button id="btnClearCache" class="btnGhost sm" type="button">🧹 Temizle</button>
-</div>
+<
 
 <div id="loginPane" class="authPane">
   <label class="lbl">E-posta</label>
@@ -35,8 +35,8 @@
   <div class="row">
     <button id="btnLogin" class="btnPrimary" type="button">Giriş Yap</button>
     <button id="btnGoogleLogin" class="btnGhost" type="button">Google ile</button>
-  </div>
-</div>
+  <
+<
 
 <div id="registerPane" class="authPane hidden">
   <label class="lbl">E-posta</label>
@@ -48,19 +48,19 @@
   <div class="row">
     <button id="btnRegister" class="btnPrimary" type="button">Kayıt Ol</button>
     <button id="btnGoogleLogin2" class="btnGhost" type="button">Google ile</button>
-  </div>
-  <div class="mini muted">Kayıt olunca otomatik giriş yapılır.</div>
-</div>
+  <
+  <div class="mini muted">Kayıt olunca otomatik giriş yapılır.<
+<
 
-      </div>
+      <
 
       <div id="authGoogle" style="display:none">
         <button id="btnGoogle" class="btnPrimary" type="button">Google ile giriş</button>
-      </div>
+      <
 
-      <div class="miniHint">Giriş yapmadan uygulama kullanılmaz.</div>
-    </div>
-  </div>
+      <div class="miniHint">Giriş yapmadan uygulama kullanılmaz.<
+    <
+  <
 
   <!-- APP -->
   <div id="app" class="appShell">
@@ -68,9 +68,9 @@
     <!-- TOP HEADER -->
     <header class="topbar">
       <div class="brand">
-        <div class="logoDot"></div>
-        <div class="brandText">FiyatTakip</div>
-      </div>
+        <div class="logoDot"><
+        <div class="brandText">FiyatTakip<
+      <
       <button id="btnBell" class="iconBtn" type="button" aria-label="Bildirim">🔔</button>
     </header>
 
@@ -84,106 +84,104 @@
             <span class="sIcon">🔎</span>
             <input id="qNormal" placeholder="Ürün ve mağaza ara…" />
             <button id="btnMic" class="iconBtn" type="button" aria-label="Ses">🎙️</button>
-          </div>
+          <
 
           <!-- Normal / AI toggle -->
           <div class="modeToggle" id="modeToggle">
             <button class="modeBtn active" id="modeNormal" type="button">Normal</button>
             <button class="modeBtn" id="modeAI" type="button">AI</button>
-          </div>
-          <div class="modeHint" id="modeHint">Normal arama: sitelerde direkt arar.</div>
+          <
+          <div class="modeHint" id="modeHint">Normal arama: sitelerde direkt arar.<
 
           <button id="btnNormal" class="btnPrimary full" type="button">Ara</button>
-        </div>
+        <
 
         <!-- Banner -->
         <div class="banner">
-          <div class="bannerLeft">🌸</div>
+          <div class="bannerLeft">🌸<
           <div class="bannerMid">
-            <div class="bannerTitle">Bahar Kampanyası!</div>
-            <div class="bannerSub">%50 indirimi kaçırmayın!</div>
-          </div>
-          <div class="bannerRight">🛍️</div>
-        </div>
+            <div class="bannerTitle">Bahar Kampanyası!<
+            <div class="bannerSub">%50 indirimi kaçırmayın!<
+          <
+          <div class="bannerRight">🛍️<
+        <
 
         <!-- Products grid placeholder -->
-        <div class="gridTitle">Öne Çıkanlar</div>
+        <div class="gridTitle">Öne Çıkanlar<
         <div id="homeGrid" class="grid">
           <div class="pCard">
-            <div class="pImg">🎧</div>
-            <div class="pName">Kablosuz Kulaklık</div>
-            <div class="pPrice">—</div>
-            <div class="pShop">Farklı mağazalarda</div>
-          </div>
+            <div class="pImg">🎧<
+            <div class="pName">Kablosuz Kulaklık<
+            <div class="pPrice">—<
+            <div class="pShop">Farklı mağazalarda<
+          <
           <div class="pCard">
-            <div class="pImg">📱</div>
-            <div class="pName">Telefon</div>
-            <div class="pPrice">—</div>
-            <div class="pShop">Farklı mağazalarda</div>
-          </div>
-        </div>
+            <div class="pImg">📱<
+            <div class="pName">Telefon<
+            <div class="pPrice">—<
+            <div class="pShop">Farklı mağazalarda<
+          <
+        <
       </section>
 
       <!-- SEARCH RESULTS -->
       <section id="page-search" class="page">
         <div class="pageHead">
-          <div class="pageTitle">Sonuçlar<
-<div id="favPager" class="pagerHost pagerTop"></div>
-
-<div id="searchPager" class="pagerHost pagerTop"></div>
-/div>
+          <div class="pageTitle">Sonuçlar
+          <div id="searchPager" class="pagerHost pagerTop"><
           <button id="btnClearSearch" class="btnGhost" type="button">Temizle</button>
-        </div>
-        <div id="normalList" class="list"></div>
-        <div id="normalPager" class="pagerHost"></div>
+        </div
+        <div id="normalList" class="list"><
+        <div id="normalPager" class="pagerHost"><
       </section>
 
       <!-- GRAPH -->
       <section id="page-graph" class="page">
         <div class="pageHead">
-          <div class="pageTitle">Grafik</div>
+          <div class="pageTitle">Grafik<
           <button id="btnGraphRefresh" class="btnGhost" type="button">Yenile</button>
-        </div>
-        <div class="miniHint">Favorilerinin fiyat geçmişi burada görünecek.</div>
-        <div id="graphRoot" class="cardBox">Grafik alanı</div>
+        <
+        <div class="miniHint">Favorilerinin fiyat geçmişi burada görünecek.<
+        <div id="graphRoot" class="cardBox">Grafik alanı<
       </section>
 
       <!-- FAVORITES -->
       <section id="page-favs" class="page">
         <div class="pageHead">
-          <div class="pageTitle">Favoriler</div>
+          <div class="pageTitle">Favoriler<
+          <div id="favPager" class="pagerHost pagerTop"><
           <button id="btnFavRefresh" class="btnGhost" type="button">Yenile</button>
-        </div>
-        <div id="favList" class="list"></div>
+        <
+        <div id="favList" class="list"><
 </section>
 
       <!-- SETTINGS -->
       <section id="page-settings" class="page">
         <div class="pageHead">
-          <div class="pageTitle">Ayarlar</div>
-        </div>
+          <div class="pageTitle">Ayarlar<
+        <
 
         <div class="cardBox">
           <div class="rowBetween">
             <div>
-              <div class="cardTitle">AI Ayarları</div>
-              <div class="miniHint">API Key / Model seçimi</div>
-            </div>
+              <div class="cardTitle">AI Ayarları<
+              <div class="miniHint">API Key / Model seçimi<
+            <
             <button id="btnAiSettings" class="btnPrimary" type="button">Aç</button>
-          </div>
-        </div>
+          <
+        <
 
         <div class="cardBox">
           <div class="rowBetween">
             <div>
-              <div class="cardTitle">Hesap</div>
-              <div class="miniHint">Çıkış yap</div>
-            </div>
+              <div class="cardTitle">Hesap<
+              <div class="miniHint">Çıkış yap<
+            <
             <button id="logoutBtn" class="btnGhost" type="button">Çıkış</button>
-          </div>
-        </div>
+          <
+        <
 
-        <div class="miniHint">Cache sorunlarında: Site verilerini temizle / PWA’yı kaldır-ekle.</div>
+        <div class="miniHint">Cache sorunlarında: Site verilerini temizle / PWA’yı kaldır-ekle.<
       </section>
 
     </main>
@@ -198,7 +196,7 @@
         <span class="ico">📊</span><span class="lbl">Grafik</span>
       </button>
 
-      <div class="tabSpacer" aria-hidden="true"></div>
+      <div class="tabSpacer" aria-hidden="true"><
 
       <button class="tab" type="button" data-page="favs">
         <span class="ico">❤️</span><span class="lbl">Fav</span>
@@ -213,20 +211,20 @@
       </button>
     </nav>
 
-  </div>
+  <
 
   <!-- SCRIPTS: TEK SEFER -->
   <script type="module" src="app.js"></script>
 
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden"><
 
   <div id="aiModal" class="modalWrap" aria-hidden="true">
-    <div class="modalBack" id="aiBackdrop"></div>
+    <div class="modalBack" id="aiBackdrop"><
     <div class="modalCard" role="dialog" aria-modal="true" aria-label="AI Ayarları">
       <div class="modalTop">
-        <div class="modalTitle">AI Ayarları</div>
+        <div class="modalTitle">AI Ayarları<
         <button id="closeAi" class="iconBtn" type="button" aria-label="Kapat">✕</button>
-      </div>
+      <
 
       <div class="modalBody">
         <div class="row">
@@ -235,7 +233,7 @@
             <option value="on">Açık</option>
             <option value="off">Kapalı</option>
           </select>
-        </div>
+        <
 
         <div class="row">
           <label class="lbl">Sağlayıcı</label>
@@ -243,21 +241,21 @@
             <option value="gemini">Gemini</option>
             <option value="openai">OpenAI</option>
           </select>
-        </div>
+        <
 
         <div class="row">
           <label class="lbl">API Key</label>
           <input id="aiApiKey" class="input inputDark" type="password" placeholder="anahtarınızı girin" />
-        </div>
+        <
 
         <div class="row">
           <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
-        </div>
+        <
 
-        <div class="mini muted">Test butonu bir sonraki adımda eklenecek.</div>
-      </div>
-    </div>
-  </div>
+        <div class="mini muted">Test butonu bir sonraki adımda eklenecek.<
+      <
+    <
+  <
 
 </body>
 </html>

@@ -470,3 +470,9 @@ html, body { transform: none !important; }
 .pager button{min-width:44px}
 /* give scroll area room above bottom nav */
 #resultsList, #favList, #graphList{padding-bottom:120px}
+
+.pageHead{flex-wrap:wrap;gap:12px}
+.pageHead .pageTitle{flex:1 1 100%}
+.pagerTop{flex:1 1 100%}
+
+.pagerHost.pagerTop{justify-content:center}
