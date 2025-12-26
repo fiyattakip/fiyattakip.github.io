@@ -347,3 +347,9 @@ body{
 .authTabs .isActive{border-color:rgba(255,255,255,.35)!important;background:rgba(255,255,255,.10)!important}
 .authPane .row{display:flex;gap:10px;margin-top:12px}
 .lbl{display:block;margin:8px 0 6px;font-size:13px;opacity:.9}
+
+/* Auth UI compact (old size feel) */
+.authTabs{margin:6px 0 10px}
+.lbl{margin:6px 0 4px;font-size:12.5px}
+#loginPane input, #registerPane input{padding:10px 12px;border-radius:14px}
+.authPane .row{margin-top:10px}
