@@ -63,19 +63,6 @@ async function copyToClipboard(text){
   }
 }
 
-function hideUrlLines(root=document){
-  const nodes = root.querySelectorAll("div,span,p");
-  nodes.forEach(el=>{
-    if (el.classList.contains("urlLine")) return;
-    if (el.querySelector("a,button,input,textarea")) return;
-    const t = (el.textContent||"").trim();
-    if (!t) return;
-    if (t.startsWith("http://") || t.startsWith("https://")){
-      el.classList.add("urlLine");
-    }
-  });
-}
-
 
 // ---------- Pages / Tabs ----------
 function showPage(key){
@@ -203,12 +190,11 @@ function renderFavoritesPage(uid){
           <div class="sub">${it.query || ""}</div>
         </div>
         <div class="actions">
-          <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}">Aç</button>
-          <button class="btnGhost sm btnCopy" data-copy-url="${url}" title="Linki kopyala">⧉</button>
+          <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}" data-copy-url="${it.url||""}">Aç</button>
           <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
         </div>
       </div>
-      <div class="mini">${it.url||""}</div>
+      
     `;
     card.querySelector("[data-open-url]")?.addEventListener("click", ()=>{
       if (it.url) window.open(it.url, "_blank", "noopener");
@@ -220,7 +206,6 @@ function renderFavoritesPage(uid){
     list.appendChild(card);
   }
   applyFavUI();
-  hideUrlLines();
 }
 
 function renderSiteList(container, query){
@@ -244,11 +229,11 @@ function renderSiteList(container, query){
         </div>
         <div class="actions">
           <button class="btnPrimary sm btnOpen" type="button">Aç</button>
-          <button class="btnGhost sm btnCopy" data-copy-url="${url}" title="Linki kopyala">⧉</button>
+          <button class="btnGhost sm btnCopy" type="button" data-copy-url="${url}" title="Linki kopyala">⧉</button>
           <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
         </div>
       </div>
-      <div class="mini">${url}</div>
+      
     `;
     card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
       window.open(url, "_blank", "noopener");
@@ -318,15 +303,6 @@ getRedirectResult(auth).catch(()=>{});
 
 // ---------- Wire UI ----------
 function wireUI(){
-  // Copy URL delegation
-  document.addEventListener("click", async (e)=>{
-    const cbtn = e.target && e.target.closest ? e.target.closest("[data-copy-url]") : null;
-    if (!cbtn) return;
-    e.preventDefault();
-    const url = cbtn.getAttribute("data-copy-url") || "";
-    if (url) await copyToClipboard(url);
-  });
-
 
   // Favori click delegation (arama + favoriler)
   document.addEventListener("click", async (e)=>{
@@ -455,6 +431,16 @@ function wireUI(){
   $("logoutBtn")?.addEventListener("click", async ()=>{
     try{ await signOut(auth); }catch{}
   });
+  // Copy link
+  document.addEventListener("click", async (e)=>{
+    const b = e.target && e.target.closest ? e.target.closest("[data-copy-url]") : null;
+    if (!b) return;
+    // only when clicking copy button (avoid open button)
+    if (!b.classList.contains("btnCopy")) return;
+    e.preventDefault();
+    const url = b.getAttribute("data-copy-url") || "";
+    if (url) await copyToClipboard(url);
+  });
 }
 
 // ---------- Auth visibility ----------
@@ -480,7 +466,6 @@ window.addEventListener("DOMContentLoaded", ()=>{
         await loadFavorites(u.uid);
         renderFavoritesPage(u.uid);
         applyFavUI();
-        hideUrlLines();
       }catch(e){ console.error(e); }
     }
   });
