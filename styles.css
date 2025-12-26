@@ -260,7 +260,7 @@ body{
 
 /* ========= MODAL / CLICK FREEZE FIX ========= */
 .modalWrap{ position: fixed; inset:0; display:none; z-index: 200000; pointer-events: none; }
-.modalWrap.show{ display:flex; pointer-events: auto; align-items:center; justify-content:center; }
+.modalWrap.show{ display:flex; pointer-events: auto; }
 
 .modalBack{
   position:absolute; inset:0;
@@ -269,8 +269,8 @@ body{
 
 .modalCard{
   position: relative;
-  margin: auto;
-  width: min(460px, calc(100% - 32px));
+  margin: auto 16px;
+  width: calc(100% - 32px);
   max-width: 460px;
   border-radius: 26px;
   border: 1px solid rgba(255,255,255,.14);
@@ -318,142 +318,59 @@ body{
 .row2{ display:flex; gap:10px; margin-top: 10px; }
 
 
-/* Favori kalp */
-.btnFav{min-width:44px;}
-.btnFav.isFav{background:rgba(255,0,90,.18)!important;border-color:rgba(255,0,90,.35)!important}
-
-
-.btnCopy{min-width:44px}
-
-/* Toast */
-.toast{
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(0,0,0,.78);
-  color: #fff;
-  z-index: 99999;
-  max-width: 92vw;
-  text-align: center;
-  font-size: 14px;
+/* === Icon Tabbar (PNG) - Safe overrides === */
+.tabbar .tabIcon{
+  width: 26px;
+  height: 26px;
+  display: block;
 }
-.hidden{display:none!important}
-
-/* Auth tabs */
-.authTabs{display:flex;gap:10px;margin:10px 0 14px}
-.authTabs .isActive{border-color:rgba(255,255,255,.35)!important;background:rgba(255,255,255,.10)!important}
-.authPane .row{display:flex;gap:10px;margin-top:12px}
-.lbl{display:block;margin:8px 0 6px;font-size:13px;opacity:.9}
-
-/* Auth UI compact (old size feel) */
-.authTabs{margin:6px 0 10px}
-.lbl{margin:6px 0 4px;font-size:12.5px}
-#loginPane input, #registerPane input{padding:10px 12px;border-radius:14px}
-.authPane .row{margin-top:10px}
-
-/* Login modal size restore */
-.modalCard{
-  max-width: 420px;
-  padding: 22px 22px 20px;
+.tabbar .tab{
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
-
-.authTabs{margin:10px 0 14px}
-
-#loginPane input,
-#registerPane input{
-  padding:12px 14px;
-  font-size:14px;
+.tabbar .tab.active .tabIcon{
+  filter: drop-shadow(0 0 8px rgba(123,108,255,.75)) brightness(1.15);
+  opacity: 1;
 }
-
-.authPane .row{
-  margin-top:14px;
+.tabbar .tab .tabIcon{
+  opacity: .70;
 }
-
-.lbl{
-  margin:10px 0 6px;
-  font-size:13px;
+.tabbar .fab{
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-top: -26px;
 }
-
-/* === LOGIN MODAL CENTER (FINAL MOBILE) === */
-#loginModal.modalWrap{
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 18px 14px;
-  box-sizing: border-box;
-  z-index: 9999;
+.tabbar .fabIcon{
+  width: 30px;
+  height: 30px;
+  display:block;
 }
-#loginModal.modalWrap{display:none;}
-#loginModal.modalWrap.show{
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
+.tabbar .fab:active{
+  transform: translateY(-1px) scale(0.98);
 }
-#loginModal .modalCard{
-  margin: 0 !important;
-  width: min(460px, 92vw) !important;
-  max-width: 460px;
-  box-sizing: border-box;
-  max-height: calc(100dvh - 48px);
-  overflow: auto;
+@keyframes ftPulse {
+  0% { box-shadow: 0 10px 30px rgba(123,108,255,.45); }
+  60% { box-shadow: 0 10px 34px rgba(123,108,255,.75); }
+  100% { box-shadow: 0 10px 30px rgba(123,108,255,.45); }
 }
-@media (max-width:480px){
-  #loginModal .modalCard{
-    width: 92vw !important;
-    max-width: 420px;
-  }
+.tabbar .fab{
+  animation: ftPulse 2.2s ease-in-out infinite;
 }
 
 
-/* === Modal centering hard fix === */
-html, body { transform: none !important; }
-#loginModal.modalWrap.show{
-  display:grid !important;
-  place-items:center !important;
-  width:100vw !important;
-  height:100dvh !important;
+/* === Page transition (safe) === */
+.page{
+  animation: none;
 }
-#loginModal.modalWrap{
-  left:0 !important; top:0 !important;
-  width:100vw !important; height:100dvh !important;
-  transform:none !important;
+.page.active{
+  animation: ftPageIn .18s ease-out;
 }
-#loginModal .modalCard{
-  justify-self:center !important;
-  align-self:center !important;
+@keyframes ftPageIn{
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
 }
-
-/* Clear cache button tidy */
-.authTools{display:flex;justify-content:flex-end;margin:0}
-#loginModal .modalCard{position:relative}
-#btnClearCache{
-  position:absolute;
-  right:18px;
-  top:92px; /* under title + close */
-  padding:8px 12px !important;
-  border-radius:999px !important;
-  font-size:12.5px !important;
-  opacity:.80;
-  background: rgba(255,255,255,.06) !important;
-}
-@media (max-width:480px){
-  #btnClearCache{right:14px; top:90px; padding:7px 11px !important; font-size:12px !important;}
-}
-#btnClearCache:active{transform:scale(.98)}
-
-/* Dark input/select to match theme */
-.inputDark{
-  background: rgba(255,255,255,.06) !important;
-  color: rgba(255,255,255,.92) !important;
-  border: 1px solid rgba(255,255,255,.12) !important;
-}
-.inputDark::placeholder{color: rgba(255,255,255,.55)}
-.inputDark option{color:#111}
-.modalTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.modalTitle{font-size:18px;font-weight:900}
-.iconBtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.9);border-radius:14px;padding:10px 12px}
-.modalBody .row{margin-top:12px}
