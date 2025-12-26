@@ -57,7 +57,8 @@ function getPagerEl(id){
 }
 
 function renderPager(container, meta, onChange){
-  if (!container) return;
+  if(!container){ return; }
+if (!container) return;
   container.innerHTML = `
     <div class="pager">
       <button class="btnGhost sm" type="button" ${meta.page<=1?'disabled':''} data-act="prev">‹</button>
