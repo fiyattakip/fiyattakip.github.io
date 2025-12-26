@@ -147,11 +147,16 @@ function wireUI(){
     if (typeof window.doNormalSearch === "function"){
       return window.doNormalSearch(query);
     }
+    if (typeof doNormalSearch === "function"){
+      return doNormalSearch(query);
+    }
     if (typeof window.renderSiteList === "function"){
       return window.renderSiteList($("normalList"), query);
     }
-
-    $("normalList").innerHTML = `
+    if (typeof renderSiteList === "function"){
+      return renderSiteList($("normalList"), query);
+    }
+$("normalList").innerHTML = `
       <div class="cardBox">
         <div style="font-weight:1000">Arama sorgusu</div>
         <div style="opacity:.8;margin-top:6px">${query}</div>
