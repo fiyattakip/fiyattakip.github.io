@@ -93,7 +93,22 @@ function getSearchMode(){
 }
 
 // ---------- Login modal helpers ----------
+
+function setAuthPane(mode){
+  const loginPane = document.getElementById("loginPane");
+  const registerPane = document.getElementById("registerPane");
+  const tL = document.getElementById("tabLogin");
+  const tR = document.getElementById("tabRegister");
+  if (!loginPane || !registerPane) return;
+  const isReg = mode === "register";
+  loginPane.classList.toggle("hidden", isReg);
+  registerPane.classList.toggle("hidden", !isReg);
+  tL?.classList.toggle("isActive", !isReg);
+  tR?.classList.toggle("isActive", isReg);
+}
+
 function openLogin(){
+  setAuthPane('login');
   const m = $("loginModal");
   if (!m) return;
   m.classList.add("show");
@@ -261,12 +276,26 @@ async function doEmailLogin(isRegister){
   if (btnL) btnL.disabled = true;
   if (btnR) btnR.disabled = true;
 
-  const email = ($("email")?.value || "").trim();
-  const pass  = ($("pass")?.value || "");
+  const email = (isRegister ? ($("regEmail")?.value || "") : ($("loginEmail")?.value || "")).trim();
+  const pass  = (isRegister ? ($("regPass")?.value || "") : ($("loginPass")?.value || ""));
+  const pass2 = (isRegister ? ($("regPass2")?.value || "") : "");
+
   if (!email || !pass){
     if (btnL) btnL.disabled = false;
     if (btnR) btnR.disabled = false;
     return toast("E-posta ve şifre gir.");
+  }
+  if (isRegister){
+    if (pass.length < 6){
+      if (btnL) btnL.disabled = false;
+      if (btnR) btnR.disabled = false;
+      return toast("Şifre en az 6 karakter olmalı.");
+    }
+    if (!pass2 || pass !== pass2){
+      if (btnL) btnL.disabled = false;
+      if (btnR) btnR.disabled = false;
+      return toast("Şifreler uyuşmuyor.");
+    }
   }
 
   toast(isRegister ? "Kayıt deneniyor..." : "Giriş deneniyor...");
@@ -275,6 +304,7 @@ async function doEmailLogin(isRegister){
     if (isRegister){
       await createUserWithEmailAndPassword(auth, email, pass);
       toast("Kayıt tamam. Giriş yapıldı.");
+      setAuthPane("login");
     } else {
       await signInWithEmailAndPassword(auth, email, pass);
       toast("Giriş başarılı.");
@@ -319,6 +349,11 @@ getRedirectResult(auth).catch(()=>{});
 
 // ---------- Wire UI ----------
 function wireUI(){
+  $("tabLogin")?.addEventListener("click", ()=>setAuthPane("login"));
+  $("tabRegister")?.addEventListener("click", ()=>setAuthPane("register"));
+  // ikinci Google butonu (kayıt paneli)
+  $("btnGoogleLogin2")?.addEventListener("click", ()=>doGoogleLogin());
+
 
   // Favori click delegation (arama + favoriler)
   document.addEventListener("click", async (e)=>{

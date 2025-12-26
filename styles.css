@@ -341,3 +341,9 @@ body{
   font-size: 14px;
 }
 .hidden{display:none!important}
+
+/* Auth tabs */
+.authTabs{display:flex;gap:10px;margin:10px 0 14px}
+.authTabs .isActive{border-color:rgba(255,255,255,.35)!important;background:rgba(255,255,255,.10)!important}
+.authPane .row{display:flex;gap:10px;margin-top:12px}
+.lbl{display:block;margin:8px 0 6px;font-size:13px;opacity:.9}

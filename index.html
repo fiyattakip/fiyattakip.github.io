@@ -23,13 +23,37 @@
         <button class="segBtn" data-auth="google" type="button">Google</button>
       </div>
 
-      <div id="authEmail">
-        <input id="email" placeholder="E-posta" autocomplete="email" />
-        <input id="pass" placeholder="Şifre" type="password" autocomplete="current-password" />
-        <div class="row2">
-          <button id="btnLogin" class="btnPrimary" type="button">Giriş</button>
-          <button id="btnRegister" class="btnGhost" type="button">Kayıt</button>
-        </div>
+      
+<div class="authTabs">
+  <button id="tabLogin" class="btnGhost sm isActive" type="button">Giriş</button>
+  <button id="tabRegister" class="btnGhost sm" type="button">Kayıt</button>
+</div>
+
+<div id="loginPane" class="authPane">
+  <label class="lbl">E-posta</label>
+  <input id="loginEmail" type="email" autocomplete="email" placeholder="ornek@mail.com" />
+  <label class="lbl">Şifre</label>
+  <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" />
+  <div class="row">
+    <button id="btnLogin" class="btnPrimary" type="button">Giriş Yap</button>
+    <button id="btnGoogleLogin" class="btnGhost" type="button">Google ile</button>
+  </div>
+</div>
+
+<div id="registerPane" class="authPane hidden">
+  <label class="lbl">E-posta</label>
+  <input id="regEmail" type="email" autocomplete="email" placeholder="ornek@mail.com" />
+  <label class="lbl">Şifre</label>
+  <input id="regPass" type="password" autocomplete="new-password" placeholder="en az 6 karakter" />
+  <label class="lbl">Şifre (Tekrar)</label>
+  <input id="regPass2" type="password" autocomplete="new-password" placeholder="şifreyi tekrar yaz" />
+  <div class="row">
+    <button id="btnRegister" class="btnPrimary" type="button">Kayıt Ol</button>
+    <button id="btnGoogleLogin2" class="btnGhost" type="button">Google ile</button>
+  </div>
+  <div class="mini muted">Kayıt olunca otomatik giriş yapılır.</div>
+</div>
+
       </div>
 
       <div id="authGoogle" style="display:none">
