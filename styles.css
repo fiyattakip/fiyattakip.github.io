@@ -353,3 +353,26 @@ body{
 .lbl{margin:6px 0 4px;font-size:12.5px}
 #loginPane input, #registerPane input{padding:10px 12px;border-radius:14px}
 .authPane .row{margin-top:10px}
+
+/* Login modal size restore */
+.modalCard{
+  max-width: 420px;
+  padding: 22px 22px 20px;
+}
+
+.authTabs{margin:10px 0 14px}
+
+#loginPane input,
+#registerPane input{
+  padding:12px 14px;
+  font-size:14px;
+}
+
+.authPane .row{
+  margin-top:14px;
+}
+
+.lbl{
+  margin:10px 0 6px;
+  font-size:13px;
+}
