@@ -48,6 +48,23 @@ function toast(msg){
   toast._t = setTimeout(()=>t.classList.add("hidden"), 2200);
 }
 
+async function copyToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    toast("Kopyalandı");
+  }catch(e){
+    // fallback
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position="fixed"; ta.style.left="-9999px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{ document.execCommand("copy"); toast("Kopyalandı"); }catch(_){}
+    document.body.removeChild(ta);
+  }
+}
+
+
 // ---------- Pages / Tabs ----------
 function showPage(key){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
@@ -175,6 +192,7 @@ function renderFavoritesPage(uid){
         </div>
         <div class="actions">
           <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}">Aç</button>
+          <button class="btnGhost sm btnCopy" data-copy-url="${url}" title="Linki kopyala">⧉</button>
           <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
         </div>
       </div>
@@ -213,6 +231,7 @@ function renderSiteList(container, query){
         </div>
         <div class="actions">
           <button class="btnPrimary sm btnOpen" type="button">Aç</button>
+          <button class="btnGhost sm btnCopy" data-copy-url="${url}" title="Linki kopyala">⧉</button>
           <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
         </div>
       </div>
@@ -286,6 +305,16 @@ getRedirectResult(auth).catch(()=>{});
 
 // ---------- Wire UI ----------
 function wireUI(){
+
+  // Copy URL delegation
+  document.addEventListener("click", async (e)=>{
+    const cbtn = e.target && e.target.closest ? e.target.closest("[data-copy-url]") : null;
+    if (!cbtn) return;
+    e.preventDefault();
+    const url = cbtn.getAttribute("data-copy-url") || "";
+    if (url) await copyToClipboard(url);
+  });
+
 
   // Favori click delegation (arama + favoriler)
   document.addEventListener("click", async (e)=>{

@@ -321,3 +321,7 @@ body{
 /* Favori kalp */
 .btnFav{min-width:44px;}
 .btnFav.isFav{background:rgba(255,0,90,.18)!important;border-color:rgba(255,0,90,.35)!important}
+
+
+/* Copy link button */
+.btnCopy{min-width:44px}
