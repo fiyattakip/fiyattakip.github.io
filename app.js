@@ -30,6 +30,18 @@ function paginate(items, page, perPage){
   return { page: p, perPage, total, totalPages, slice: items.slice(start, start + perPage) };
 }
 
+
+function ensurePager(afterEl, id){
+  if(!afterEl) return null;
+  let el = document.getElementById(id);
+  if(el) return el;
+  el = document.createElement("div");
+  el.id = id;
+  el.className = "pagerHost";
+  afterEl.insertAdjacentElement("afterend", el);
+  return el;
+}
+
 function renderPager(container, meta, onChange){
   if (!container) return;
   container.innerHTML = `
@@ -330,6 +342,21 @@ function renderSiteList(container, query){
     });
 container.appendChild(card);
   }
+  // pager
+  const pagerEl = ensurePager(container, "normalPager");
+  if (pagerEl){
+    renderPager({
+      container: pagerEl,
+      stateKey: "search",
+      meta: { page: pg.page, totalPages: pg.totalPages, total: pg.total },
+      onChange: (newPage)=>{
+        PAGINATION.search.page = newPage;
+        renderSiteList(container, PAGINATION.search.lastQuery || q);
+        window.scrollTo({top:0, behavior:"smooth"});
+      }
+    });
+  }
+
 }
 
 window.renderSiteList = renderSiteList;
