@@ -159,7 +159,7 @@ function renderFavoritesPage(uid){
         </div>
         <div class="actions">
           <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}">Aç</button>
-          <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}">❤️</button>
+          <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
         </div>
       </div>
       <div class="mini">${it.url||""}</div>
@@ -197,7 +197,7 @@ function renderSiteList(container, query){
         </div>
         <div class="actions">
           <button class="btnPrimary sm btnOpen" type="button">Aç</button>
-          <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}">🤍</button>
+          <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
         </div>
       </div>
       <div class="mini">${url}</div>
@@ -270,6 +270,23 @@ getRedirectResult(auth).catch(()=>{});
 
 // ---------- Wire UI ----------
 function wireUI(){
+
+  // Favori click delegation (arama + favoriler)
+  document.addEventListener("click", async (e)=>{
+    const btn = e.target && e.target.closest ? e.target.closest("[data-fav-url]") : null;
+    if (!btn) return;
+    e.preventDefault();
+    const u = window.currentUser;
+    if (!u){ openLogin(); return; }
+    const url = btn.getAttribute("data-fav-url") || "";
+    const siteKey = btn.getAttribute("data-site-key") || "";
+    const siteName = btn.getAttribute("data-site-name") || "";
+    const query = btn.getAttribute("data-query") || "";
+    await toggleFavorite(u.uid, { url, siteKey, siteName, query });
+    renderFavoritesPage(u.uid);
+    applyFavUI();
+  });
+
   // bottom tabs
   document.querySelectorAll(".tab[data-page]").forEach(btn=>{
     btn.addEventListener("click", ()=> showPage(btn.dataset.page));
@@ -278,6 +295,14 @@ function wireUI(){
   $("modeNormal")?.addEventListener("click", ()=> setSearchMode("normal"));
   $("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
   setSearchMode(getSearchMode());
+
+    $("btnFavRefresh")?.addEventListener("click", async ()=>{
+    const u = window.currentUser;
+    if (!u) return openLogin();
+    await loadFavorites(u.uid);
+    renderFavoritesPage(u.uid);
+    applyFavUI();
+  });
 
   // close login guard
   $("closeLogin")?.addEventListener("click", ()=>{
@@ -366,8 +391,15 @@ window.addEventListener("DOMContentLoaded", ()=>{
     toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.");
   }
 
-  onAuthStateChanged(auth, (u)=>{
+  onAuthStateChanged(auth, async (u)=>{
     window.currentUser = u || null;
     setAuthedUI(!!u);
+    if (u){
+      try{
+        await loadFavorites(u.uid);
+        renderFavoritesPage(u.uid);
+        applyFavUI();
+      }catch(e){ console.error(e); }
+    }
   });
 });
