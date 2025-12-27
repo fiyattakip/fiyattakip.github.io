@@ -541,6 +541,7 @@ function setAuthedUI(isAuthed){
 // Boot
 window.addEventListener("DOMContentLoaded", ()=>{
   wireUI();
+  wireGoogleButtons();
 
   if (firebaseConfigLooksInvalid()){
     toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.");
@@ -590,3 +591,22 @@ function closeAIModal(){
   m.classList.remove("show");
   m.setAttribute("aria-hidden","true");
 }
+
+
+// === GOOGLE LOGIN CLICK FIX (SAFE) ===
+function wireGoogleButtons(){
+  const ids = ["btnGoogle", "btnGoogleLogin", "btnGoogleLogin2"];
+  ids.forEach(id=>{
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.addEventListener("click", async (e)=>{
+      e.preventDefault();
+      try{
+        await doGoogleLogin();
+      }catch(err){
+        console.error(err);
+      }
+    });
+  });
+}
+
