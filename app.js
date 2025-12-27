@@ -355,52 +355,24 @@ async function doEmailLogin(isRegister){
 }
 
 async function doGoogleLogin(){
-  // Mobilde popup bazen engellenir; önce popup, olmazsa redirect.
-  toast("Google giriş açılıyor...");
   try{
     await signInWithPopup(auth, googleProvider);
-    // Başarılıysa onAuthStateChanged tetiklenir ve login kapanır.
     return;
   }catch(e){
-    const code = String(e?.code || "");
-    const msg  = String(e?.message || e || "");
-    // Domain yetkisi yoksa kullanıcıya net söyle
-    if (code.includes("auth/unauthorized-domain") || msg.includes("auth/unauthorized-domain")){
-      toast("Google giriş için domain yetkisi yok. Firebase > Authentication > Settings > Authorized domains içine siteni ekle (örn: fiyattakip.github.io).");
-      return;
-    }
-    // Popup engellendiyse redirect'e düş
-    const popupBlocked =
-      code.includes("auth/popup-blocked") ||
-      code.includes("auth/cancelled-popup-request") ||
-      code.includes("auth/operation-not-supported-in-this-environment") ||
-      msg.toLowerCase().includes("popup") ||
-      msg.toLowerCase().includes("blocked");
-
-    if (!popupBlocked){
-      // Gerçek hata: kullanıcıya göster
-      toast("Google giriş hatası: " + msg.replace(/^Firebase:\s*/,""));
-      return;
-    }
-
+    // popup blocked / mobile -> redirect
     try{
-      // Redirect'e geçerken modal açık kalabilir; sorun değil.
       await signInWithRedirect(auth, googleProvider);
       return;
     }catch(e2){
-      const code2 = String(e2?.code || "");
-      const msg2  = String(e2?.message || e2 || "");
-      if (code2.includes("auth/unauthorized-domain") || msg2.includes("auth/unauthorized-domain")){
+      const msg = String(e2?.message || e?.message || e2 || e || "");
+      if (msg.includes("auth/unauthorized-domain")){
         toast("Google giriş için domain yetkisi yok. Firebase > Authentication > Settings > Authorized domains içine siteni ekle (örn: fiyattakip.github.io).");
         return;
       }
-      toast("Google redirect hatası: " + msg2.replace(/^Firebase:\s*/,""));
-      return;
+      toast("Google giriş hatası: " + msg.replace(/^Firebase:\s*/,""));
     }
   }
 }
-
-// Redirect dönüşünü sessizce işle (başarılıysa login kapanması onAuthStateChanged ile olur)
 
 // Redirect dönüşünü sessizce işle
 getRedirectResult(auth).catch(()=>{});
@@ -569,6 +541,7 @@ function setAuthedUI(isAuthed){
 // Boot
 window.addEventListener("DOMContentLoaded", ()=>{
   wireUI();
+  wireGoogleButtons();
 
   if (firebaseConfigLooksInvalid()){
     toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.");
@@ -618,3 +591,22 @@ function closeAIModal(){
   m.classList.remove("show");
   m.setAttribute("aria-hidden","true");
 }
+
+
+// === GOOGLE LOGIN CLICK FIX (SAFE) ===
+function wireGoogleButtons(){
+  const ids = ["btnGoogle", "btnGoogleLogin", "btnGoogleLogin2"];
+  ids.forEach(id=>{
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.addEventListener("click", async (e)=>{
+      e.preventDefault();
+      try{
+        await doGoogleLogin();
+      }catch(err){
+        console.error(err);
+      }
+    });
+  });
+}
+
