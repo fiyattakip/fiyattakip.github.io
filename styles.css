@@ -153,7 +153,7 @@ body{
     rgba(255,255,255,.06);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-}nasılsın 
+}
 .bannerLeft,.bannerRight{ font-size: 22px; }
 .bannerTitle{ font-weight: 1000; }
 .bannerSub{ color: rgba(255,255,255,.72); font-size: 12px; margin-top: 2px; }
@@ -200,7 +200,7 @@ body{
   position: fixed;
   left: 10px;
   right: 10px;
-  bottom: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
   height: 72px;
   border-radius: 26px;
   background: rgba(20,25,40,.72);
@@ -260,7 +260,7 @@ body{
 
 /* ========= MODAL / CLICK FREEZE FIX ========= */
 .modalWrap{ position: fixed; inset:0; display:none; z-index: 200000; pointer-events: none; }
-.modalWrap.show{ display:flex; pointer-events: auto; align-items:center; justify-content:center; }
+.modalWrap.show{ display:flex; pointer-events: auto; }
 
 .modalBack{
   position:absolute; inset:0;
@@ -269,8 +269,8 @@ body{
 
 .modalCard{
   position: relative;
-  margin: auto;
-  width: min(460px, calc(100% - 32px));
+  margin: auto 16px;
+  width: calc(100% - 32px);
   max-width: 460px;
   border-radius: 26px;
   border: 1px solid rgba(255,255,255,.14);
@@ -318,187 +318,31 @@ body{
 .row2{ display:flex; gap:10px; margin-top: 10px; }
 
 
-/* Favori kalp */
-.btnFav{min-width:44px;}
-.btnFav.isFav{background:rgba(255,0,90,.18)!important;border-color:rgba(255,0,90,.35)!important}
-
-
-.btnCopy{min-width:44px}
-
-/* Toast */
-.toast{
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(0,0,0,.78);
-  color: #fff;
-  z-index: 99999;
-  max-width: 92vw;
-  text-align: center;
-  font-size: 14px;
-}
-.hidden{display:none!important}
-
-/* Auth tabs */
-.authTabs{display:flex;gap:10px;margin:10px 0 14px}
-.authTabs .isActive{border-color:rgba(255,255,255,.35)!important;background:rgba(255,255,255,.10)!important}
-.authPane .row{display:flex;gap:10px;margin-top:12px}
-.lbl{display:block;margin:8px 0 6px;font-size:13px;opacity:.9}
-
-/* Auth UI compact (old size feel) */
-.authTabs{margin:6px 0 10px}
-.lbl{margin:6px 0 4px;font-size:12.5px}
-#loginPane input, #registerPane input{padding:10px 12px;border-radius:14px}
-.authPane .row{margin-top:10px}
-
-/* Login modal size restore */
-.modalCard{
-  max-width: 420px;
-  padding: 22px 22px 20px;
-}
-
-.authTabs{margin:10px 0 14px}
-
-#loginPane input,
-#registerPane input{
-  padding:12px 14px;
-  font-size:14px;
-}
-
-.authPane .row{
-  margin-top:14px;
-}
-
-.lbl{
-  margin:10px 0 6px;
-  font-size:13px;
-}
-
-/* === LOGIN MODAL CENTER (FINAL MOBILE) === */
-#loginModal.modalWrap{
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 18px 14px;
-  box-sizing: border-box;
-  z-index: 9999;
-}
-#loginModal.modalWrap{display:none;}
-#loginModal.modalWrap.show{
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-}
-#loginModal .modalCard{
-  margin: 0 !important;
-  width: min(460px, 92vw) !important;
-  max-width: 460px;
-  box-sizing: border-box;
-  max-height: calc(100dvh - 48px);
-  overflow: auto;
-}
-@media (max-width:480px){
-  #loginModal .modalCard{
-    width: 92vw !important;
-    max-width: 420px;
-  }
-}
-
-
-/* === Modal centering hard fix === */
-html, body { transform: none !important; }
-#loginModal.modalWrap.show{
-  display:grid !important;
-  place-items:center !important;
-  width:100vw !important;
-  height:100dvh !important;
-}
-#loginModal.modalWrap{
-  left:0 !important; top:0 !important;
-  width:100vw !important; height:100dvh !important;
-  transform:none !important;
-}
-#loginModal .modalCard{
-  justify-self:center !important;
-  align-self:center !important;
-}
-
-/* Clear cache button tidy */
-.authTools{display:flex;justify-content:flex-end;margin:0}
-#loginModal .modalCard{position:relative}
-#btnClearCache{
-  position:absolute;
-  right:18px;
-  top:92px; /* under title + close */
-  padding:8px 12px !important;
-  border-radius:999px !important;
-  font-size:12.5px !important;
-  opacity:.80;
-  background: rgba(255,255,255,.06) !important;
-}
-@media (max-width:480px){
-  #btnClearCache{right:14px; top:90px; padding:7px 11px !important; font-size:12px !important;}
-}
-#btnClearCache:active{transform:scale(.98)}
-
-/* Dark input/select to match theme */
-.inputDark{
-  background: rgba(255,255,255,.06) !important;
-  color: rgba(255,255,255,.92) !important;
-  border: 1px solid rgba(255,255,255,.12) !important;
-}
-.inputDark::placeholder{color: rgba(255,255,255,.55)}
-.inputDark option{color:#111}
-.modalTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.modalTitle{font-size:18px;font-weight:900}
-.iconBtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.9);border-radius:14px;padding:10px 12px}
-.modalBody .row{margin-top:12px}
-
-/* === Tabbar PNG Icon Patch (safe scoped) === */
-:root{
-  --ft-tabbar-h: 70px;      /* total bar height */
-  --ft-tab-ico: 40px;        /* side icons */
-  --ft-fab-ico: 75px;        /* camera icon */
-  --ft-fab-btn: 80px;       /* camera button */
-}
-
-/* keep content above the bar */
-body{ padding-bottom: calc(var(--ft-tabbar-h) + env(safe-area-inset-bottom)); }
-
-/* tabbar height & safe area */
-.tabbar{
-  height: var(--ft-tabbar-h);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* side tabs */
+/* === TABBAR ACTIVE + ANIMATION (SAFE) === */
 .tabbar .tab{
-  padding-top: 10px;
+  transition: transform .14s ease, background .14s ease, color .14s ease;
 }
-.tabbar .tab .ico{
-  width: var(--ft-tab-ico);
-  height: var(--ft-tab-ico);
-  display: grid;
-  place-items: center;
-  font-size: 0; /* hide emoji if any */
-}
-.tabbar .tab .tabIcon{
-  width: var(--ft-tab-ico);
-  height: var(--ft-tab-ico);
-  object-fit: contain;
+.tabbar .tab:active{ transform: scale(.98); }
+
+.tabbar .tab.active{
+  background: rgba(255,255,255,.10);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
 }
 
-/* camera FAB */
-.tabbar .fab{
-  width: var(--ft-fab-btn);
-  height: var(--ft-fab-btn);
+/* Glow both PNG icons (if present) and emoji .ico */
+.tabbar .tab.active .tabIcon,
+.tabbar .tab.active .ico{
+  filter: drop-shadow(0 0 10px rgba(124,92,255,.65));
 }
-.tabbar .fab .fabIcon{
-  width: var(--ft-fab-ico);
-  height: var(--ft-fab-ico);
-  object-fit: contain;
+
+/* Camera FAB tactile */
+.tabbar .fab:active{ transform: translateX(-50%) scale(.98); }
+
+/* Page transition reinforce */
+.page{ will-change: opacity, transform; }
+.page.active{ animation: pageIn .18s ease-out; }
+@keyframes pageIn{
+  from{ opacity:0; transform: translateX(10px); }
+  to{ opacity:1; transform: translateX(0); }
 }
