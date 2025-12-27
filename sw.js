@@ -1,31 +1,29 @@
-// Service Worker - GitHub Pages için
-const CACHE_NAME = 'fiyattakip-v2';
-const urlsToCache = [
-  './',
-  './index.html',
-  './styles.css',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+const CACHE = "fiyattakip-cache-v6";
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./ai.js",
+  "./firebase.js",
+  "./manifest.json"
 ];
 
-// Install
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+self.addEventListener("install", (e)=>{
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(ASSETS))
       .then(() => self.skipWaiting())
   );
 });
 
-// Activate
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
+self.addEventListener("activate", (e)=>{
+  e.waitUntil(
+    caches.keys().then(keys => {
       return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
+        keys.map(k => {
+          if (k !== CACHE) {
+            return caches.delete(k);
           }
         })
       );
@@ -33,26 +31,25 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch
-self.addEventListener('fetch', event => {
-  // API isteklerini cache'leme
-  if (event.request.url.includes('api.allorigins.win') || 
-      event.request.url.includes('cors-anywhere')) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then(cache => {
-        return fetch(event.request)
-          .then(response => {
-            cache.put(event.request, response.clone());
-            return response;
-          })
-          .catch(() => cache.match(event.request))
-      })
-    );
-  } else {
-    // Normal istekler
-    event.respondWith(
-      caches.match(event.request)
-        .then(response => response || fetch(event.request))
-    );
-  }
+self.addEventListener("fetch", (e)=>{
+  const req = e.request;
+  if (req.method !== "GET") return;
+
+  e.respondWith(
+    caches.match(req).then(cached => {
+      if (cached) return cached;
+      
+      return fetch(req).then(response => {
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE).then(cache => {
+            cache.put(req, clone);
+          });
+        }
+        return response;
+      }).catch(() => {
+        return new Response("Offline", { status: 503 });
+      });
+    })
+  );
 });
