@@ -1,33 +1,12 @@
 {
-  "name": "FiyatTakip",
+  "name": "Fiyat Takip",
   "short_name": "FiyatTakip",
-  "description": "Mobil fiyat karşılaştırma uygulaması",
-  "start_url": "/fiyattakip/",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f1529",
-  "theme_color": "#0f1529",
-  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "categories": ["shopping", "utilities"],
-  "shortcuts": [
-    {
-      "name": "Yeni Arama",
-      "short_name": "Ara",
-      "description": "Yeni ürün ara",
-      "url": "/fiyattakip/#search"
-    }
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
