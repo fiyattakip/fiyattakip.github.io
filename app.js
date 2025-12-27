@@ -254,7 +254,7 @@ function renderFavoritesPage(uid){
       </div>
     `;
     card.querySelector("[data-open-url]")?.addEventListener("click", ()=>{
-      if (it.url) window.open(it.url, "_blank", "noopener");
+      const go = it.url || it.searchUrl; if (go) window.open(go, "_blank", "noopener");
     });
     card.querySelector("[data-fav-url]")?.addEventListener("click", async ()=>{
       await toggleFavorite(uid, { url: it.url, siteKey: it.siteKey||"", siteName: it.siteName||"", query: it.query||"" });
