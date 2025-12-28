@@ -1,5 +1,6 @@
 // app.js - Fiyat Takip Uygulaması (Render API entegreli)
 import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
+import { saveGeminiKey, setSessionPin, geminiText, aiConfigured, loadAiCfg, clearAiCfg } from "./ai.js";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -41,6 +42,15 @@ function toast(msg, type = 'info'){
   t.classList.remove("hidden");
   clearTimeout(toast._t);
   toast._t = setTimeout(()=>t.classList.add("hidden"), 2200);
+}
+
+function escapeHtml(s){
+  return String(s||"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/\'/g,"&#39;");
 }
 
 // ========== SAYFA GEÇİŞLERİ ==========
@@ -314,7 +324,7 @@ function changeSort(newSort) {
 async function cameraAiSearch() {
   try {
     // Kamera erişimi
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
     
     // Kamera modalı oluştur
     const modal = document.createElement('div');
@@ -367,9 +377,9 @@ async function cameraAiSearch() {
       
 try {
   // Önce cihazda (ai.js) Gemini Vision dene (PIN + key ile)
-  if (typeof window.geminiVision === "function" && typeof window.aiConfigured === "function" && window.aiConfigured()) {
+  if (typeof window.geminiVision === "function" && typeof aiConfigured === "function" && aiConfigured()) {
     const pin = ($("aiPin")?.value || "").trim();
-    if (pin) window.setSessionPin?.(pin);
+    if (pin) setSessionPin(pin);
     const guess = await window.geminiVision("Bu görseldeki ürün/ürün adını 3-6 kelimeyle Türkçe yaz.", imageData);
     const q = (guess || "").trim() || "telefon";
     toast("Bulunan: " + q, "success");
@@ -402,7 +412,7 @@ try {
     
   } catch (error) {
     console.error("Kamera hatası:", error);
-    toast("Kamera erişimi reddedildi", "error");
+    toast("Kamera erişimi reddedildi. Chrome: Site ayarları → Kamera → İzin ver.", "error");
   }
 }
 
@@ -464,71 +474,100 @@ async function aiCommentForSearch(query){
   }
 }
 async function getAiCommentForFavorite(favorite) {
+  const title = (favorite?.query || favorite?.urun || "").trim() || "Ürün";
+  const site = (favorite?.siteName || favorite?.site || "").trim() || "Mağaza";
+  const price = (favorite?.fiyat || "").trim();
+
+  // Modal helper
+  function showAiModal({ message, detailHtml="" }) {
+    const modal = document.createElement('div');
+    modal.className = 'aiModal';
+    modal.innerHTML = `
+      <div class="aiModalContent">
+        <div class="aiModalHeader">
+          <h3>🤖 AI Analizi</h3>
+          <button class="closeAiModal">✕</button>
+        </div>
+        <div class="aiModalBody">
+          <div class="aiProduct">
+            <strong>${escapeHtml(title)}</strong>
+            <small>${escapeHtml(site)}${price ? " • " + escapeHtml(price) : ""}</small>
+          </div>
+          <div class="aiComment">${message}</div>
+          ${detailHtml}
+        </div>
+        <div class="aiModalFooter">
+          <button class="btnPrimary" type="button">Tamam</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector('.closeAiModal').onclick = () => modal.remove();
+    modal.querySelector('.btnPrimary').onclick = () => modal.remove();
+    modal.addEventListener('click', (e)=>{ if (e.target === modal) modal.remove(); });
+  }
+
   try {
     toast("🤖 AI analiz yapıyor...", "info");
-    
+
+    // 1) Önce cihazdaki Gemini anahtarı (PIN ile kaydedilen) varsa onu kullan
+    if (aiConfigured && aiConfigured()) {
+      const prompt = [
+        `Ürün: ${title}`,
+        `Mağaza: ${site}`,
+        price ? `Fiyat: ${price}` : `Fiyat: (bilinmiyor)`,
+        ``,
+        `Görev: Bu ürünü özellik/kalite açısından değerlendir. Fiyata odaklanma.`,
+        `- Kimler için uygun?`,
+        `- Artılar / Eksiler`,
+        `- Sahte/garanti/iade riskleri için kısa uyarılar`,
+        `- 1-2 alternatif önerisi (genel, marka şart değil)`,
+        ``,
+        `Çıktı: Türkçe, kısa, maddeli; HTML kullanma.`
+      ].join("
+");
+
+      const txt = await geminiText(prompt);
+      // Basit güvenli render
+      const safe = `<div style="white-space:pre-wrap;">${escapeHtml(txt)}</div>`;
+      showAiModal({ message: safe });
+      return;
+    }
+
+    // 2) Anahtar yoksa backend'e dene (Render'da GEMINI_API_KEY varsa çalışır)
     const response = await fetch(`${API_URL}/ai-yorum`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        urun: favorite.query || favorite.urun,
-        fiyatlar: [{
-          site: favorite.siteName || favorite.site,
-          fiyat: favorite.fiyat || "Fiyat bilgisi yok"
-        }]
+        urun: title,
+        fiyatlar: [{ site, fiyat: price || "Fiyat bilgisi yok" }]
       })
     });
-    
-    if (response.ok) {
-      const data = await response.json();
-      
-      // AI yorum modalı göster
-      const modal = document.createElement('div');
-      modal.className = 'aiModal';
-      modal.innerHTML = `
-        <div class="aiModalContent">
-          <div class="aiModalHeader">
-            <h3>🤖 AI Analizi</h3>
-            <button class="closeAiModal">✕</button>
-          </div>
-          <div class="aiModalBody">
-            <div class="aiProduct">
-              <strong>${favorite.query || favorite.urun}</strong>
-              <small>${favorite.siteName || favorite.site}</small>
-            </div>
-            <div class="aiComment">
-              ${data.aiYorum || data.yorum || "AI yorum yapamadı."}
-            </div>
-            ${data.detay ? `
-              <div class="aiDetails">
-                <div><strong>En Ucuz:</strong> ${data.detay.enUcuzFiyat || 'N/A'}</div>
-                <div><strong>En Pahalı:</strong> ${data.detay.enPahaliFiyat || 'N/A'}</div>
-                <div><strong>Ortalama:</strong> ${data.detay.ortalamaFiyat || 'N/A'}</div>
-              </div>
-            ` : ''}
-          </div>
-          <div class="aiModalFooter">
-            <button class="btnPrimary" onclick="this.closest('.aiModal').remove()">Tamam</button>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(modal);
-      
-      modal.querySelector('.closeAiModal').onclick = () => modal.remove();
-      modal.querySelector('.aiModal').onclick = (e) => {
-        if (e.target === modal) modal.remove();
-      };
-      
-    } else {
-      toast("AI yorum alınamadı", "error");
+
+    if (!response.ok) {
+      const t = await response.text().catch(()=> "");
+      throw new Error(`AI servis hatası: ${response.status} ${t.slice(0,120)}`);
     }
-    
-  } catch (error) {
-    console.error("AI yorum hatası:", error);
-    toast("AI servisi şu anda kullanılamıyor", "error");
+
+    const data = await response.json();
+    const msg = data.aiYorum || data.yorum || "AI yorum yapamadı.";
+    showAiModal({ message: `<div style="white-space:pre-wrap;">${escapeHtml(msg)}</div>` });
+  } catch (e) {
+    console.error("AI yorum hatası:", e);
+    const help = `
+      <div style="white-space:pre-wrap;">
+AI için Gemini API anahtarı gerekiyor.
+
+Ayarlar → AI Ayarları:
+- Gemini API Key gir
+- PIN belirle
+- Kaydet → Test Et
+
+Not: Backend üzerinden AI kullanmak istersen Render ortam değişkeni olarak GEMINI_API_KEY tanımlanmalı.
+      </div>
+    `;
+    showAiModal({ message: help });
   }
 }
 
@@ -950,7 +989,7 @@ function closeAPIModal(){
   m.setAttribute("aria-hidden","true");
 }
 
-async function checkAPIStatus() {
+async async function checkAPIStatus() {
   const statusElement = $("apiStatus");
   if (!statusElement) return;
   
@@ -958,7 +997,7 @@ async function checkAPIStatus() {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
     
-    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
+    const response = await fetch(API_URL.replace(/\/api\/?$/, "") + "/health", {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -1007,9 +1046,9 @@ function saveAISettings(){
   }
 
   // ai.js varsa: şifreli sakla
-  if (typeof window.saveGeminiKey === "function" && provider === "gemini"){
-    window.setSessionPin?.(pin);
-    window.saveGeminiKey(key, pin).then(()=>{
+  if (typeof saveGeminiKey === "function" && provider === "gemini"){
+    setSessionPin?.(pin);
+    saveGeminiKey(key, pin).then(()=>{
       localStorage.setItem("aiSettings", JSON.stringify({ enabled:"on", provider:"gemini" }));
       toast("AI ayarları kaydedildi (şifreli)", "success");
       closeAIModal();
@@ -1095,9 +1134,9 @@ function wireUI(){
   $("btnTestAI")?.addEventListener("click", async ()=>{
     try{
       const pin = ($("aiPin")?.value || "").trim();
-      if (pin) window.setSessionPin?.(pin);
-      if (typeof window.geminiText !== "function") throw new Error("ai.js yüklenmedi");
-      const out = await window.geminiText("Kısa test: merhaba de.");
+      if (pin) setSessionPin(pin);
+      if (typeof geminiText !== "function") throw new Error("AI modülü yüklenmedi");
+      const out = await geminiText("Kısa test: merhaba de.");
       toast("Test OK ✅", "success");
       console.log("AI Test Output:", out);
     }catch(e){
