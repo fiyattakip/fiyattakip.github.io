@@ -844,3 +844,764 @@ async function renderFiyatDususleri() {
             <div class="fiyatEski">
               <span class="fiyatLabel">Eski:</span>
               <span class="fiyatValue">${dusus.oncekiFiyat.toLocaleString
+                                         ('tr-TR')} TL</span>
+            </div>
+            <div class="fiyatYeni">
+              <span class="fiyatLabel">Yeni:</span>
+              <span class="fiyatValue success">${dusus.yeniFiyat.toLocaleString('tr-TR')} TL</span>
+            </div>
+          </div>
+          
+          <div class="dususDetay">
+            <span class="dususSite">${dusus.site}</span>
+            <span class="dususTarih">${tarihStr}</span>
+          </div>
+          
+          <div class="dususActions">
+            <button class="btnGhost xs" onclick="fiyatAra('${dusus.urun.replace(/'/g, "\\'")}')">
+              🔍 Tekrar Ara
+            </button>
+            <button class="btnPrimary xs" onclick="addToSepet(${JSON.stringify({
+              urun: dusus.urun,
+              site: dusus.site,
+              fiyat: dusus.yeniFiyat + ' TL',
+              numericPrice: dusus.yeniFiyat,
+              kategori: 'fiyat-dususu',
+              link: '#'
+            })})">
+              🛒 Sepete Ekle
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `
+      </div>
+      
+      <div class="dususInfo">
+        <small>⚠️ Fiyat düşüşleri sadece daha önce aranan ürünler için takip edilir</small>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Fiyat düşüş hatası:', error);
+    container.innerHTML = `
+      <div class="errorState">
+        <div class="errorIcon">📉</div>
+        <h3>Fiyat Düşüşleri Alınamadı</h3>
+        <p>${error.message}</p>
+        <button class="btnPrimary" onclick="showPage('home')">Ana Sayfa</button>
+      </div>
+    `;
+  }
+}
+
+// ==================== FAVORİLER ====================
+function renderFavoritesPage() {
+  const container = $("#favList");
+  if (!container) return;
+  
+  const favorites = JSON.parse(localStorage.getItem('fiyattakip_favs') || '[]');
+  
+  if (favorites.length === 0) {
+    container.innerHTML = `
+      <div class="emptyState">
+        <div class="emptyIcon">⭐</div>
+        <h3>Favori Yok</h3>
+        <p>Sık aradığınız ürünleri favorilere ekleyin</p>
+        <button class="btnPrimary" onclick="showPage('home')">🏠 Ürün Ara</button>
+      </div>
+    `;
+    return;
+  }
+  
+  let html = `
+    <div class="favHeader">
+      <h3>⭐ Favoriler (${favorites.length})</h3>
+      <button class="btnGhost sm" onclick="clearFavorites()">🗑️ Temizle</button>
+    </div>
+    
+    <div class="favList">
+  `;
+  
+  favorites.forEach((fav, index) => {
+    const tarih = new Date(fav.tarih);
+    const tarihStr = `${tarih.getDate().toString().padStart(2, '0')}.${(tarih.getMonth() + 1).toString().padStart(2, '0')}`;
+    
+    html += `
+      <div class="favItem cardBox">
+        <div class="favContent">
+          <div class="favQuery">${fav.query}</div>
+          <div class="favMeta">
+            <span class="favTarih">${tarihStr}</span>
+            <span class="favCount">${fav.count || 1} kez</span>
+            ${fav.kategori ? `<span class="favKategori">${fav.kategori}</span>` : ''}
+          </div>
+        </div>
+        <div class="favActions">
+          <button class="btnGhost xs" onclick="fiyatAra('${fav.query.replace(/'/g, "\\'")}')">
+            🔍 Ara
+          </button>
+          <button class="btnGhost xs" onclick="removeFromFavorites(${index})">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `
+    </div>
+    
+    <div class="favInfo">
+      <small>Favoriler sadece bu cihazda saklanır</small>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
+function addToFavorites(query, kategori) {
+  let favorites = JSON.parse(localStorage.getItem('fiyattakip_favs') || '[]');
+  
+  // Var mı kontrol et
+  const existingIndex = favorites.findIndex(f => f.query.toLowerCase() === query.toLowerCase());
+  
+  if (existingIndex !== -1) {
+    // Güncelle
+    favorites[existingIndex].count = (favorites[existingIndex].count || 1) + 1;
+    favorites[existingIndex].tarih = new Date().toISOString();
+    toast('Favori güncellendi', 'info');
+  } else {
+    // Yeni ekle
+    favorites.unshift({
+      query: query,
+      kategori: kategori || 'genel',
+      count: 1,
+      tarih: new Date().toISOString()
+    });
+    
+    // En fazla 20 favori
+    if (favorites.length > 20) {
+      favorites = favorites.slice(0, 20);
+    }
+    
+    toast('Favorilere eklendi ⭐', 'success');
+  }
+  
+  localStorage.setItem('fiyattakip_favs', JSON.stringify(favorites));
+}
+
+function removeFromFavorites(index) {
+  let favorites = JSON.parse(localStorage.getItem('fiyattakip_favs') || '[]');
+  
+  if (index >= 0 && index < favorites.length) {
+    favorites.splice(index, 1);
+    localStorage.setItem('fiyattakip_favs', JSON.stringify(favorites));
+    renderFavoritesPage();
+    toast('Favoriden kaldırıldı', 'info');
+  }
+}
+
+function clearFavorites() {
+  if (confirm('Tüm favorileri temizlemek istiyor musunuz?')) {
+    localStorage.removeItem('fiyattakip_favs');
+    renderFavoritesPage();
+    toast('Favoriler temizlendi', 'info');
+  }
+}
+
+// ==================== SON ARAMALAR ====================
+function saveRecentSearch(query) {
+  let recent = JSON.parse(localStorage.getItem('fiyattakip_recent') || '[]');
+  
+  // Aynı sorguyu kaldır
+  recent = recent.filter(r => r.query.toLowerCase() !== query.toLowerCase());
+  
+  // Başa ekle
+  recent.unshift({
+    query: query,
+    tarih: new Date().toISOString()
+  });
+  
+  // En fazla 10
+  if (recent.length > 10) {
+    recent = recent.slice(0, 10);
+  }
+  
+  localStorage.setItem('fiyattakip_recent', JSON.stringify(recent));
+  renderRecentSearches();
+}
+
+function renderRecentSearches() {
+  const container = $("#recentSearches");
+  if (!container) return;
+  
+  const recent = JSON.parse(localStorage.getItem('fiyattakip_recent') || '[]');
+  
+  if (recent.length === 0) {
+    container.innerHTML = `
+      <div class="recentEmpty">
+        <p>Son arama yok</p>
+        <small>Ürün aramaya başlayın</small>
+      </div>
+    `;
+    return;
+  }
+  
+  let html = `
+    <div class="recentHeader">
+      <h4>🔍 Son Aramalar</h4>
+      <button class="btnGhost xs" onclick="clearRecentSearches()">Temizle</button>
+    </div>
+    
+    <div class="recentList">
+  `;
+  
+  recent.forEach((item, index) => {
+    const tarih = new Date(item.tarih);
+    const saat = `${tarih.getHours().toString().padStart(2, '0')}:${tarih.getMinutes().toString().padStart(2, '0')}`;
+    
+    html += `
+      <div class="recentItem" onclick="fiyatAra('${item.query.replace(/'/g, "\\'")}')">
+        <span class="recentQuery">${item.query}</span>
+        <span class="recentTime">${saat}</span>
+      </div>
+    `;
+  });
+  
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function clearRecentSearches() {
+  if (confirm('Son aramaları temizlemek istiyor musunuz?')) {
+    localStorage.removeItem('fiyattakip_recent');
+    renderRecentSearches();
+    toast('Son aramalar temizlendi', 'info');
+  }
+}
+
+// ==================== KAMERA ====================
+async function initCamera() {
+  try {
+    const video = $("#cameraVideo");
+    const preview = $("#cameraPreview");
+    
+    if (!video) {
+      toast('Video elementi bulunamadı', 'error');
+      return;
+    }
+    
+    // Kamera izinleri
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    });
+    
+    video.srcObject = stream;
+    video.play();
+    
+    toast('Kamera açıldı 📷', 'success');
+    
+    // Kamera butonlarını aktif et
+    $("captureBtn")?.classList.remove("hidden");
+    $("switchCameraBtn")?.classList.remove("hidden");
+    $("closeCameraBtn")?.classList.remove("hidden");
+    
+  } catch (error) {
+    console.error('Kamera hatası:', error);
+    
+    let errorMsg = 'Kamera açılamadı';
+    if (error.name === 'NotAllowedError') {
+      errorMsg = 'Kamera izni verilmedi';
+    } else if (error.name === 'NotFoundError') {
+      errorMsg = 'Kamera bulunamadı';
+    } else if (error.name === 'NotSupportedError') {
+      errorMsg = 'Tarayıcı kamera desteklemiyor';
+    }
+    
+    toast(errorMsg, 'error');
+    
+    // Kamera sayfasını boş göster
+    const cameraPage = $("#page-camera");
+    if (cameraPage) {
+      cameraPage.innerHTML = `
+        <div class="emptyState">
+          <div class="emptyIcon">📷</div>
+          <h3>Kamera Kullanılamıyor</h3>
+          <p>${errorMsg}</p>
+          <div class="cameraAltActions">
+            <button class="btnPrimary" onclick="showPage('home')">
+              🏠 Ana Sayfa
+            </button>
+            <button class="btnGhost" onclick="showManualUpload()">
+              📤 Manuel Yükle
+            </button>
+          </div>
+        </div>
+      `;
+    }
+  }
+}
+
+function captureImage() {
+  const video = $("#cameraVideo");
+  const preview = $("#cameraPreview");
+  const canvas = $("#cameraCanvas");
+  
+  if (!video || !canvas) return;
+  
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  // Data URL al
+  const imageData = canvas.toDataURL('image/jpeg', 0.8);
+  
+  // Preview göster
+  if (preview) {
+    preview.src = imageData;
+    preview.classList.remove("hidden");
+  }
+  
+  // Video'yu durdur
+  video.pause();
+  video.srcObject?.getTracks().forEach(track => track.stop());
+  
+  toast('Fotoğraf çekildi 📸', 'success');
+  
+  // Analiz et butonunu göster
+  $("analyzeImageBtn")?.classList.remove("hidden");
+}
+
+function switchCamera() {
+  // Kamera değiştirme işlemi
+  toast('Kamera değiştiriliyor...', 'info');
+  
+  // Mevcut stream'i durdur
+  const video = $("#cameraVideo");
+  if (video && video.srcObject) {
+    video.srcObject.getTracks().forEach(track => track.stop());
+  }
+  
+  // Yeni kamera aç
+  setTimeout(() => initCamera(), 300);
+}
+
+function closeCamera() {
+  const video = $("#cameraVideo");
+  if (video && video.srcObject) {
+    video.srcObject.getTracks().forEach(track => track.stop());
+  }
+  
+  showPage('home');
+}
+
+function showManualUpload() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageData = event.target.result;
+        analyzeImage(imageData);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  input.click();
+}
+
+async function analyzeImage(imageData) {
+  toast('Resim analiz ediliyor...', 'info');
+  
+  // Burada gerçek bir API çağrısı yapılmalı
+  // Şimdilik demo
+  setTimeout(() => {
+    const fakeProducts = ['iPhone 15 Pro', 'Samsung Galaxy S24', 'AirPods Pro', 'MacBook Air'];
+    const randomProduct = fakeProducts[Math.floor(Math.random() * fakeProducts.length)];
+    
+    toast(`Resimde "${randomProduct}" tespit edildi`, 'success');
+    fiyatAra(randomProduct);
+  }, 1500);
+}
+
+// ==================== YARDIMCI FONKSİYONLAR ====================
+function changeSort(sort) {
+  currentSort = sort;
+  fiyatAra(currentSearch, currentPage, sort);
+}
+
+function changePage(page) {
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  fiyatAra(currentSearch, page, currentSort);
+}
+
+function updatePaginationControls() {
+  const container = $("paginationControls");
+  if (!container) return;
+  
+  let html = `
+    <button class="pageBtn ${currentPage === 1 ? 'disabled' : ''}" onclick="changePage(${currentPage - 1})">
+      ◀
+    </button>
+  `;
+  
+  const start = Math.max(1, currentPage - 2);
+  const end = Math.min(totalPages, start + 4);
+  
+  for (let i = start; i <= end; i++) {
+    html += `
+      <button class="pageBtn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">
+        ${i}
+      </button>
+    `;
+  }
+  
+  html += `
+    <button class="pageBtn ${currentPage === totalPages ? 'disabled' : ''}" onclick="changePage(${currentPage + 1})">
+      ▶
+    </button>
+  `;
+  
+  container.innerHTML = html;
+}
+
+function updateSortControls() {
+  // Bu fonksiyon sort butonlarını günceller
+  const sortAsc = $("sortAsc");
+  const sortDesc = $("sortDesc");
+  
+  if (sortAsc) sortAsc.classList.toggle('active', currentSort === 'asc');
+  if (sortDesc) sortDesc.classList.toggle('active', currentSort === 'desc');
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    toast('Kopyalandı ✅', 'success');
+  }).catch(err => {
+    console.error('Kopyalama hatası:', err);
+  });
+}
+
+function exportSepet() {
+  if (sepetItems.length === 0) {
+    toast('Sepet boş', 'error');
+    return;
+  }
+  
+  const dataStr = JSON.stringify({
+    tarih: new Date().toISOString(),
+    toplamUrun: sepetItems.length,
+    toplamFiyat: sepetItems.reduce((sum, item) => sum + (item.numericPrice || 0), 0),
+    urunler: sepetItems
+  }, null, 2);
+  
+  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+  
+  const exportFileDefaultName = `fiyattakip-sepet-${new Date().toISOString().split('T')[0]}.json`;
+  
+  const linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
+  
+  toast('Sepet dışa aktarıldı 📥', 'success');
+}
+
+// ==================== AYARLAR ====================
+function renderSettingsPage() {
+  const container = $("#settingsPage");
+  if (!container) return;
+  
+  const apiUrl = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
+  const searchMode = getSearchMode();
+  
+  container.innerHTML = `
+    <div class="settingsHeader">
+      <h3>⚙️ Ayarlar</h3>
+    </div>
+    
+    <div class="settingsSection">
+      <h4>🔗 API Ayarları</h4>
+      
+      <div class="settingItem">
+        <label>API URL</label>
+        <div class="inputGroup">
+          <input type="text" id="apiUrlInput" value="${apiUrl}" placeholder="API URL">
+          <button class="btnGhost sm" onclick="resetApiUrl()">Sıfırla</button>
+        </div>
+        <small class="settingHint">API sunucusu adresi</small>
+      </div>
+      
+      <div class="settingItem">
+        <label>API Test</label>
+        <button class="btnPrimary" onclick="testApiConnection()">
+          🔗 Bağlantıyı Test Et
+        </button>
+        <small class="settingHint">API bağlantısını kontrol eder</small>
+      </div>
+    </div>
+    
+    <div class="settingsSection">
+      <h4>🔍 Arama Modu</h4>
+      
+      <div class="modeOptions">
+        <div class="modeOption ${searchMode === 'normal' ? 'active' : ''}" onclick="setSearchMode('normal')">
+          <div class="modeIcon">🔗</div>
+          <div class="modeInfo">
+            <div class="modeTitle">Normal</div>
+            <div class="modeDesc">Sadece link oluşturur</div>
+          </div>
+        </div>
+        
+        <div class="modeOption ${searchMode === 'fiyat' ? 'active' : ''}" onclick="setSearchMode('fiyat')">
+          <div class="modeIcon">💰</div>
+          <div class="modeInfo">
+            <div class="modeTitle">Fiyat Karşılaştırma</div>
+            <div class="modeDesc">Gerçek fiyatları çeker</div>
+          </div>
+        </div>
+        
+        <div class="modeOption ${searchMode === 'ai' ? 'active' : ''}" onclick="setSearchMode('ai')">
+          <div class="modeIcon">🤖</div>
+          <div class="modeInfo">
+            <div class="modeTitle">AI Modu</div>
+            <div class="modeDesc">AI ile optimize eder</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="settingsSection">
+      <h4>📱 Uygulama</h4>
+      
+      <div class="settingItem">
+        <label>Verileri Temizle</label>
+        <div class="settingActions">
+          <button class="btnGhost error" onclick="clearAllData()">
+            🗑️ Tüm Verileri Temizle
+          </button>
+        </div>
+        <small class="settingHint">Sepet, favoriler, ayarlar sıfırlanır</small>
+      </div>
+      
+      <div class="settingItem">
+        <label>Versiyon</label>
+        <div class="versionInfo">
+          <span class="version">FiyatTakip v4.0</span>
+          <small>Son güncelleme: 2024</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="settingsFooter">
+      <button class="btnPrimary" onclick="saveSettings()">
+        💾 Ayarları Kaydet
+      </button>
+    </div>
+  `;
+}
+
+function saveSettings() {
+  const apiUrlInput = $("#apiUrlInput");
+  if (apiUrlInput) {
+    const newUrl = apiUrlInput.value.trim();
+    if (newUrl && newUrl !== API_URL) {
+      localStorage.setItem('fiyattakip_api_url', newUrl);
+      API_URL = newUrl;
+      toast('API URL güncellendi', 'success');
+    }
+  }
+  
+  // 2 saniye sonra ana sayfaya dön
+  setTimeout(() => showPage('home'), 2000);
+}
+
+function resetApiUrl() {
+  localStorage.removeItem('fiyattakip_api_url');
+  API_URL = DEFAULT_API_URL;
+  
+  const apiUrlInput = $("#apiUrlInput");
+  if (apiUrlInput) {
+    apiUrlInput.value = DEFAULT_API_URL;
+  }
+  
+  toast('API URL sıfırlandı', 'info');
+}
+
+async function testApiConnection() {
+  try {
+    toast('API test ediliyor...', 'info');
+    
+    const response = await fetch(`${API_URL}/health`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      toast(`✅ API çalışıyor: ${data.status}`, 'success');
+    } else {
+      throw new Error(`API hata: ${response.status}`);
+    }
+  } catch (error) {
+    toast(`❌ API bağlantı hatası: ${error.message}`, 'error');
+  }
+}
+
+function clearAllData() {
+  if (confirm('TÜM veriler silinecek:\n• Sepet\n• Favoriler\n• Son Aramalar\n• Ayarlar\n\nDevam etmek istiyor musunuz?')) {
+    localStorage.clear();
+    sepetItems = [];
+    updateSepetCount();
+    showPage('home');
+    toast('Tüm veriler temizlendi', 'info');
+  }
+}
+
+// ==================== UYGULAMA BAŞLANGICI ====================
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('🚀 FiyatTakip v4.0 başlatılıyor...');
+  
+  // Sayfa yönlendirmeleri
+  showPage('home');
+  
+  // Arama modu
+  setSearchMode(getSearchMode());
+  
+  // Otomatik tamamlama
+  initOtomatikTamamlama();
+  
+  // Sepet sayacı
+  updateSepetCount();
+  
+  // Kamera sayfası için
+  const cameraPage = $("#page-camera");
+  if (cameraPage) {
+    cameraPage.innerHTML = `
+      <div class="cameraContainer">
+        <div class="cameraHeader">
+          <button class="iconBtn" onclick="closeCamera()">✕</button>
+          <h4>📷 Kamera ile Tara</h4>
+          <button class="iconBtn" onclick="switchCamera()">🔄</button>
+        </div>
+        
+        <div class="cameraView">
+          <video id="cameraVideo" autoplay playsinline></video>
+          <canvas id="cameraCanvas" class="hidden"></canvas>
+          <img id="cameraPreview" class="hidden" alt="Çekilen fotoğraf">
+        </div>
+        
+        <div class="cameraControls">
+          <button id="captureBtn" class="cameraBtn primary hidden" onclick="captureImage()">
+            📸 Çek
+          </button>
+          <button id="switchCameraBtn" class="cameraBtn ghost hidden" onclick="switchCamera()">
+            🔄 Değiştir
+          </button>
+          <button id="closeCameraBtn" class="cameraBtn ghost hidden" onclick="closeCamera()">
+            ✕ Kapat
+          </button>
+          <button id="analyzeImageBtn" class="cameraBtn success hidden" onclick="analyzeImage()">
+            🤖 Analiz Et
+          </button>
+        </div>
+        
+        <div class="cameraAlt">
+          <button class="btnGhost" onclick="showManualUpload()">
+            📤 Dosya Yükle
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Event listeners
+  const searchForm = $("#searchForm");
+  if (searchForm) {
+    searchForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const query = $("#qNormal")?.value.trim();
+      if (query) {
+        fiyatAra(query);
+        addToFavorites(query);
+      }
+    });
+  }
+  
+  // Hızlı arama butonları
+  document.querySelectorAll('.quickSearchBtn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const query = this.getAttribute('data-query');
+      if (query) {
+        fiyatAra(query);
+      }
+    });
+  });
+  
+  // Tab click events
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      const page = this.getAttribute('data-page');
+      if (page) {
+        showPage(page);
+        
+        // Kamera sayfası ise kamerayı başlat
+        if (page === 'camera') {
+          setTimeout(() => initCamera(), 300);
+        }
+      }
+    });
+  });
+  
+  // Başlangıç toast
+  setTimeout(() => {
+    if (geminiAI) {
+      toast('🤖 AI modu aktif!', 'success');
+    }
+  }, 1000);
+  
+  console.log('✅ FiyatTakip başlatıldı');
+});
+
+// ==================== GLOBAL DEĞİŞKENLER ====================
+window.fiyatAra = fiyatAra;
+window.showPage = showPage;
+window.setSearchMode = setSearchMode;
+window.selectSuggestion = selectSuggestion;
+window.changeSort = changeSort;
+window.changePage = changePage;
+window.copyToClipboard = copyToClipboard;
+window.addToSepet = addToSepet;
+window.removeFromSepet = removeFromSepet;
+window.clearSepet = clearSepet;
+window.sortSepet = sortSepet;
+window.exportSepet = exportSepet;
+window.renderGrafikPage = renderGrafikPage;
+window.refreshGrafik = refreshGrafik;
+window.renderFiyatDususleri = renderFiyatDususleri;
+window.initCamera = initCamera;
+window.captureImage = captureImage;
+window.switchCamera = switchCamera;
+window.closeCamera = closeCamera;
+window.showManualUpload = showManualUpload;
+window.analyzeImage = analyzeImage;
+window.renderSettingsPage = renderSettingsPage;
+window.saveSettings = saveSettings;
+window.resetApiUrl = resetApiUrl;
+window.testApiConnection = testApiConnection;
+window.clearAllData = clearAllData;
