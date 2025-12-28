@@ -1,15 +1,16 @@
-const CACHE = "fiyattakip-cache-v6";
+const CACHE = "fiyattakip-cache-v7";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./ai.js",
   "./firebase.js",
-  "./manifest.json"
+  "./manifest.json",
+  "./icon-172.png",
+  "./icon-512.png"
 ];
 
-self.addEventListener("install", (e)=>{
+self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE)
       .then(cache => cache.addAll(ASSETS))
@@ -17,7 +18,7 @@ self.addEventListener("install", (e)=>{
   );
 });
 
-self.addEventListener("activate", (e)=>{
+self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then(keys => {
       return Promise.all(
@@ -31,7 +32,7 @@ self.addEventListener("activate", (e)=>{
   );
 });
 
-self.addEventListener("fetch", (e)=>{
+self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
 
