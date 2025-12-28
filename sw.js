@@ -1,1 +1,2 @@
-/* unchanged: keep your repo version of sw.js */
+// Service Worker disabled temporarily to fix white screen
+self.addEventListener('install', e=>self.skipWaiting());
