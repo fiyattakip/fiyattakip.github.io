@@ -19,8 +19,6 @@
       "type": "image/png"
     }
   ],
-  "categories": ["shopping", "productivity", "utilities"],
-  "lang": "tr-TR",
-  "scope": "/",
-  "prefer_related_applications": false
+  "categories": ["shopping", "productivity"],
+  "lang": "tr-TR"
 }
