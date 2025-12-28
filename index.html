@@ -3,10 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>FiyatTakip - Gerçek Fiyat Karşılaştırma</title>
+  <title>FiyatTakip - Akıllı Fiyat Karşılaştırma</title>
+  <meta name="description" content="Trendyol, Hepsiburada, n11, Amazon ve daha fazlasında fiyat karşılaştırma">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 
 <body>
@@ -93,7 +97,7 @@
           <div class="bannerLeft">🌸</div>
           <div class="bannerMid">
             <div class="bannerTitle">Fiyat Karşılaştırma!</div>
-            <div class="bannerSub">Trendyol, Hepsiburada, n11</div>
+            <div class="bannerSub">Trendyol, Hepsiburada, n11, Amazon</div>
           </div>
           <div class="bannerRight">🛍️</div>
         </div>
@@ -197,6 +201,7 @@
         <span class="ico">📊</span><span class="lbl">Grafik</span>
       </button>
 
+      <!-- Kamera butonu JS ile eklenecek -->
       <div class="tabSpacer" aria-hidden="true"></div>
 
       <button class="tab" type="button" data-page="favs">
@@ -224,7 +229,7 @@
       <div class="modalBody">
         <div class="row">
           <label class="lbl">API URL</label>
-          <input id="apiUrl" class="input inputDark" type="text" placeholder="https://fiyattakip-api.onrender.com" />
+          <input id="apiUrl" class="input inputDark" type="text" placeholder="https://fiyattakip-api.onrender.com/api" />
         </div>
 
         <div class="row">
