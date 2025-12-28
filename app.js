@@ -1,4 +1,3 @@
-
 function normalizeUrl(raw){
   try{
     const u = new URL(raw);
@@ -634,3 +633,27 @@ document.addEventListener("click", async (e)=>{
     alert("AI servisi kapalı.");
   }
 });
+async function aiYorumGetir(urunAdi) {
+  try {
+    const res = await fetch("https://fiyattakip-api.onrender.com/ai-yorum", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        product: urunAdi
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "AI hata");
+    }
+
+    alert(data.text);
+
+  } catch (e) {
+    alert("AI yorum alınamadı");
+  }
+}
