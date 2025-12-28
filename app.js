@@ -237,7 +237,11 @@ function renderFavoritesPage(uid){
         <div class="actions">
           <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}" data-copy-url="${it.url||""}">Aç</button>
           <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
-        </div>
+        
+      <button class="btnGhost sm btnAi" type="button"
+        data-ai-title="${it.query || it.siteName || 'Ürün'}"
+        data-ai-store="${it.siteName || ''}">🤖</button>
+    </div>
       </div>
       
     `;
@@ -611,29 +615,22 @@ function wireGoogleButtons(){
 }
 
 
-
-
-
-// ============================
-// FAVORILERDE AI YORUM (RENDER)
-// ============================
-document.addEventListener("click", async (e) => {
-  const btn = e.target.closest("[data-ai-title]");
+// FAVORILERDE AI YORUM (STABİL – IZOLASYON)
+document.addEventListener("click", async (e)=>{
+  const btn = e.target.closest(".btnAi");
   if (!btn) return;
-
-  const title = btn.getAttribute("data-ai-title") || "Ürün";
-  const store = btn.getAttribute("data-ai-store") || "Favoriler";
-
+  const title = btn.dataset.aiTitle || "Ürün";
+  const store = btn.dataset.aiStore || "Favoriler";
+  alert("🤖 AI yorum hazırlanıyor...");
   try {
-    const res = await fetch("https://fiyattakip-api.onrender.com/ai-yorum", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const r = await fetch("https://fiyattakip-api.onrender.com/ai-yorum", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ title, store })
     });
-
-    const data = await res.json();
-    alert("🤖 AI Yorum:\n\n" + (data.text || "AI yorum alınamadı"));
-  } catch (err) {
-    alert("AI servisine bağlanılamadı");
+    const j = await r.json();
+    alert(j.text || "AI yorum alınamadı.");
+  } catch {
+    alert("AI servisi kapalı.");
   }
 });
