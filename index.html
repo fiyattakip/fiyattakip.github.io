@@ -189,6 +189,15 @@
 
         <div class="miniHint">Cache sorunlarında: Site verilerini temizle / PWA'yı kaldır-ekle.</div>
       </section>
+      
+      <!-- SEPET -->
+<section id="page-sepet" class="page">
+  <div class="pageHead">
+    <div class="pageTitle">🛒 Sepetim</div>
+    <button class="btnGhost" onclick="clearSepet()">Temizle</button>
+  </div>
+  <div id="sepetList" class="list"></div>
+</section>
     </main>
 
     <!-- TABBAR -->
@@ -197,9 +206,10 @@
         <span class="ico">🏠</span><span class="lbl">Ana</span>
       </button>
 
-      <button class="tab" type="button" data-page="graph">
-        <span class="ico">📊</span><span class="lbl">Grafik</span>
-      </button>
+        <button class="tab" type="button" data-page="sepet">
+    <span class="ico">🛒</span><span class="lbl">Sepet</span>
+    <span class="sepetBadge"></span>
+  </button>
 
       <!-- Kamera butonu JS ile eklenecek -->
       <div class="tabSpacer" aria-hidden="true"></div>
