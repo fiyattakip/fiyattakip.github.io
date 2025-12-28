@@ -1,58 +1,33 @@
 <!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>FiyatTakip - Akıllı Fiyat Karşılaştırma</title>
-  <meta name="description" content="Akıllı fiyat karşılaştırma">
-  <meta name="theme-color" content="#0b1020">
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FiyatTakip</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<div id="loginModal" class="modalWrap hidden">
-  <div class="modalBack" id="loginBackdrop"></div>
-  <div class="modalCard">
-    <div class="modalTop">
-      <div class="modalTitle">Giriş Yap</div>
-      <button id="closeLogin">✕</button>
-    </div>
-    <button id="btnLogin">Giriş</button>
-  </div>
+<div id="app">
+
+<header class="top">FiyatTakip</header>
+
+<section id="page-home" class="page active">🏠 HOME<br><input id="q"><button id="searchBtn">Ara</button></section>
+<section id="page-graph" class="page">📊 GRAFİK SAYFASI</section>
+<section id="page-camera" class="page">📷 KAMERA SAYFASI<br><button id="camBtn">Kamera Aç</button></section>
+<section id="page-fav" class="page">❤️ FAVORİLER</section>
+<section id="page-settings" class="page">⚙️ AYARLAR</section>
+
+<nav class="bar">
+<button data-page="home">🏠</button>
+<button data-page="graph">📊</button>
+<button data-page="camera">📷</button>
+<button data-page="fav">❤️</button>
+<button data-page="settings">⚙️</button>
+</nav>
+
 </div>
 
-<div id="app" class="appShell">
-  <header>
-    <span>FiyatTakip</span>
-    <button id="btnBell">🔔</button>
-  </header>
-
-  <main>
-    <section id="page-home" class="page active">
-      <input id="qNormal" placeholder="Ürün ara">
-      <button id="modeNormal">Link</button>
-      <button id="modeFiyat">Fiyat</button>
-      <button id="modeAI">AI</button>
-      <button id="btnNormal">Ara</button>
-    </section>
-
-    <section id="page-search" class="page"><div id="normalList"></div></section>
-    <section id="page-favs" class="page"><div id="favList"></div></section>
-    <section id="page-settings" class="page"><button id="logoutBtn">Çıkış</button></section>
-  </main>
-
-  <nav>
-    <button class="tab active" data-page="home">🏠</button>
-    <button class="tab" data-page="search">📊</button>
-    <button id="btnCamera">📷</button>
-    <button class="tab" data-page="favs">❤️</button>
-    <button class="tab" data-page="settings">⚙️</button>
-  </nav>
-</div>
-
-<script src="ai.js"></script>
-<script src="app.nav.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

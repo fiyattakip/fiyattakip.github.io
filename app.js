@@ -1,14 +1,15 @@
-function $(id){return document.getElementById(id);}
-function on(el,ev,fn){ if(el) el.addEventListener(ev,fn); }
+function show(p){
+ document.querySelectorAll('.page').forEach(s=>s.classList.remove('active'));
+ const el=document.getElementById('page-'+p);
+ if(el) el.classList.add('active');
+}
 
-let mode="normal";
-on($("modeNormal"),"click",()=>mode="normal");
-on($("modeFiyat"),"click",()=>mode="fiyat");
-on($("modeAI"),"click",()=>mode="ai");
+document.querySelectorAll('nav button').forEach(b=>{
+ b.onclick=()=>show(b.dataset.page);
+});
 
-on($("btnNormal"),"click",()=>alert("Arama çalışıyor: "+mode));
-on($("btnBell"),"click",()=>$("loginModal").classList.remove("hidden"));
-on($("closeLogin"),"click",()=>$("loginModal").classList.add("hidden"));
-on($("loginBackdrop"),"click",()=>$("loginModal").classList.add("hidden"));
-on($("logoutBtn"),"click",()=>alert("Çıkış"));
-on($("btnCamera"),"click",()=>alert("Kamera"));
+document.getElementById("camBtn")?.addEventListener("click",()=>{
+ navigator.mediaDevices?.getUserMedia({video:true})
+ .then(()=>alert("Kamera izni alındı"))
+ .catch(()=>alert("Kamera izni reddedildi"));
+});

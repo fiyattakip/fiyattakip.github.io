@@ -1,1 +1,6 @@
-body{font-family:Arial,sans-serif;}
+body{margin:0;font-family:Arial;background:#0b1020;color:#fff}
+.top{padding:15px;background:#141a2e}
+.page{display:none;padding:20px}
+.page.active{display:block}
+.bar{position:fixed;bottom:0;left:0;right:0;display:flex;background:#141a2e}
+.bar button{flex:1;padding:10px;background:none;color:#fff;border:none}
