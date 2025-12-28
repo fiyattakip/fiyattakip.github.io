@@ -4,15 +4,88 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FiyatTakip</title>
+  <meta name="description" content="Trendyol, Hepsiburada, n11, Amazon ve daha fazlasında fiyat karşılaştırma">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
   <meta name="theme-color" content="#0b1020">
 </head>
 <body>
-  <!-- App markup unchanged -->
-  <!-- Scripts: ORDER MATTERS -->
-  <script src="ai.js"></script>
-  <script src="app.nav.js"></script>
-  <script src="app.js"></script>
+
+<!-- LOGIN MODAL -->
+<div id="loginModal" class="modalWrap">
+  <div class="modalBack"></div>
+  <div class="modalCard">
+    <div class="modalTop">
+      <div class="modalTitle">Giriş Yap</div>
+      <button id="closeLogin" class="iconBtn">✕</button>
+    </div>
+
+    <div class="authTabs">
+      <button id="tabLogin" class="btnGhost sm isActive">Giriş</button>
+      <button id="tabRegister" class="btnGhost sm">Kayıt</button>
+    </div>
+
+    <div id="loginPane" class="authPane">
+      <input id="loginEmail" placeholder="E-posta">
+      <input id="loginPass" type="password" placeholder="Şifre">
+      <button id="btnLogin" class="btnPrimary full">Giriş</button>
+      <button id="btnGoogleLogin" class="btnGhost full">Google ile</button>
+    </div>
+
+    <div id="registerPane" class="authPane hidden">
+      <input id="regEmail" placeholder="E-posta">
+      <input id="regPass" type="password" placeholder="Şifre">
+      <button id="btnRegister" class="btnPrimary full">Kayıt Ol</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="appShell">
+
+<header class="topbar">
+  <div class="brand">FiyatTakip</div>
+  <button id="btnBell" class="iconBtn">🔔</button>
+</header>
+
+<main class="pages">
+
+<section id="page-home" class="page active">
+  <input id="qNormal" placeholder="Ürün ara">
+  <div class="modeToggle">
+    <button id="modeNormal" class="modeBtn active">Link</button>
+    <button id="modeFiyat" class="modeBtn">Fiyat</button>
+    <button id="modeAI" class="modeBtn">AI</button>
+  </div>
+  <button id="btnNormal" class="btnPrimary full">Ara</button>
+</section>
+
+<section id="page-search" class="page">
+  <div id="normalList"></div>
+</section>
+
+<section id="page-favs" class="page">
+  <div id="favList"></div>
+</section>
+
+<section id="page-settings" class="page">
+  <button id="logoutBtn" class="btnGhost full">Çıkış</button>
+</section>
+
+</main>
+
+<nav class="tabbar">
+  <button class="tab active" data-page="home">🏠</button>
+  <button class="tab" data-page="favs">❤️</button>
+  <button class="tab" data-page="settings">⚙️</button>
+</nav>
+
+</div>
+
+<!-- SCRIPTS (DO NOT CHANGE ORDER) -->
+<script src="ai.js"></script>
+<script src="app.nav.js"></script>
+<script src="app.js"></script>
+
 </body>
 </html>
