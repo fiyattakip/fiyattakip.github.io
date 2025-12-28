@@ -1,1 +1,6 @@
-/* unchanged: keep your repo version of manifest.json */
+{
+  "name": "FiyatTakip",
+  "short_name": "FiyatTakip",
+  "start_url": "/",
+  "display": "standalone"
+}

@@ -4,147 +4,55 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FiyatTakip - Akıllı Fiyat Karşılaştırma</title>
-
-  <meta name="description" content="Trendyol, Hepsiburada, n11, Amazon ve daha fazlasında fiyat karşılaştırma">
+  <meta name="description" content="Akıllı fiyat karşılaştırma">
   <meta name="theme-color" content="#0b1020">
-
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
-  <link rel="icon" href="icon-192.png">
 </head>
 <body>
 
-<!-- 🔐 LOGIN MODAL -->
 <div id="loginModal" class="modalWrap hidden">
   <div class="modalBack" id="loginBackdrop"></div>
-
   <div class="modalCard">
     <div class="modalTop">
       <div class="modalTitle">Giriş Yap</div>
-      <button id="closeLogin" class="iconBtn">✕</button>
+      <button id="closeLogin">✕</button>
     </div>
-
-    <div class="authTabs">
-      <button id="tabLogin" class="btnGhost sm isActive">Giriş</button>
-      <button id="tabRegister" class="btnGhost sm">Kayıt</button>
-    </div>
-
-    <div id="loginPane" class="authPane">
-      <label class="lbl">E-posta</label>
-      <input id="loginEmail" type="email" placeholder="ornek@mail.com">
-      <label class="lbl">Şifre</label>
-      <input id="loginPass" type="password" placeholder="••••••••">
-
-      <div class="row">
-        <button id="btnLogin" class="btnPrimary">Giriş</button>
-        <button id="btnGoogleLogin" class="btnGhost">Google ile</button>
-      </div>
-    </div>
-
-    <div id="registerPane" class="authPane hidden">
-      <label class="lbl">E-posta</label>
-      <input id="regEmail" type="email">
-      <label class="lbl">Şifre</label>
-      <input id="regPass" type="password">
-      <label class="lbl">Şifre (Tekrar)</label>
-      <input id="regPass2" type="password">
-
-      <button id="btnRegister" class="btnPrimary full">Kayıt Ol</button>
-    </div>
+    <button id="btnLogin">Giriş</button>
   </div>
 </div>
 
-<!-- 🧠 APP -->
 <div id="app" class="appShell">
-
-  <!-- 🔝 TOPBAR -->
-  <header class="topbar">
-    <div class="brand">
-      <div class="logoDot"></div>
-      <div class="brandText">FiyatTakip</div>
-    </div>
-    <button id="btnBell" class="iconBtn">🔔</button>
+  <header>
+    <span>FiyatTakip</span>
+    <button id="btnBell">🔔</button>
   </header>
 
-  <!-- 📄 PAGES -->
-  <main class="pages">
-
-    <!-- 🏠 HOME -->
+  <main>
     <section id="page-home" class="page active">
-      <div class="searchCard">
-        <div class="searchRow">
-          <span class="sIcon">🔎</span>
-          <input id="qNormal" placeholder="Ürün ve mağaza ara…">
-          <button id="btnMic" class="iconBtn">🎙️</button>
-        </div>
-
-        <div class="modeToggle">
-          <button id="modeNormal" class="modeBtn active">🔗 Link</button>
-          <button id="modeFiyat" class="modeBtn">💰 Fiyat</button>
-          <button id="modeAI" class="modeBtn">🤖 AI</button>
-        </div>
-
-        <button id="btnNormal" class="btnPrimary full">Ara</button>
-      </div>
+      <input id="qNormal" placeholder="Ürün ara">
+      <button id="modeNormal">Link</button>
+      <button id="modeFiyat">Fiyat</button>
+      <button id="modeAI">AI</button>
+      <button id="btnNormal">Ara</button>
     </section>
 
-    <!-- 🔍 SEARCH -->
-    <section id="page-search" class="page">
-      <div class="pageHead">
-        <div class="pageTitle">Sonuçlar</div>
-        <button id="btnClearSearch" class="btnGhost">Temizle</button>
-      </div>
-      <div id="normalList" class="list"></div>
-    </section>
-
-    <!-- ❤️ FAVORITES -->
-    <section id="page-favs" class="page">
-      <div class="pageHead">
-        <div class="pageTitle">Favoriler</div>
-      </div>
-      <div id="favList" class="list"></div>
-    </section>
-
-    <!-- ⚙️ SETTINGS -->
-    <section id="page-settings" class="page">
-      <div class="pageHead">
-        <div class="pageTitle">Ayarlar</div>
-      </div>
-      <button id="logoutBtn" class="btnGhost full">Çıkış Yap</button>
-    </section>
-
+    <section id="page-search" class="page"><div id="normalList"></div></section>
+    <section id="page-favs" class="page"><div id="favList"></div></section>
+    <section id="page-settings" class="page"><button id="logoutBtn">Çıkış</button></section>
   </main>
 
-  <!-- 🧭 TABBAR -->
-  <nav class="tabbar">
-    <button class="tab active" data-page="home">
-      <span class="ico">🏠</span>
-    </button>
-
-    <button class="tab" data-page="search">
-      <span class="ico">📊</span>
-    </button>
-
-    <!-- 📷 Kamera -->
-    <button id="btnCamera" class="tab main">
-      📷
-    </button>
-
-    <button class="tab" data-page="favs">
-      <span class="ico">❤️</span>
-    </button>
-
-    <button class="tab" data-page="settings">
-      <span class="ico">⚙️</span>
-    </button>
+  <nav>
+    <button class="tab active" data-page="home">🏠</button>
+    <button class="tab" data-page="search">📊</button>
+    <button id="btnCamera">📷</button>
+    <button class="tab" data-page="favs">❤️</button>
+    <button class="tab" data-page="settings">⚙️</button>
   </nav>
-
 </div>
 
-<!-- 📜 SCRIPTS (SIRA DEĞİŞMEYECEK) -->
 <script src="ai.js"></script>
 <script src="app.nav.js"></script>
 <script src="app.js"></script>
-
 </body>
 </html>
