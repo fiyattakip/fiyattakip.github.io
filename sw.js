@@ -1,13 +1,12 @@
-const CACHE = "fiyattakip-cache-v7";
+const CACHE = "fiyattakip-cache-v4.1";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./firebase.js",
-  "./manifest.json",
-  "./icon-172.png",
-  "./icon-512.png"
+  "./ai.js",
+  "./manifest.json"
 ];
 
 self.addEventListener("install", (e) => {
@@ -49,7 +48,10 @@ self.addEventListener("fetch", (e) => {
         }
         return response;
       }).catch(() => {
-        return new Response("Offline", { status: 503 });
+        return new Response("Offline modunda çalışıyorsunuz. İnternet bağlantınızı kontrol edin.", { 
+          status: 503,
+          headers: { 'Content-Type': 'text/html' }
+        });
       });
     })
   );
