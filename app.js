@@ -657,3 +657,32 @@ async function aiYorumGetir(urunAdi) {
     alert("AI yorum alınamadı");
   }
 }
+async function aiYorumGetir(urunAdi) {
+  try {
+    alert("AI yorum hazırlanıyor...");
+
+    const res = await fetch("https://fiyattakip-api.onrender.com/ai-yorum", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        product: urunAdi
+      })
+    });
+
+    const data = await res.json();
+
+    console.log("AI RESPONSE:", data);
+
+    if (!data || !data.yorum) {
+      throw new Error("Yorum yok");
+    }
+
+    alert(data.yorum);
+
+  } catch (err) {
+    console.error(err);
+    alert("AI yorum alınamadı");
+  }
+}
