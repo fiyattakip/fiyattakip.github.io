@@ -1228,3 +1228,628 @@ body{
   color: white !important;
   min-width: 44px !important;
 }
+/* ========== SEPET STİLLERİ ========== */
+.sepetBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #ff4757;
+  color: white;
+  font-size: 10px;
+  font-weight: 900;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.sepetHeader {
+  margin-bottom: 20px;
+}
+
+.sepetStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.stat {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-weight: 900;
+  font-size: 14px;
+  color: white;
+}
+
+.sepetActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.priceRange {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 15px 0;
+  padding: 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.rangeItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.rangeLabel {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 4px;
+}
+
+.rangeValue {
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.rangeValue.success {
+  color: #36d399;
+}
+
+.rangeValue.error {
+  color: #ff4757;
+}
+
+.sepetItems {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.sepetItem {
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.sepetItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+.sepetItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.sepetItemInfo {
+  flex: 1;
+}
+
+.sepetMeta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.sepetSite {
+  background: rgba(124,92,255,0.2);
+  color: #7c5cff;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.manualBadge {
+  background: rgba(54,211,153,0.2);
+  color: #36d399;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.autoBadge {
+  background: rgba(255,165,2,0.2);
+  color: #ffa502;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.kategoriBadge {
+  background: rgba(255,71,87,0.2);
+  color: #ff4757;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.sepetProduct {
+  color: rgba(255,255,255,0.9);
+  font-size: 14px;
+  margin-bottom: 8px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.sepetPrice {
+  color: #36d399;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.sepetItemActions {
+  display: flex;
+  gap: 8px;
+}
+
+.sepetFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 10px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+}
+
+.sepetFooterActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* ========== GRAFİK STİLLERİ ========== */
+.grafikHeader {
+  margin-bottom: 20px;
+}
+
+.grafikStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.grafikSection {
+  background: rgba(255,255,255,0.04);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.grafikSection h4 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: white;
+}
+
+.kategoriList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kategoriItem {
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.kategoriHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.kategoriAd {
+  font-weight: 700;
+  color: white;
+  font-size: 14px;
+}
+
+.kategoriYuzde {
+  background: rgba(124,92,255,0.2);
+  color: #7c5cff;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.kategoriBar {
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.kategoriBarFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.kategoriDetay {
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+}
+
+.fiyatAraliklari {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fiyatAralik {
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.fiyatAralikHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.aralikAd {
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+}
+
+.aralikSayi {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+}
+
+.fiyatAralikBar {
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.aralikBarFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.fiyatAralikYuzde {
+  text-align: right;
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+}
+
+.siteList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.siteItem {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.siteAd {
+  font-weight: 700;
+  color: white;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.siteSayi {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 4px;
+}
+
+.siteYuzde {
+  background: rgba(124,92,255,0.2);
+  color: #7c5cff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 900;
+}
+
+.grafikActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* ========== SEPET BUTONU STİLLERİ ========== */
+.btnSepeteEkle {
+  background: linear-gradient(135deg, #36d399, #2bb885) !important;
+  border: none !important;
+  color: white !important;
+  min-width: 44px !important;
+  font-weight: 700 !important;
+}
+
+.btnSepeteEkle.sm {
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+}
+
+.btnSepeteEkle.xs {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  min-width: 40px !important;
+}
+
+.btnSepeteEkle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(54,211,153,0.4);
+}
+
+/* ========== ÜRÜN KARTI GÜNCELLEMELERİ ========== */
+.productMeta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.productKategori {
+  background: rgba(255,71,87,0.2);
+  color: #ff4757;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.kategoriTag {
+  background: rgba(124,92,255,0.2);
+  color: #7c5cff;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+/* ========== AI MODAL GÜNCELLEMELERİ ========== */
+.aiProductCard {
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.aiProductHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.aiProductHeader strong {
+  font-size: 16px;
+  color: white;
+}
+
+.aiProductHeader small {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+}
+
+.aiPrice {
+  color: #36d399;
+  font-weight: 900;
+  font-size: 20px;
+  text-align: center;
+}
+
+.aiCommentBox {
+  background: rgba(54,211,153,0.1);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(54,211,153,0.3);
+}
+
+.aiCommentHeader {
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.aiCommentText {
+  color: white;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.aiDetails {
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.aiDetails h4 {
+  margin: 0 0 12px 0;
+  color: white;
+  font-size: 15px;
+}
+
+.aiDetailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.aiDetailItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.aiDetailLabel {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 4px;
+}
+
+.aiDetailValue {
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+}
+
+.aiDetailValue.success {
+  color: #36d399;
+}
+
+.aiDetailValue.error {
+  color: #ff4757;
+}
+
+.aiTimestamp {
+  text-align: center;
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  margin-bottom: 16px;
+}
+
+/* ========== FORM GRUP ========== */
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+}
+
+.formGroup .input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+  color: white;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.formGroup .input:focus {
+  border-color: #7c5cff;
+  box-shadow: 0 0 0 2px rgba(124,92,255,0.2);
+}
+
+.formGroup select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px;
+  padding-right: 40px;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 480px) {
+  .sepetStats,
+  .grafikStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .priceRange {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .aiDetailGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .siteList {
+    grid-template-columns: 1fr;
+  }
+  
+  .sepetActions {
+    flex-wrap: wrap;
+  }
+  
+  .sepetActions button {
+    flex: 1;
+    min-width: 80px;
+  }
+}
+
+/* ========== BUTON RENKLERİ ========== */
+.btnGhost.error {
+  color: #ff4757 !important;
+  border-color: rgba(255,71,87,0.3) !important;
+}
+
+.btnGhost.error:hover {
+  background: rgba(255,71,87,0.1) !important;
+}
+
+/* ========== SAYFALAMA DÜZELTMESİ ========== */
+.pagination {
+  position: sticky;
+  bottom: 80px;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  margin: 20px -16px 0 -16px;
+  padding: 12px 16px;
+  background: rgba(11, 16, 32, 0.95);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
