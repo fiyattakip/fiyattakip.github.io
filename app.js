@@ -30,6 +30,17 @@ window.addEventListener('unhandledrejection', (ev) => {
 const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
 let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
 
+// API endpoint helper: API_URL ister kök (https://...onrender.com) ister /api ile bitsin (https://.../api)
+// Her iki durumda da doğru endpoint üretir.
+function apiEndpoint(path) {
+  const base = (API_URL || DEFAULT_API_URL || '').replace(/\/$/, '');
+  const p = path.startsWith('/') ? path : `/${path}`;
+  // Backend route'larımız /api altında: /api/fiyat-cek, /api/ai-yorum, /api/kamera-ai
+  if (base.endsWith('/api')) return `${base}${p}`;
+  return `${base}/api${p}`;
+}
+
+
 // ========== SAYFALAMA AYARLARI ==========
 let currentPage = 1;
 let currentSort = 'asc';
@@ -110,7 +121,7 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
   try {
     toast("Fiyatlar çekiliyor...", "info");
     
-    const response = await fetch(`${API_URL}/fiyat-cek`, {
+    const response = await fetch(apiEndpoint('/fiyat-cek'), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -371,7 +382,7 @@ async function cameraAiSearch() {
       toast("Görsel AI ile analiz ediliyor...", "info");
       
       try {
-        const response = await fetch(`${API_URL}/kamera-ai`, {
+        const response = await fetch(apiEndpoint('/kamera-ai'), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -406,7 +417,7 @@ async function getAiCommentForFavorite(favorite) {
   try {
     toast("🤖 AI analiz yapıyor...", "info");
     
-    const response = await fetch(`${API_URL}/ai-yorum`, {
+    const response = await fetch(apiEndpoint('/ai-yorum'), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -892,13 +903,16 @@ function closeAPIModal(){
 async function checkAPIStatus() {
   const statusElement = $("apiStatus");
   if (!statusElement) return;
-
+  
   try {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
-
-    const response = await fetch(`${API_URL}/health`);
-
+    
+    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
     if (response.ok) {
       statusElement.textContent = "Çalışıyor";
       statusElement.className = "apiStatus online";
@@ -914,12 +928,11 @@ async function checkAPIStatus() {
 
 function saveAPISettings() {
   const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
-  API_URL = url.replace(/\/$/, ""); // sondaki / varsa kaldır (stabil)
-  localStorage.setItem("fiyattakip_api_url", API_URL);
+  API_URL = url;
+  localStorage.setItem('fiyattakip_api_url', url);
   toast("API URL kaydedildi", "success");
   closeAPIModal();
 }
-
 
 // ========== AI AYARLARI ==========
 function loadAISettings(){
@@ -1090,7 +1103,7 @@ document.addEventListener("click", async (e) => {
   try {
     toast("🤖 AI yorum hazırlanıyor...", "info");
 
-    const res = await fetch(`${API_URL}/ai-yorum`, {
+    const res = await fetch(apiEndpoint('/ai-yorum'), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ urun, fiyatlar })
