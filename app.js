@@ -1144,25 +1144,36 @@ function setAuthedUI(isAuthed){
 // ========== UYGULAMA BAŞLANGICI ==========
 window.addEventListener("DOMContentLoaded", ()=>{
   try {
-  wireUI();
-  renderRecentSearches();
-  addCameraButton();
-  
-  if (firebaseConfigLooksInvalid()){
-    toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.", "error");
-  }
+    wireUI();
+    renderRecentSearches();
+    addCameraButton();
 
-  onAuthStateChanged(auth, async (user) => {
-    window.currentUser = user || null;
-    setAuthedUI(!!user);
-    if (user){
-      try{
-        await loadFavorites(user.uid);
-        renderFavoritesPage(user.uid);
-        applyFavUI();
-      }catch(e){ console.error(e); }
+    if (firebaseConfigLooksInvalid()){
+      toast(
+        "Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.",
+        "error"
+      );
     }
-  });
+
+    onAuthStateChanged(auth, async (user) => {
+      window.currentUser = user || null;
+      setAuthedUI(!!user);
+
+      if (user){
+        try {
+          await loadFavorites(user.uid);
+          renderFavoritesPage(user.uid);
+          applyFavUI();
+        } catch (e) {
+          console.error("Favori yükleme hatası:", e);
+        }
+      }
+    });
+
+  } catch (e) {
+    console.error("Uygulama başlatma hatası:", e);
+    alert("Uygulama başlatılırken hata oluştu. Console'u kontrol et.");
+  }
 });
 
 // ========== GLOBAL FONKSIYONLAR ==========
