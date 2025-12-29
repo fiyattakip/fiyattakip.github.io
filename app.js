@@ -292,6 +292,7 @@ async function cameraAiSearch() {
 
 // ========== AI YORUM ==========
 async function getAiCommentForFavorite(favorite) {
+async function getAiCommentForFavorite(favorite) {
   try {
     toast("🤖 AI analiz yapıyor...", "info");
     
@@ -299,13 +300,17 @@ async function getAiCommentForFavorite(favorite) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        urun: favorite.query || favorite.urun,
-        fiyatlar: [{ 
-          site: favorite.siteName || favorite.site, 
-          fiyat: favorite.fiyat || "Fiyat bilgisi yok" 
-        }]
+        urun: favorite.query || favorite.urun || "Ürün",
+        fiyatlar: favorite.fiyat ? [{ 
+          site: favorite.siteName || favorite.site || "Site", 
+          fiyat: favorite.fiyat 
+        }] : []
       })
     });
+    
+    if (!response.ok) {
+      throw new Error(`API: ${response.status}`);
+    }
     
     const data = await response.json();
     
@@ -320,8 +325,8 @@ async function getAiCommentForFavorite(favorite) {
           </div>
           <div class="aiModalBody">
             <div class="aiProduct">
-              <strong>${favorite.query || favorite.urun}</strong>
-              <small>${favorite.siteName || favorite.site}</small>
+              <strong>${favorite.query || favorite.urun || "Favori"}</strong>
+              <small>${favorite.siteName || favorite.site || ""}</small>
             </div>
             <div class="aiComment">
               ${data.aiYorum || data.yorum || "AI yorum yapamadı."}
@@ -336,6 +341,8 @@ async function getAiCommentForFavorite(favorite) {
       document.body.appendChild(modal);
       modal.querySelector('.closeAiModal').onclick = () => modal.remove();
       modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    } else {
+      throw new Error(data.error || "AI yorum alınamadı");
     }
   } catch (error) {
     console.error("AI yorum hatası:", error);
