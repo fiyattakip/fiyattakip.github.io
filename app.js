@@ -252,32 +252,45 @@ async function cameraAiSearch() {
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
       
-      const imageData = canvas.toDataURL('image/jpeg');
+      const imageData = canvas.toDataURL('image/jpeg', 0.7);
       stream.getTracks().forEach(t => t.stop());
       modal.remove();
       
       toast("📸 AI analiz ediyor...", "info");
       
       try {
+        const base64Data = imageData.split(',')[1];
         const response = await fetch(`${API_URL}/kamera-ai`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
-            image: imageData.split(',')[1], 
-            mime: 'image/jpeg' 
+            image: base64Data,
+            mime: 'image/jpeg'
           })
         });
         
+        if (!response.ok) {
+          throw new Error(`API: ${response.status}`);
+        }
+        
         const data = await response.json();
         if (data.success) {
-          $('qNormal').value = data.urunTahmini || "telefon";
-          const mode = getSearchMode();
-          if (mode === "fiyat" || mode === "ai") {
-            fiyatAra(data.urunTahmini || "telefon");
-          } else {
-            showPage('search');
-            renderSiteList($('normalList'), data.urunTahmini || "telefon");
-          }
+          const urunTahmini = data.urunTahmini || data.tespitEdilen || "ürün";
+          $('qNormal').value = urunTahmini;
+          toast(`✅ Tespit edilen: ${urunTahmini}`, "success");
+          
+          // Otomatik arama yap
+          setTimeout(() => {
+            const mode = getSearchMode();
+            if (mode === "fiyat" || mode === "ai") {
+              fiyatAra(urunTahmini);
+            } else {
+              showPage('search');
+              renderSiteList($('normalList'), urunTahmini);
+            }
+          }, 800);
+        } else {
+          throw new Error(data.error || "Analiz başarısız");
         }
       } catch (error) {
         console.error("Kamera AI hatası:", error);
