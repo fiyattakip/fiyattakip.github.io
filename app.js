@@ -27,7 +27,7 @@ window.addEventListener('unhandledrejection', (ev) => {
 
 
 // ========== API KONFİGÜRASYONU ==========
-const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com/api";
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
 let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
 
 // ========== SAYFALAMA AYARLARI ==========
