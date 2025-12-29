@@ -310,10 +310,10 @@ function changeSort(newSort) {
 // ========== KAMERA AI ARAMA ==========
 async function cameraAiSearch() {
   try {
-    // Kamera erişimi
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: 'environment' } 
+    });
     
-    // Kamera modalı oluştur
     const modal = document.createElement('div');
     modal.className = 'cameraModal';
     modal.innerHTML = `
@@ -324,7 +324,7 @@ async function cameraAiSearch() {
         </div>
         <video id="cameraVideo" autoplay playsinline></video>
         <div class="cameraControls">
-          <button class="btnPrimary" id="captureBtn">📷 Çek</button>
+          <button class="btnPrimary" id="captureBtn">📷 Çek ve Analiz Et</button>
           <button class="btnGhost" id="cancelBtn">İptal</button>
         </div>
         <canvas id="cameraCanvas" style="display:none;"></canvas>
@@ -336,7 +336,6 @@ async function cameraAiSearch() {
     const video = modal.querySelector('#cameraVideo');
     video.srcObject = stream;
     
-    // Event listeners
     modal.querySelector('.closeCamera').onclick = 
     modal.querySelector('#cancelBtn').onclick = () => {
       stream.getTracks().forEach(track => track.stop());
@@ -351,15 +350,12 @@ async function cameraAiSearch() {
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0);
       
-      // Base64'e çevir
       const imageData = canvas.toDataURL('image/jpeg');
       
-      // Stream'i durdur
       stream.getTracks().forEach(track => track.stop());
       modal.remove();
       
-      // AI ile görsel analiz
-      toast("Görsel AI ile analiz ediliyor...", "info");
+      toast("📸 Görsel AI ile analiz ediliyor...", "info");
       
       try {
         const response = await fetch(`${API_URL}/kamera-ai`, {
@@ -376,7 +372,19 @@ async function cameraAiSearch() {
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            fiyatAra(data.urunTahmini || data.tespitEdilen || 'telefon');
+            toast(`✅ AI tespit etti: "${data.tespitEdilen}"`, "success");
+            
+            setTimeout(() => {
+              document.getElementById('qNormal').value = data.urunTahmini;
+              const mode = getSearchMode();
+              
+              if (mode === 'fiyat') {
+                fiyatAra(data.urunTahmini);
+              } else {
+                showPage('search');
+                renderSiteList($('normalList'), data.urunTahmini);
+              }
+            }, 1000);
           }
         }
       } catch (error) {
@@ -414,7 +422,6 @@ async function getAiCommentForFavorite(favorite) {
     if (response.ok) {
       const data = await response.json();
       
-      // AI yorum modalı göster
       const modal = document.createElement('div');
       modal.className = 'aiModal';
       modal.innerHTML = `
@@ -448,7 +455,7 @@ async function getAiCommentForFavorite(favorite) {
       document.body.appendChild(modal);
       
       modal.querySelector('.closeAiModal').onclick = () => modal.remove();
-      modal.querySelector('.aiModal').onclick = (e) => {
+      modal.onclick = (e) => {
         if (e.target === modal) modal.remove();
       };
       
