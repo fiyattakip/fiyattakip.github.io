@@ -892,16 +892,13 @@ function closeAPIModal(){
 async function checkAPIStatus() {
   const statusElement = $("apiStatus");
   if (!statusElement) return;
-  
+
   try {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
-    
-    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
+
+    const response = await fetch(`${API_URL}/health`);
+
     if (response.ok) {
       statusElement.textContent = "Çalışıyor";
       statusElement.className = "apiStatus online";
@@ -917,11 +914,12 @@ async function checkAPIStatus() {
 
 function saveAPISettings() {
   const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
-  API_URL = url;
-  localStorage.setItem('fiyattakip_api_url', url);
+  API_URL = url.replace(/\/$/, ""); // sondaki / varsa kaldır (stabil)
+  localStorage.setItem("fiyattakip_api_url", API_URL);
   toast("API URL kaydedildi", "success");
   closeAPIModal();
 }
+
 
 // ========== AI AYARLARI ==========
 function loadAISettings(){
