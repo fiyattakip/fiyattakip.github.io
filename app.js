@@ -307,13 +307,21 @@ function changeSort(newSort) {
   fiyatAra(currentSearch, 1, newSort);
 }
 
-// ========== KAMERA AI ARAMA ==========
+// ========== KAMERA AI ARAMA (TAM ÇALIŞAN) ==========
 async function cameraAiSearch() {
   try {
+    showPage("home");
+    
+    // Kamera izni iste
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: 'environment' } 
+      video: { 
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      } 
     });
     
+    // Kamera modalı
     const modal = document.createElement('div');
     modal.className = 'cameraModal';
     modal.innerHTML = `
@@ -322,81 +330,185 @@ async function cameraAiSearch() {
           <h3>📸 Ürün Fotoğrafı Çek</h3>
           <button class="closeCamera">✕</button>
         </div>
-        <video id="cameraVideo" autoplay playsinline></video>
+        <div class="cameraPreview">
+          <video id="cameraVideo" autoplay playsinline></video>
+          <div class="cameraOverlay">
+            <div class="scanBox"></div>
+            <div class="scanHint">Ürünü kare içine alın</div>
+          </div>
+        </div>
         <div class="cameraControls">
           <button class="btnPrimary" id="captureBtn">📷 Çek ve Analiz Et</button>
           <button class="btnGhost" id="cancelBtn">İptal</button>
         </div>
         <canvas id="cameraCanvas" style="display:none;"></canvas>
+        <div class="cameraHint">
+          Ürünün net bir fotoğrafını çekin. AI ürünü tanıyıp otomatik arama yapacak.
+        </div>
       </div>
     `;
     
     document.body.appendChild(modal);
+    document.body.classList.add('modalOpen');
     
     const video = modal.querySelector('#cameraVideo');
     video.srcObject = stream;
     
-    modal.querySelector('.closeCamera').onclick = 
-    modal.querySelector('#cancelBtn').onclick = () => {
-      stream.getTracks().forEach(track => track.stop());
+    // Kapatma butonları
+    const closeCamera = () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
       modal.remove();
+      document.body.classList.remove('modalOpen');
     };
     
+    modal.querySelector('.closeCamera').onclick = closeCamera;
+    modal.querySelector('#cancelBtn').onclick = closeCamera;
+    
+    // Çek butonu
     modal.querySelector('#captureBtn').onclick = async () => {
       const canvas = modal.querySelector('#cameraCanvas');
       const context = canvas.getContext('2d');
       
+      // Video boyutları
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0);
       
-      const imageData = canvas.toDataURL('image/jpeg');
+      // Fotoğraf çek
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
       
+      // Base64'e çevir (JPEG, %80 kalite)
+      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+      const base64Data = imageData.split(',')[1];
+      
+      // Kamera kapat
       stream.getTracks().forEach(track => track.stop());
       modal.remove();
+      document.body.classList.remove('modalOpen');
       
+      // AI analiz için göster
       toast("📸 Görsel AI ile analiz ediliyor...", "info");
       
       try {
+        // API'ye gönder
         const response = await fetch(`${API_URL}/kamera-ai`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            image: imageData.split(',')[1],
+            image: base64Data,
             mime: 'image/jpeg'
           })
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            toast(`✅ AI tespit etti: "${data.tespitEdilen}"`, "success");
-            
-            setTimeout(() => {
-              document.getElementById('qNormal').value = data.urunTahmini;
-              const mode = getSearchMode();
-              
-              if (mode === 'fiyat') {
-                fiyatAra(data.urunTahmini);
-              } else {
-                showPage('search');
-                renderSiteList($('normalList'), data.urunTahmini);
-              }
-            }, 1000);
-          }
+        if (!response.ok) {
+          throw new Error(`API hatası: ${response.status}`);
         }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // AI'nın tespit ettiği ürün
+          const detectedProduct = data.urunTahmini || data.tespitEdilen || "ürün";
+          
+          toast(`✅ AI tespit etti: "${detectedProduct.substring(0, 30)}..."`, "success", 3000);
+          
+          // 1.5 saniye bekle ve arama yap
+          setTimeout(() => {
+            // Arama kutusuna yaz
+            const searchInput = document.getElementById('qNormal');
+            if (searchInput) {
+              searchInput.value = detectedProduct;
+              searchInput.focus();
+            }
+            
+            // Otomatik arama yap
+            const mode = getSearchMode();
+            console.log("🔍 Arama modu:", mode, "Ürün:", detectedProduct);
+            
+            if (mode === 'fiyat' || mode === 'ai') {
+              // Fiyat modunda ise fiyatAra fonksiyonunu çağır
+              fiyatAra(detectedProduct);
+            } else {
+              // Normal modda ise link listesi göster
+              showPage('search');
+              renderSiteList($('normalList'), detectedProduct);
+            }
+            
+            // AI analiz bilgisini göster (opsiyonel)
+            if (data.aciklama) {
+              setTimeout(() => {
+                toast(`ℹ️ ${data.aciklama.substring(0, 60)}...`, "info", 2000);
+              }, 1000);
+            }
+          }, 1500);
+          
+        } else {
+          throw new Error(data.error || "AI ürün tanıyamadı");
+        }
+        
       } catch (error) {
         console.error("Kamera AI hatası:", error);
-        toast("AI analiz başarısız, normal arama yapılıyor", "warning");
-        fiyatAra('telefon');
+        
+        // Fallback: kullanıcıdan manuel giriş iste
+        setTimeout(() => {
+          toast("❌ AI ürün tanıyamadı. Lütfen manuel yazın.", "error", 3000);
+          
+          // Kullanıcıya prompt göster
+          const userInput = prompt("AI ürünü tanıyamadı. Lütfen ürün adını yazın:", "telefon");
+          if (userInput && userInput.trim()) {
+            const productName = userInput.trim();
+            
+            // Arama kutusuna yaz
+            const searchInput = document.getElementById('qNormal');
+            if (searchInput) {
+              searchInput.value = productName;
+            }
+            
+            // Arama yap
+            const mode = getSearchMode();
+            if (mode === 'fiyat' || mode === 'ai') {
+              fiyatAra(productName);
+            } else {
+              showPage('search');
+              renderSiteList($('normalList'), productName);
+            }
+          }
+        }, 1000);
       }
     };
     
   } catch (error) {
-    console.error("Kamera hatası:", error);
-    toast("Kamera erişimi reddedildi", "error");
+    console.error("Kamera başlatma hatası:", error);
+    
+    let errorMessage = "Kamera açılamadı";
+    if (error.name === 'NotAllowedError') {
+      errorMessage = "Kamera izni reddedildi. Tarayıcı ayarlarından izin verin.";
+    } else if (error.name === 'NotFoundError') {
+      errorMessage = "Kamera bulunamadı.";
+    } else if (error.name === 'NotReadableError') {
+      errorMessage = "Kamera kullanımda veya bozuk.";
+    }
+    
+    toast(errorMessage, "error", 4000);
+    
+    // Fallback: manuel arama
+    setTimeout(() => {
+      const userInput = prompt("Kamera kullanılamıyor. Lütfen ürün adını yazın:", "telefon");
+      if (userInput && userInput.trim()) {
+        document.getElementById('qNormal').value = userInput.trim();
+        const mode = getSearchMode();
+        
+        if (mode === 'fiyat' || mode === 'ai') {
+          fiyatAra(userInput.trim());
+        } else {
+          showPage('search');
+          renderSiteList($('normalList'), userInput.trim());
+        }
+      }
+    }, 1500);
   }
 }
 
