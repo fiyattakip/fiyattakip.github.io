@@ -1,3 +1,20 @@
+// ========== DEBUG MODE ==========
+const DEBUG = true; // true yap, çalışınca false yap
+
+function debugLog(...args) {
+  if (DEBUG) {
+    console.log("🔍 DEBUG:", ...args);
+  }
+}
+
+// ========== API KONFİGÜRASYONU ==========
+// RENDER.COM URL'İNİ BURAYA YAZ!
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com/api";
+let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
+
+// API URL'yi konsola yazdır (debug için)
+debugLog("API_URL:", API_URL);
+
 // app.js - Fiyat Takip Uygulaması (Render API entegreli)
 import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
 import {
@@ -81,17 +98,23 @@ function getSearchMode(){
 
 // ========== FIYAT ARAMA (Render API) ==========
 async function fiyatAra(query, page = 1, sort = 'asc') {
-  if (!query.trim()) {
+  debugLog("fiyatAra çağrıldı:", { query, page, sort, API_URL });
+  
+  if (!query || query.trim() === "") {
     toast("Lütfen bir şey yazın", "error");
     return;
   }
 
+  query = query.trim();
   showPage("search");
   const container = $("normalList");
+  
+  // Loading göster
   container.innerHTML = `
     <div class="loading">
       <div class="spinner"></div>
       <p>Fiyatlar çekiliyor...</p>
+      <p class="debugInfo" style="font-size:12px;color:#888;">API: ${API_URL}</p>
     </div>
   `;
 
@@ -100,6 +123,7 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
 
   try {
     toast("Fiyatlar çekiliyor...", "info");
+    debugLog("API isteği gönderiliyor...");
     
     const response = await fetch(`${API_URL}/fiyat-cek`, {
       method: "POST",
@@ -113,11 +137,20 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
       })
     });
 
+    debugLog("API yanıtı geldi:", {
+      status: response.status,
+      ok: response.ok,
+      url: response.url
+    });
+
     if (!response.ok) {
-      throw new Error(`API hatası: ${response.status}`);
+      const errorText = await response.text().catch(() => "No error text");
+      debugLog("API hatası:", errorText);
+      throw new Error(`API hatası: ${response.status} - ${errorText.substring(0, 100)}`);
     }
 
     const data = await response.json();
+    debugLog("API verisi:", data);
     
     if (data.success) {
       // Global değişkenlere kaydet
@@ -131,21 +164,134 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
       updatePaginationControls();
       updateSortControls();
       
-      toast(`${data.toplamUrun || 0} ürün bulundu (Sayfa ${currentPage}/${totalPages})`, "success");
+      const urunSayisi = data.toplamUrun || 0;
+      toast(`${urunSayisi} ürün bulundu (Sayfa ${currentPage}/${totalPages})`, "success");
+      
+      debugLog("Başarılı:", `${urunSayisi} ürün gösteriliyor`);
     } else {
       throw new Error(data.error || "Fiyat çekilemedi");
     }
     
   } catch (error) {
     console.error("Fiyat arama hatası:", error);
+    debugLog("HATA:", error.message);
+    
+    // Detaylı hata mesajı göster
+    let errorMessage = error.message;
+    if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+      errorMessage = "API'ye bağlanılamadı. API URL'yi kontrol edin.";
+    } else if (error.message.includes("404")) {
+      errorMessage = "API endpoint bulunamadı. API URL yanlış olabilir.";
+    }
+    
     container.innerHTML = `
       <div class="errorState">
         <div class="errorIcon">😕</div>
         <h3>Fiyat çekilemedi</h3>
-        <p>${error.message}</p>
+        <p>${errorMessage}</p>
+        <div class="debugDetails" style="background:#222;padding:10px;border-radius:8px;margin:10px 0;font-size:12px;">
+          <strong>Debug Bilgisi:</strong><br>
+          API: ${API_URL}<br>
+          Hata: ${error.message}<br>
+          Tarih: ${new Date().toLocaleTimeString()}
+        </div>
+        <button onclick="testAPIConnection()" class="btnGhost">API Bağlantı Testi</button>
         <button onclick="showPage('home')" class="btnPrimary">Ana Sayfaya Dön</button>
       </div>
     `;
+  }
+}
+
+// ========== API BAĞLANTI TESTİ ==========
+async function testAPIConnection() {
+  debugLog("API bağlantı testi başlatılıyor...");
+  toast("API test ediliyor...", "info");
+  
+  try {
+    const testUrl = API_URL.replace('/api/fiyat-cek', '/health').replace('/api', '');
+    debugLog("Test URL:", testUrl);
+    
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      debugLog("API test başarılı:", data);
+      
+      // Modal ile detaylı bilgi göster
+      const modal = document.createElement('div');
+      modal.className = 'aiModal';
+      modal.innerHTML = `
+        <div class="aiModalContent">
+          <div class="aiModalHeader">
+            <h3>✅ API Bağlantı Testi</h3>
+            <button class="closeAiModal">✕</button>
+          </div>
+          <div class="aiModalBody">
+            <div style="background:#1a1f2e;padding:15px;border-radius:12px;margin-bottom:15px;">
+              <div><strong>Durum:</strong> <span style="color:#36d399;">Çalışıyor ✓</span></div>
+              <div><strong>API URL:</strong> ${API_URL}</div>
+              <div><strong>Health Endpoint:</strong> ${testUrl}</div>
+              <div><strong>AI Durumu:</strong> ${data.ai || "Bilinmiyor"}</div>
+              <div><strong>Zaman:</strong> ${data.zaman || new Date().toLocaleString()}</div>
+            </div>
+            <p>API bağlantısı başarılı. Şimdi arama yapabilirsiniz.</p>
+          </div>
+          <div class="aiModalFooter">
+            <button class="btnPrimary" onclick="this.closest('.aiModal').remove(); fiyatAra('${currentSearch || 'telefon'}')">Test Araması Yap</button>
+            <button class="btnGhost" onclick="this.closest('.aiModal').remove()">Kapat</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      modal.querySelector('.closeAiModal').onclick = () => modal.remove();
+      
+    } else {
+      throw new Error(`HTTP ${response.status}`);
+    }
+  } catch (error) {
+    debugLog("API test hatası:", error);
+    
+    const modal = document.createElement('div');
+    modal.className = 'aiModal';
+    modal.innerHTML = `
+      <div class="aiModalContent">
+        <div class="aiModalHeader">
+          <h3>❌ API Bağlantı Testi</h3>
+          <button class="closeAiModal">✕</button>
+        </div>
+        <div class="aiModalBody">
+          <div style="background:#2e1a1a;padding:15px;border-radius:12px;margin-bottom:15px;">
+            <div><strong>Durum:</strong> <span style="color:#ff4757;">Bağlantı yok ✗</span></div>
+            <div><strong>API URL:</strong> ${API_URL}</div>
+            <div><strong>Hata:</strong> ${error.message}</div>
+            <div><strong>Olası Sebepler:</strong></div>
+            <ul style="margin:10px 0;padding-left:20px;">
+              <li>API deploy edilmemiş</li>
+              <li>Yanlış API URL</li>
+              <li>Render.com'da hata</li>
+              <li>GEMINI_API_KEY eksik</li>
+            </ul>
+          </div>
+          <p><strong>Çözüm:</strong></p>
+          <ol style="margin:10px 0;padding-left:20px;">
+            <li>Render.com'da API'nin "Deploy" olduğundan emin ol</li>
+            <li>Environment Variables'a GEMINI_API_KEY ekle</li>
+            <li>Bu sayfadaki API URL'yi Render URL'inle güncelle</li>
+          </ol>
+        </div>
+        <div class="aiModalFooter">
+          <button class="btnPrimary" onclick="openAPIModal()">API Ayarlarını Aç</button>
+          <button class="btnGhost" onclick="this.closest('.aiModal').remove()">Kapat</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.querySelector('.closeAiModal').onclick = () => modal.remove();
   }
 }
 
