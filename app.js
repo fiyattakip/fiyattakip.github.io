@@ -895,20 +895,32 @@ async function checkAPIStatus() {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
     
-    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
+    // Sadece API_URL'nin kökünü kontrol et
+    const apiRoot = API_URL.replace('/api/fiyat-cek', '').replace('/api', '');
+    
+    // Önce /health endpoint'ini dene
+    let response = await fetch(`${apiRoot}/health`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
     
+    // Eğer /health yoksa, / endpoint'ini dene
+    if (!response.ok) {
+      response = await fetch(apiRoot, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
     if (response.ok) {
-      statusElement.textContent = "Çalışıyor";
+      statusElement.textContent = "✓ Çalışıyor";
       statusElement.className = "apiStatus online";
     } else {
-      statusElement.textContent = "Hata";
+      statusElement.textContent = "✗ Hata";
       statusElement.className = "apiStatus error";
     }
   } catch (error) {
-    statusElement.textContent = "Bağlantı yok";
+    statusElement.textContent = "✗ Bağlantı yok";
     statusElement.className = "apiStatus offline";
   }
 }
