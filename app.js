@@ -1142,23 +1142,50 @@ function wireUI(){
   $("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
   setSearchMode(getSearchMode());
 
-  // Ana arama butonu
-  $("btnNormal")?.addEventListener("click", async ()=>{
+ // app.js - ARAMA BUTONU GÜNCELLEMESİ
+function wireUI() {
+  // ... diğer kodlar ...
+  
+  // Ana arama butonu - GÜNCELLENMİŞ
+  $("btnNormal")?.addEventListener("click", async () => {
     const query = ($("qNormal")?.value || "").trim();
     if (!query) return toast("Ürün adı girin", "error");
     
     const mode = getSearchMode();
+    console.log("🔍 Arama başlatılıyor. Mod:", mode, "Sorgu:", query);
     
     if (mode === "fiyat") {
+      // Fiyat modu - Render API ile arama
       await fiyatAra(query);
     } else if (mode === "ai") {
-      toast("AI ile optimize ediliyor...", "info");
-      await fiyatAra(query);
+      // AI modu - Önce AI ile optimize et, sonra fiyat ara
+      toast("🤖 AI ile optimize ediliyor...", "info");
+      
+      try {
+        // AI'dan optimize edilmiş arama terimi iste
+        if (window.geminiText) {
+          const aiOptimized = await window.geminiText(`"${query}" ürünü için en iyi arama terimini öner. Sadece arama terimini yaz, başka şey yazma.`);
+          if (aiOptimized && aiOptimized.trim()) {
+            const optimizedQuery = aiOptimized.trim();
+            toast(`✅ AI önerisi: "${optimizedQuery}"`, "success", 2000);
+            await fiyatAra(optimizedQuery);
+            return;
+          }
+        }
+      } catch (aiError) {
+        console.log("AI optimizasyon hatası:", aiError);
+        // AI çalışmazsa normal arama yap
+        await fiyatAra(query);
+      }
     } else {
+      // Normal mod - Link listesi göster
       showPage("search");
       renderSiteList($("normalList"), query);
     }
   });
+  
+  // ... diğer kodlar ...
+}
 
   // Hızlı arama etiketleri
   document.querySelectorAll(".quickTag").forEach(tag => {
