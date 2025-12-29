@@ -1,4 +1,3 @@
-/* ========== GLOBAL STYLES ========== */
 :root{
   --bg1:#0b1020;
   --bg2:#101a36;
@@ -8,10 +7,6 @@
   --muted: rgba(255,255,255,.68);
   --primary:#7c5cff;
   --primary2:#36d399;
-  --success:#36d399;
-  --error:#ff4757;
-  --warning:#ffa502;
-  --camera:#ff3366;
 }
 
 *{ box-sizing: border-box; }
@@ -28,7 +23,7 @@ body{
 
 .appShell{ min-height:100vh; }
 
-/* ========== TOPBAR ========== */
+/* TOPBAR */
 .topbar{
   display:flex;
   justify-content:space-between;
@@ -53,12 +48,12 @@ body{
 }
 .iconBtn:active{ transform: scale(.98); }
 
-/* ========== PAGES ========== */
+/* PAGES */
 .pages{ padding: 0 16px; }
 .page{ display:none; padding-bottom: 24px; opacity:0; transform: translateX(10px); transition: .25s ease; }
 .page.active{ display:block; opacity:1; transform: translateX(0); }
 
-/* ========== HOME SEARCH CARD ========== */
+/* HOME SEARCH CARD */
 .searchCard{
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.14);
@@ -112,7 +107,7 @@ body{
 
 .full{ width:100%; margin-top: 10px; }
 
-/* ========== ARAMA MODU TOGGLE ========== */
+/* Toggle */
 .modeToggle{
   display:flex;
   gap:8px;
@@ -143,7 +138,7 @@ body{
   color: rgba(255,255,255,.70);
 }
 
-/* ========== BANNER ========== */
+/* Banner */
 .banner{
   margin-top: 14px;
   display:flex;
@@ -158,80 +153,31 @@ body{
     rgba(255,255,255,.06);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-}
-
+}nasılsın 
 .bannerLeft,.bannerRight{ font-size: 22px; }
 .bannerTitle{ font-weight: 1000; }
 .bannerSub{ color: rgba(255,255,255,.72); font-size: 12px; margin-top: 2px; }
 
-/* ========== HIZLI ARAMALAR ========== */
-.quickSearches {
-  margin: 20px 0 10px;
+.gridTitle{ margin: 14px 0 10px; font-weight: 1000; }
+.grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
-.quickSearches h3 {
-  font-size: 16px;
-  font-weight: 900;
-  margin-bottom: 10px;
-}
-.quickTags {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-}
-.quickTag {
-  padding: 10px 16px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 16px;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.quickTag:active {
-  transform: scale(0.95);
-}
-
-/* ========== SON ARAMALAR ========== */
-.recentSearchesCard {
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 22px;
-  padding: 16px;
-  margin-top: 16px;
-}
-.recentSearchesCard h3 {
-  font-size: 16px;
-  font-weight: 900;
-  margin-bottom: 12px;
-}
-.recentList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.recentItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.pCard{
   padding: 12px;
-  background: rgba(255,255,255,.04);
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
-.recentItem:active {
-  background: rgba(255,255,255,.08);
-}
-.recentRemove {
-  background: none;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 18px;
-}
+.pImg{ font-size: 26px; margin-bottom: 10px; }
+.pName{ font-weight: 900; font-size: 13px; }
+.pPrice{ margin-top: 6px; font-weight: 1000; }
+.pShop{ margin-top: 4px; font-size: 11px; color: rgba(255,255,255,.72); }
 
-/* ========== LISTS / CARDS ========== */
+/* Lists / cards */
 .list{ display:flex; flex-direction:column; gap:10px; margin-top: 10px; }
 .cardBox{
   margin-top: 12px;
@@ -249,520 +195,7 @@ body{
 .cardTitle{ font-weight: 1000; }
 .miniHint{ margin-top:10px; font-size:12px; color: rgba(255,255,255,.70); }
 
-/* ========== SIRALAMA KONTROLLERİ ========== */
-.sortControls {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.14);
-}
-
-.sortBtn {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid rgba(255,255,255,0.2);
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.8);
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.sortBtn.active {
-  background: linear-gradient(135deg, var(--primary), #4b3fd6);
-  color: white;
-  border-color: transparent;
-  box-shadow: 0 4px 15px rgba(124,92,255,0.3);
-}
-
-.sortBtn:hover:not(.active) {
-  background: rgba(255,255,255,0.12);
-}
-
-.sortInfo {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 12px;
-  font-size: 13px;
-  color: rgba(255,255,255,0.7);
-}
-
-/* ========== SAYFALAMA ========== */
-.pagination, .favPagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 20px 0;
-  padding: 12px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.14);
-}
-
-.pageBtn {
-  padding: 10px 16px;
-  background: linear-gradient(135deg, var(--primary), #4b3fd6);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  min-width: 100px;
-  transition: all 0.2s;
-}
-
-.pageBtn.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: rgba(255,255,255,0.1);
-}
-
-.pageBtn:not(.disabled):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(124,92,255,0.4);
-}
-
-.pageInfo {
-  font-weight: 700;
-  color: white;
-  font-size: 14px;
-}
-
-/* ========== KAMERA TAB BUTONU ========== */
-.cameraTab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, var(--camera), #ff6b6b);
-  border: none;
-  border-radius: 50%;
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  box-shadow: 0 10px 30px rgba(255,51,102,0.4);
-  cursor: pointer;
-  z-index: 10000;
-  transition: all 0.3s;
-}
-
-.cameraTab:hover {
-  transform: translateX(-50%) scale(1.1);
-  box-shadow: 0 15px 40px rgba(255,51,102,0.6);
-}
-
-.cameraTab:active {
-  transform: translateX(-50%) scale(0.95);
-}
-
-.cameraTab .ico {
-  font-size: 24px;
-  margin-bottom: 4px;
-}
-
-.cameraTab .lbl {
-  font-size: 11px;
-  font-weight: 700;
-  color: white;
-}
-
-/* ========== KAMERA MODALI ========== */
-.cameraModal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20000;
-}
-
-.cameraContainer {
-  background: var(--bg2);
-  border-radius: 24px;
-  padding: 20px;
-  max-width: 90%;
-  max-height: 90%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.cameraHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.cameraHeader h3 {
-  margin: 0;
-  color: white;
-}
-
-.closeCamera {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 8px;
-}
-
-#cameraVideo {
-  width: 100%;
-  max-height: 400px;
-  border-radius: 16px;
-  background: black;
-}
-
-.cameraControls {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-
-/* ========== AI YORUM MODALI ========== */
-.aiModal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20000;
-}
-
-.aiModalContent {
-  background: var(--bg2);
-  border-radius: 24px;
-  padding: 24px;
-  max-width: 500px;
-  width: 90%;
-  max-height: 80%;
-  overflow-y: auto;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-
-.aiModalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.aiModalHeader h3 {
-  margin: 0;
-  color: white;
-  font-size: 20px;
-}
-
-.closeAiModal {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 8px;
-}
-
-.aiModalBody {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.aiProduct {
-  background: rgba(255,255,255,0.08);
-  padding: 16px;
-  border-radius: 12px;
-  border-left: 4px solid var(--primary);
-}
-
-.aiProduct strong {
-  font-size: 16px;
-  color: white;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.aiProduct small {
-  color: rgba(255,255,255,0.7);
-  font-size: 13px;
-}
-
-.aiComment {
-  background: rgba(54,211,153,0.1);
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(54,211,153,0.3);
-  color: white;
-  line-height: 1.5;
-  font-size: 14px;
-}
-
-.aiDetails {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.aiDetails > div {
-  background: rgba(255,255,255,0.06);
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.aiDetails strong {
-  display: block;
-  margin-bottom: 4px;
-  color: rgba(255,255,255,0.9);
-}
-
-.aiModalFooter {
-  margin-top: 20px;
-  text-align: right;
-}
-
-/* ========== FIYAT SONUÇLARI STİLLERİ ========== */
-.cheapestBanner {
-  background: linear-gradient(135deg, rgba(124,92,255,0.15), rgba(54,211,153,0.15));
-  border: 1px solid rgba(124,92,255,0.3);
-  border-radius: 20px;
-  padding: 16px;
-  margin-bottom: 16px;
-  backdrop-filter: blur(10px);
-}
-
-.bannerHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.badge {
-  background: linear-gradient(135deg, #ff3366, #ff6b6b);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.siteTag {
-  background: rgba(255,255,255,0.1);
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.productInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.productTitle {
-  font-size: 16px;
-  font-weight: 900;
-  line-height: 1.3;
-}
-
-.productPrice {
-  font-size: 24px;
-  font-weight: 1000;
-  color: var(--success);
-}
-
-.productActions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-/* ========== ÜRÜN LİSTESİ ========== */
-.productList {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.productCard {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 18px;
-  padding: 14px;
-  backdrop-filter: blur(10px);
-}
-
-.productRow {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.productSite {
-  font-size: 12px;
-  color: rgba(255,255,255,0.7);
-  font-weight: 600;
-}
-
-.productName {
-  font-size: 14px;
-  font-weight: 900;
-  line-height: 1.3;
-}
-
-.productPriceRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 8px;
-}
-
-.productPrice {
-  font-size: 18px;
-  font-weight: 1000;
-  color: #fff;
-}
-
-.productActions {
-  display: flex;
-  gap: 6px;
-}
-
-.btnPrimary.sm, .btnGhost.sm {
-  padding: 8px 12px;
-  font-size: 13px;
-}
-
-.btnGhost.xs {
-  padding: 6px 10px;
-  font-size: 12px;
-  min-width: 44px;
-}
-
-/* ========== LOADING ========== */
-.loading {
-  text-align: center;
-  padding: 60px 20px;
-  color: rgba(255,255,255,0.7);
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255,255,255,0.1);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  margin: 0 auto 20px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ========== EMPTY STATES ========== */
-.emptyState {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.emptyIcon, .errorIcon {
-  font-size: 64px;
-  margin-bottom: 20px;
-  opacity: 0.5;
-}
-
-.emptyState h3, .errorState h3 {
-  margin-bottom: 8px;
-  font-size: 20px;
-  font-weight: 900;
-}
-
-.emptyState p, .errorState p {
-  color: var(--muted);
-  margin-bottom: 20px;
-  line-height: 1.5;
-}
-
-.errorState {
-  text-align: center;
-  padding: 40px 20px;
-  background: rgba(255,71,87,0.1);
-  border-radius: 20px;
-  border: 1px solid rgba(255,71,87,0.2);
-}
-
-/* ========== TOAST MESAJLARI ========== */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 100px;
-  transform: translateX(-50%);
-  background: var(--card);
-  color: var(--text);
-  padding: 14px 20px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  z-index: 9999;
-  max-width: 90%;
-  text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-  display: block;
-  animation: slideUp 0.3s ease;
-}
-
-.toast.success {
-  border-left: 4px solid var(--success);
-}
-
-.toast.error {
-  border-left: 4px solid var(--error);
-}
-
-.toast.info {
-  border-left: 4px solid var(--primary);
-}
-
-.toast.warning {
-  border-left: 4px solid var(--warning);
-}
-
-.toast.hidden {
-  display: none;
-}
-
-@keyframes slideUp {
-  from { transform: translate(-50%, 20px); opacity: 0; }
-  to { transform: translate(-50%, 0); opacity: 1; }
-}
-
-/* ========== TABBAR ========== */
+/* TABBAR + FAB */
 .tabbar{
   position: fixed;
   left: 10px;
@@ -779,7 +212,8 @@ body{
   justify-content:space-around;
   padding: 10px 12px;
   box-shadow: 0 10px 40px rgba(0,0,0,.35);
-  z-index: 9999;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
 }
 
 .tab{
@@ -804,15 +238,33 @@ body{
 }
 .tabSpacer{ width: 64px; }
 
-/* ========== MODAL ========== */
-.modalWrap{ position: fixed; inset:0; display:none; z-index: 20000; pointer-events: none; }
+.fab{
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -22px;
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(180deg, rgba(124,92,255,1), rgba(72,56,220,1));
+  box-shadow: 0 14px 40px rgba(124,92,255,.35), 0 8px 18px rgba(0,0,0,.35);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  z-index: 100000 !important;
+  pointer-events: auto !important;
+}
+.fabIco{ font-size: 22px; }
+
+/* ========= MODAL / CLICK FREEZE FIX ========= */
+.modalWrap{ position: fixed; inset:0; display:none; z-index: 200000; pointer-events: none; }
 .modalWrap.show{ display:flex; pointer-events: auto; align-items:center; justify-content:center; }
 
 .modalBack{
   position:absolute; inset:0;
   background: rgba(0,0,0,.35);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
 }
 
 .modalCard{
@@ -839,252 +291,214 @@ body{
 .modalTop{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; }
 .modalTitle{ font-weight: 1000; font-size: 16px; }
 
-.modalBody .row {
-  margin-top: 12px;
+.segRow{ display:flex; gap:8px; margin-bottom: 10px; }
+.segBtn{
+  flex:1;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  padding: 10px;
+  font-weight: 1000;
+  cursor:pointer;
 }
-
-.lbl {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 14px;
-  font-weight: 600;
+.segBtn.active{
+  background: rgba(255,255,255,.12);
 }
-
-.input {
-  width: 100%;
-  padding: 12px 14px;
+.modalCard input{
+  width:100%;
+  margin-top: 8px;
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,.14);
   background: rgba(255,255,255,.08);
-  color: var(--text);
-  font-size: 14px;
+  padding: 12px 12px;
   outline: none;
+  color: var(--text);
+}
+.row2{ display:flex; gap:10px; margin-top: 10px; }
+
+
+/* Favori kalp */
+.btnFav{min-width:44px;}
+.btnFav.isFav{background:rgba(255,0,90,.18)!important;border-color:rgba(255,0,90,.35)!important}
+
+
+.btnCopy{min-width:44px}
+
+/* Toast */
+.toast{
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.78);
+  color: #fff;
+  z-index: 99999;
+  max-width: 92vw;
+  text-align: center;
+  font-size: 14px;
+}
+.hidden{display:none!important}
+
+/* Auth tabs */
+.authTabs{display:flex;gap:10px;margin:10px 0 14px}
+.authTabs .isActive{border-color:rgba(255,255,255,.35)!important;background:rgba(255,255,255,.10)!important}
+.authPane .row{display:flex;gap:10px;margin-top:12px}
+.lbl{display:block;margin:8px 0 6px;font-size:13px;opacity:.9}
+
+/* Auth UI compact (old size feel) */
+.authTabs{margin:6px 0 10px}
+.lbl{margin:6px 0 4px;font-size:12.5px}
+#loginPane input, #registerPane input{padding:10px 12px;border-radius:14px}
+.authPane .row{margin-top:10px}
+
+/* Login modal size restore */
+.modalCard{
+  max-width: 420px;
+  padding: 22px 22px 20px;
 }
 
-.input:focus {
-  border-color: var(--primary);
+.authTabs{margin:10px 0 14px}
+
+#loginPane input,
+#registerPane input{
+  padding:12px 14px;
+  font-size:14px;
 }
 
-.inputDark {
+.authPane .row{
+  margin-top:14px;
+}
+
+.lbl{
+  margin:10px 0 6px;
+  font-size:13px;
+}
+
+/* === LOGIN MODAL CENTER (FINAL MOBILE) === */
+#loginModal.modalWrap{
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 18px 14px;
+  box-sizing: border-box;
+  z-index: 9999;
+}
+#loginModal.modalWrap{display:none;}
+#loginModal.modalWrap.show{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+#loginModal .modalCard{
+  margin: 0 !important;
+  width: min(460px, 92vw) !important;
+  max-width: 460px;
+  box-sizing: border-box;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+@media (max-width:480px){
+  #loginModal .modalCard{
+    width: 92vw !important;
+    max-width: 420px;
+  }
+}
+
+
+/* === Modal centering hard fix === */
+html, body { transform: none !important; }
+#loginModal.modalWrap.show{
+  display:grid !important;
+  place-items:center !important;
+  width:100vw !important;
+  height:100dvh !important;
+}
+#loginModal.modalWrap{
+  left:0 !important; top:0 !important;
+  width:100vw !important; height:100dvh !important;
+  transform:none !important;
+}
+#loginModal .modalCard{
+  justify-self:center !important;
+  align-self:center !important;
+}
+
+/* Clear cache button tidy */
+.authTools{display:flex;justify-content:flex-end;margin:0}
+#loginModal .modalCard{position:relative}
+#btnClearCache{
+  position:absolute;
+  right:18px;
+  top:92px; /* under title + close */
+  padding:8px 12px !important;
+  border-radius:999px !important;
+  font-size:12.5px !important;
+  opacity:.80;
+  background: rgba(255,255,255,.06) !important;
+}
+@media (max-width:480px){
+  #btnClearCache{right:14px; top:90px; padding:7px 11px !important; font-size:12px !important;}
+}
+#btnClearCache:active{transform:scale(.98)}
+
+/* Dark input/select to match theme */
+.inputDark{
   background: rgba(255,255,255,.06) !important;
   color: rgba(255,255,255,.92) !important;
   border: 1px solid rgba(255,255,255,.12) !important;
 }
+.inputDark::placeholder{color: rgba(255,255,255,.55)}
+.inputDark option{color:#111}
+.modalTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.modalTitle{font-size:18px;font-weight:900}
+.iconBtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.9);border-radius:14px;padding:10px 12px}
+.modalBody .row{margin-top:12px}
 
-/* ========== API STATUS ========== */
-.apiStatus {
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
+/* === Tabbar PNG Icon Patch (safe scoped) === */
+:root{
+  --ft-tabbar-h: 70px;      /* total bar height */
+  --ft-tab-ico: 40px;        /* side icons */
+  --ft-fab-ico: 75px;        /* camera icon */
+  --ft-fab-btn: 80px;       /* camera button */
 }
 
-.apiStatus.online {
-  background: rgba(54, 211, 153, 0.15);
-  color: var(--success);
-  border: 1px solid rgba(54, 211, 153, 0.3);
+/* keep content above the bar */
+body{ padding-bottom: calc(var(--ft-tabbar-h) + env(safe-area-inset-bottom)); }
+
+/* tabbar height & safe area */
+.tabbar{
+  height: var(--ft-tabbar-h);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-.apiStatus.offline {
-  background: rgba(255, 71, 87, 0.15);
-  color: var(--error);
-  border: 1px solid rgba(255, 71, 87, 0.3);
+/* side tabs */
+.tabbar .tab{
+  padding-top: 10px;
+}
+.tabbar .tab .ico{
+  width: var(--ft-tab-ico);
+  height: var(--ft-tab-ico);
+  display: grid;
+  place-items: center;
+  font-size: 0; /* hide emoji if any */
+}
+.tabbar .tab .tabIcon{
+  width: var(--ft-tab-ico);
+  height: var(--ft-tab-ico);
+  object-fit: contain;
 }
 
-.apiStatus.checking {
-  background: rgba(255, 165, 2, 0.15);
-  color: var(--warning);
-  border: 1px solid rgba(255, 165, 2, 0.3);
+/* camera FAB */
+.tabbar .fab{
+  width: var(--ft-fab-btn);
+  height: var(--ft-fab-btn);
 }
-
-.apiStatus.error {
-  background: rgba(255, 71, 87, 0.15);
-  color: var(--error);
-  border: 1px solid rgba(255, 71, 87, 0.3);
-}
-
-/* ========== AUTH TABS ========== */
-.authTabs{
-  display:flex;
-  gap:10px;
-  margin:10px 0 14px;
-}
-.authTabs .btnGhost.sm.isActive{
-  border-color:rgba(255,255,255,.35)!important;
-  background:rgba(255,255,255,.10)!important;
-}
-
-.authPane {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.authPane .row {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.authTools {
-  position: absolute;
-  right: 18px;
-  top: 90px;
-}
-
-.muted {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 8px;
-}
-
-/* ========== FAVORİ KARTLARI (AI BUTONLU) ========== */
-.favoriteCard {
-  margin-bottom: 12px;
-}
-
-.favoriteHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.favoriteInfo {
-  flex: 1;
-}
-
-.favSite {
-  font-weight: 700;
-  color: white;
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.favQuery {
-  color: rgba(255,255,255,0.8);
-  font-size: 13px;
-  margin-bottom: 8px;
-  line-height: 1.3;
-}
-
-.favPrice {
-  color: var(--success);
-  font-weight: 700;
-  font-size: 16px;
-}
-
-.favoriteActions {
-  display: flex;
-  gap: 8px;
-}
-
-.btnAiComment {
-  background: linear-gradient(135deg, var(--primary), #4b3fd6) !important;
-  border: none !important;
-  color: white !important;
-  min-width: 44px !important;
-}
-
-.btnAiComment:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(124,92,255,0.4);
-}
-
-/* ========== RESPONSIVE ========== */
-@media (max-width: 480px) {
-  .pages {
-    padding: 0 12px;
-  }
-  
-  .searchCard {
-    padding: 12px;
-  }
-  
-  .modeBtn {
-    padding: 8px 10px;
-    font-size: 13px;
-  }
-  
-  .sortControls {
-    flex-direction: column;
-  }
-  
-  .pagination {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .pageBtn {
-    width: 100%;
-  }
-  
-  .cameraTab {
-    width: 56px;
-    height: 56px;
-    bottom: 16px;
-  }
-  
-  .cameraTab .ico {
-    font-size: 20px;
-  }
-  
-  .aiDetails {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ========== LOADING ANIMATION ========== */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.loading .spinner {
-  animation: spin 1s linear infinite, pulse 2s ease-in-out infinite;
-}
-
-/* ========== EMPTY STATES ========== */
-.emptyState {
-  text-align: center;
-  padding: 60px 20px;
-  color: rgba(255,255,255,0.7);
-}
-
-.emptyIcon {
-  font-size: 64px;
-  margin-bottom: 20px;
-  opacity: 0.5;
-}
-
-.emptyState h3 {
-  margin-bottom: 8px;
-  font-size: 20px;
-  font-weight: 900;
-  color: white;
-}
-
-.emptyState p {
-  margin-bottom: 20px;
-  line-height: 1.5;
-}
-
-/* ========== FAVORİ KALP ========== */
-.btnFav{min-width:44px;}
-.btnFav.isFav{background:rgba(255,0,90,.18)!important;border-color:rgba(255,0,90,.35)!important}
-
-/* ========== SAFE AREA SUPPORT ========== */
-@supports (padding: max(0px)) {
-  .tabbar {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-  }
-  
-  body {
-    padding-bottom: max(110px, calc(env(safe-area-inset-bottom) + 110px));
-  }
-}
-
-.hidden {
-  display: none !important;
+.tabbar .fab .fabIcon{
+  width: var(--ft-fab-ico);
+  height: var(--ft-fab-ico);
+  object-fit: contain;
 }
