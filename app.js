@@ -305,7 +305,6 @@ async function cameraAiSearch() {
 
 // ========== AI YORUM ==========
 async function getAiCommentForFavorite(favorite) {
-async function getAiCommentForFavorite(favorite) {
   try {
     toast("🤖 AI analiz yapıyor...", "info");
     
