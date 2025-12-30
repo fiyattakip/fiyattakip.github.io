@@ -883,31 +883,43 @@ function closeAPIModal(){
 async function checkAPIStatus() {
   const statusElement = $("apiStatus");
   if (!statusElement) return;
-  
+
+  // API_URL saklama kuralı: mutlaka .../api ile biter
+  const base = (API_URL || "").replace(/\s+/g, "").replace(/\/+$/g, "");
+  const apiBase = base.endsWith("/api") ? base : (base + "/api");
+  const healthUrl = apiBase.replace(/\/api$/i, "") + "/health";
+
   try {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
-    
-    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
+
+    const response = await fetch(healthUrl, { method: "GET" });
+
     if (response.ok) {
-      statusElement.textContent = "Çalışıyor";
-      statusElement.className = "apiStatus online";
+      statusElement.textContent = "OK";
+      statusElement.className = "apiStatus ok";
+      return true;
     } else {
       statusElement.textContent = "Hata";
       statusElement.className = "apiStatus error";
+      return false;
     }
-  } catch (error) {
-    statusElement.textContent = "Bağlantı yok";
-    statusElement.className = "apiStatus offline";
+  } catch (err) {
+    statusElement.textContent = "Hata";
+    statusElement.className = "apiStatus error";
+    console.error("API status check error:", err);
+    return false;
   }
 }
 
 function saveAPISettings() {
-  const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
+  let url = ($("apiUrl")?.value || "").trim();
+  if (!url) url = DEFAULT_API_URL;
+
+  // Normalize: boşlukları at, sondaki /'leri sil, /api yoksa ekle
+  url = url.replace(/\s+/g, "").replace(/\/+$/g, "");
+  if (!url.endsWith("/api")) url = url + "/api";
+
   API_URL = url;
   localStorage.setItem('fiyattakip_api_url', url);
   toast("API URL kaydedildi", "success");
