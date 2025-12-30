@@ -1,9 +1,10 @@
+// firebase-messaging.js - DÜZGÜN HALİ:
 importScripts("https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js");
 
-// BURAYI KENDİ FIREBASE CONFIG'İNLE DOLDUR
+// SADECE FIREBASE KEY KULLAN:
 firebase.initializeApp({
-  apiKey: "AIzaSyDG7M4ag2m7wMYC6N3dqwxXJ2Nc_unwQVg",
+  apiKey: "AIzaSyBcXkVFQzB2XtxO7wqnbXhzM1Io54zCsBI", // ← FIREBASE KEY
   authDomain: "fiyattakip-ttoxub.firebaseapp.com",
   projectId: "fiyattakip-ttoxub",
   storageBucket: "fiyattakip-ttoxub.firebasestorage.app",
