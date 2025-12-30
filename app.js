@@ -84,28 +84,104 @@ function renderSiteList(container, query) {
   if (!container) return;
   container.innerHTML = "";
   
+  if (!query?.trim()) {
+    container.innerHTML = '<div class="emptyState">Arama kelimesi girin</div>';
+    return;
+  }
+  
+  console.log("🔗 Site linkleri oluşturuluyor:", query);
+  
   SITES.forEach(site => {
     const url = site.build(query);
-    const isFavorite = isFav(url); // Favori mi kontrol et
+    const isFavorite = isFav(url);
     
     const div = document.createElement("div");
-    div.className = "cardBox";
+    div.className = "cardBox siteCard";
     div.innerHTML = `
       <div class="rowLine">
-        <div>
-          <div class="ttl">${site.name}</div>
-          <div class="sub">${query}</div>
+        <div class="siteInfo">
+          <div class="siteIcon">${getSiteIcon(site.key)}</div>
+          <div class="siteText">
+            <div class="ttl">${site.name}</div>
+            <div class="sub">${truncateText(query, 50)}</div>
+          </div>
         </div>
         <div class="actions">
-          <button class="btnOpen btnPrimary sm">Aç</button>
-          <button class="btnCopy btnGhost sm">⧉</button>
-          <button class="btnFav btnGhost sm ${isFavorite ? 'isFav' : ''}">${isFavorite ? '❤️' : '🤍'}</button>
+          <button class="btnOpen btnPrimary sm" data-url="${url}">Aç</button>
+          <button class="btnCopy btnGhost sm" data-text="${url}">⧉</button>
+          <button class="btnFav btnGhost sm ${isFavorite ? 'isFav' : ''}" data-url="${url}" data-site="${site.key}" data-name="${site.name}" data-query="${query}">
+            ${isFavorite ? '❤️' : '🤍'}
+          </button>
         </div>
       </div>
     `;
     
-    // ... diğer kodlar aynı
+    // Buton event'lerini bağla
+    const btnOpen = div.querySelector('.btnOpen');
+    const btnCopy = div.querySelector('.btnCopy');
+    const btnFav = div.querySelector('.btnFav');
+    
+    if (btnOpen) {
+      btnOpen.addEventListener('click', () => {
+        window.open(url, '_blank');
+      });
+    }
+    
+    if (btnCopy) {
+      btnCopy.addEventListener('click', () => {
+        copyToClipboard(url);
+      });
+    }
+    
+    if (btnFav) {
+      btnFav.addEventListener('click', () => {
+        if (!window.currentUser) {
+          openLogin();
+          return;
+        }
+        
+        const favData = {
+          url: url,
+          siteKey: site.key,
+          siteName: site.name,
+          query: query,
+          type: 'site_link'
+        };
+        
+        toggleFavorite(window.currentUser?.uid, favData);
+        
+        // Favori ikonunu güncelle
+        if (btnFav.classList.contains('isFav')) {
+          btnFav.innerHTML = '🤍';
+          btnFav.classList.remove('isFav');
+        } else {
+          btnFav.innerHTML = '❤️';
+          btnFav.classList.add('isFav');
+        }
+      });
+    }
+    
+    container.appendChild(div);
   });
+}
+
+// Yardımcı fonksiyonlar
+function getSiteIcon(siteKey) {
+  const icons = {
+    trendyol: '🛒',
+    hepsiburada: '📦',
+    n11: '🔟',
+    amazontr: '🏪',
+    pazarama: '🥦',
+    ciceksepeti: '🌸',
+    idefix: '📚'
+  };
+  return icons[siteKey] || '🌐';
+}
+
+function truncateText(text, maxLength) {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 }
 
 // ========== FIYAT ARAMA ==========
