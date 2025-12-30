@@ -387,18 +387,19 @@ async function getAiCommentForFavorite(favorite) {
     console.log("🔑 API Key ile AI çağrısı yapılıyor...");
     
     // 2. Sunucuya istek yap
-    const response = await fetch(`${API_URL}/api/ai-yorum`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        urun: favorite.query || favorite.urun || "Ürün",
-        fiyatlar: favorite.fiyat ? [{
-          site: favorite.siteName || favorite.site || "Site",
-          fiyat: favorite.fiyat
-        }] : [],
-        apiKey: geminiKey  // KEY'İ GÖNDER
-      })
-    });
+const response = await fetch(`${API_URL}/api/ai-yorum`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    urun: favorite.query || favorite.urun || "Ürün",
+    link: favorite.url || favorite.link || "",  // LINK EKLE!
+    fiyatlar: favorite.fiyat ? [{
+      site: favorite.siteName || favorite.site || "Site",
+      fiyat: favorite.fiyat
+    }] : [],
+    apiKey: geminiKey
+  })
+});
     
     const data = await response.json();
     console.log("📦 AI yanıtı:", data);
