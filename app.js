@@ -16,7 +16,8 @@ const db = getFirestore();
 const $ = (id) => document.getElementById(id);
 
 // ========== API KONFİGÜRASYONU ==========
-let API_URL = localStorage.getItem('fiyattakip_api_url') || "https://fiyattakip-api.onrender.com/api";
+let API_URL = localStorage.getItem('fiyattakip_api_url') || "https://fiyattakip-api.onrender.com";
+// "api" kısmını kaldırdım çünkü server.js'te endpoint'ler "/api/" ile başlıyor
 
 // ========== GLOBAL DEĞİŞKENLER ==========
 let currentPage = 1;
@@ -133,7 +134,8 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
   try {
     toast("Fiyatlar çekiliyor...", "info");
     
-    const response = await fetch(`${API_URL}/fiyat-cek`, {
+    // BURASI ÖNEMLİ: ${API_URL}/api/fiyat-cek şeklinde olacak
+    const response = await fetch(`${API_URL}/api/fiyat-cek`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ urun: query, page: page, sort: sort })
@@ -720,7 +722,31 @@ function setupButtons() {
   $("btnSaveApi")?.addEventListener("click", saveAPISettings);
   $("btnTestApi")?.addEventListener("click", checkAPIStatus);
   
-  // 9. LOGOUT BUTONU
+  // 9. AI AYARLARI KAYDETME BUTONU (YENİ EKLENEN)
+  $("btnSaveAI")?.addEventListener("click", async () => {
+    const provider = $("aiProvider")?.value || "gemini";
+    const apiKey = $("aiApiKey")?.value?.trim();
+    
+    if (!apiKey) {
+      toast("API Key gerekli", "error");
+      return;
+    }
+    
+    try {
+      // ai.js'deki fonksiyonu kullan
+      await saveGeminiKey({
+        apiKey: apiKey,
+        pin: "1234", // Varsayılan PIN - sonra değiştirebilirsin
+        rememberPin: false
+      });
+      toast("✅ AI API Key kaydedildi", "success");
+      closeAIModal();
+    } catch (error) {
+      toast("Hata: " + error.message, "error");
+    }
+  });
+  
+  // 10. LOGOUT BUTONU
   $("logoutBtn")?.addEventListener("click", async () => {
     try {
       await signOut(auth);
@@ -730,7 +756,7 @@ function setupButtons() {
     }
   });
   
-  // 10. FAVORİ YENİLEME
+  // 11. FAVORİ YENİLEME
   $("btnFavRefresh")?.addEventListener("click", async () => {
     if (!window.currentUser) return openLogin();
     await loadFavorites(window.currentUser.uid);
@@ -740,7 +766,6 @@ function setupButtons() {
   
   console.log("✅ Tüm butonlar bağlandı");
 }
-
 // ========== KAMERA BUTONU EKLE ==========
 function addCameraButton() {
   const tabbar = document.querySelector('.tabbar');
