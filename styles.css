@@ -1088,14 +1088,3 @@ body{
 .hidden {
   display: none !important;
 }
-
-/* ========== FAVORİ BUTON RENGİ ========== */
-.btnFav.isFav {
-  background: rgba(255, 50, 100, 0.25) !important;
-  border-color: rgba(255, 50, 100, 0.5) !important;
-  color: #ff3366 !important;
-}
-
-.btnFav.isFav::before {
-  content: "❤️" !important;
-}

@@ -1,4 +1,3 @@
-const FT_CACHE_VERSION = "v20251229132217";
 const CACHE = "fiyattakip-cache-v7";
 const ASSETS = [
   "./",
