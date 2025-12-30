@@ -766,6 +766,28 @@ function setupButtons() {
   
   console.log("✅ Tüm butonlar bağlandı");
 }
+
+// 12. TEMİZLE BUTONU (YENİ EKLENEN)
+$("btnClearSearch")?.addEventListener("click", () => {
+  $("normalList").innerHTML = "";
+  $("qNormal").value = "";
+  toast("Arama temizlendi", "info");
+});
+
+// 13. CACHE TEMİZLEME BUTONU (login modal'daki - YENİ EKLENEN)
+$("btnClearCache")?.addEventListener("click", () => {
+  if (confirm("Tüm cache ve localStorage verileri silinecek. Emin misiniz?")) {
+    localStorage.clear();
+    sessionStorage.clear();
+    toast("✅ Tüm cache temizlendi", "success");
+    setTimeout(() => {
+      location.reload();
+    }, 1500);
+  }
+});
+
+console.log("✅ Tüm butonlar bağlandı");
+
 // ========== KAMERA BUTONU EKLE ==========
 function addCameraButton() {
   const tabbar = document.querySelector('.tabbar');
