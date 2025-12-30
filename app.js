@@ -376,58 +376,242 @@ async function getAiCommentForFavorite(favorite) {
   try {
     toast("🤖 AI analiz yapıyor...", "info");
     
-    const response = await fetch(`${API_URL}/ai-yorum`, {
+    console.log("📤 AI analizi için:", favorite);
+    
+    // 1. API KEY kontrolü
+    const geminiKey = localStorage.getItem('gemini_api_key');
+    if (!geminiKey) {
+      toast("⚠️ AI API Key bulunamadı. Ayarlardan ekleyin.", "error");
+      openAIModal();
+      return;
+    }
+    
+    console.log("🔑 API Key var");
+    
+    // 2. DOĞRU ENDPOINT
+    // 500 hatası alıyorsanız endpoint yanlış olabilir
+    let apiEndpoint;
+    
+    // DENEME 1: /api/ai-yorum
+    apiEndpoint = "https://fiyattakip-api.onrender.com/api/ai-yorum";
+    console.log("🌐 Endpoint 1:", apiEndpoint);
+    
+    // 3. BASİT VERİ HAZIRLA
+    const requestData = {
+      urun: favorite.query || favorite.urun || "Ürün",
+      fiyatlar: favorite.fiyat ? [{
+        site: favorite.siteName || "Site",
+        fiyat: favorite.fiyat
+      }] : [],
+      apiKey: geminiKey,
+      test: true
+    };
+    
+    console.log("📦 Gönderilen veri:", requestData);
+    
+    // 4. İSTEK YAP
+    const response = await fetch(apiEndpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        urun: favorite.query || favorite.urun || "Ürün",
-        fiyatlar: favorite.fiyat ? [{ 
-          site: favorite.siteName || favorite.site || "Site", 
-          fiyat: favorite.fiyat 
-        }] : []
-      })
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(requestData)
     });
     
+    console.log("📥 Durum:", response.status);
+    
+    // 5. HATA KONTROLÜ
     if (!response.ok) {
-      throw new Error(`API: ${response.status}`);
+      // Hata detayını al
+      let errorText = "";
+      try {
+        errorText = await response.text();
+        console.error("❌ Sunucu hatası:", errorText);
+      } catch (e) {
+        errorText = "Hata detayı alınamadı";
+      }
+      
+      // 500 hatası için alternatif endpoint dene
+      if (response.status === 500) {
+        console.log("🔄 500 hatası, alternatif endpoint deneniyor...");
+        
+        // DENEME 2: Farklı endpoint
+        const altEndpoint = "https://fiyattakip-api.onrender.com/ai-yorum";
+        console.log("🌐 Endpoint 2:", altEndpoint);
+        
+        const altResponse = await fetch(altEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestData)
+        });
+        
+        if (altResponse.ok) {
+          const altData = await altResponse.json();
+          console.log("✅ Alternatif çalıştı!", altData);
+          
+          if (altData.success) {
+            showSimpleAiModal(favorite, altData.aiYorum || "AI analiz yaptı");
+            return;
+          }
+        }
+      }
+      
+      throw new Error(`Sunucu hatası: ${response.status}`);
     }
     
+    // 6. BAŞARILI YANIT
     const data = await response.json();
+    console.log("✅ AI Yanıtı:", data);
     
     if (data.success) {
-      const modal = document.createElement('div');
-      modal.className = 'aiModal';
-      modal.innerHTML = `
-        <div class="aiModalContent">
-          <div class="aiModalHeader">
-            <h3>🤖 AI Analizi</h3>
-            <button class="closeAiModal">✕</button>
-          </div>
-          <div class="aiModalBody">
-            <div class="aiProduct">
-              <strong>${favorite.query || favorite.urun || "Favori"}</strong>
-              <small>${favorite.siteName || favorite.site || ""}</small>
-            </div>
-            <div class="aiComment">
-              ${data.aiYorum || data.yorum || "AI yorum yapamadı."}
-            </div>
-          </div>
-          <div class="aiModalFooter">
-            <button class="btnPrimary" onclick="this.closest('.aiModal').remove()">Tamam</button>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(modal);
-      modal.querySelector('.closeAiModal').onclick = () => modal.remove();
-      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      showSimpleAiModal(favorite, data.aiYorum || data.yorum || "Analiz tamamlandı");
     } else {
-      throw new Error(data.error || "AI yorum alınamadı");
+      throw new Error(data.error || "AI yanıt alamadı");
     }
+    
   } catch (error) {
-    console.error("AI yorum hatası:", error);
-    toast("AI servisi kullanılamıyor", "error");
+    console.error("❌ AI hatası detayı:", error);
+    
+    // KULLANICIYA BASİT MESAJ
+    toast("AI servisi şu an kullanılamıyor. Daha sonra tekrar deneyin.", "error");
+    
+    // ACİL DURUM MODAL'I GÖSTER
+    showEmergencyModal(favorite);
   }
+}
+
+// BASİT AI MODAL'I
+function showSimpleAiModal(favorite, comment) {
+  const modal = document.createElement('div');
+  modal.className = 'aiModal';
+  modal.innerHTML = `
+    <div class="aiModalContent" style="
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 90%;
+      margin: 50px auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0;">🤖 AI Analizi</h3>
+        <button onclick="this.closest('.aiModal').remove()" style="
+          background: none;
+          border: none;
+          font-size: 20px;
+          cursor: pointer;
+        ">✕</button>
+      </div>
+      
+      <div style="margin-bottom: 15px;">
+        <p><strong>Ürün:</strong> ${favorite.query || favorite.urun}</p>
+        <p><strong>Site:</strong> ${favorite.siteName || favorite.site}</p>
+        ${favorite.fiyat ? `<p><strong>Fiyat:</strong> ${favorite.fiyat}</p>` : ''}
+      </div>
+      
+      <div style="
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #3498db;
+        margin-bottom: 15px;
+      ">
+        ${comment}
+      </div>
+      
+      <button onclick="this.closest('.aiModal').remove()" style="
+        background: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        width: 100%;
+      ">Tamam</button>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Tıklayınca kapat
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+}
+
+// ACİL DURUM MODAL'I (AI çalışmazsa)
+function showEmergencyModal(favorite) {
+  const modal = document.createElement('div');
+  modal.className = 'emergencyModal';
+  modal.innerHTML = `
+    <div style="
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 90%;
+      margin: 50px auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      text-align: center;
+    ">
+      <div style="font-size: 50px; margin-bottom: 15px;">⚠️</div>
+      <h3 style="margin: 0 0 10px 0;">AI Servisi Geçici Olarak Kullanılamıyor</h3>
+      
+      <div style="margin: 20px 0; text-align: left;">
+        <p><strong>Ürün:</strong> ${favorite.query || favorite.urun}</p>
+        <p><strong>Site:</strong> ${favorite.siteName || favorite.site}</p>
+        ${favorite.fiyat ? `<p><strong>Fiyat:</strong> ${favorite.fiyat}</p>` : ''}
+      </div>
+      
+      <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107;">
+        <p><strong>Yapabilecekleriniz:</strong></p>
+        <p>1. Farklı bir ürün için AI analizi deneyin</p>
+        <p>2. AI API Key'inizi kontrol edin</p>
+        <p>3. Birkaç dakika sonra tekrar deneyin</p>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button onclick="openAIModal()" style="
+          background: #6c757d;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          border-radius: 5px;
+          cursor: pointer;
+          flex: 1;
+        ">AI Ayarları</button>
+        
+        <button onclick="window.open('${favorite.url || ''}', '_blank')" style="
+          background: #28a745;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          border-radius: 5px;
+          cursor: pointer;
+          flex: 1;
+        ">Siteyi Aç</button>
+        
+        <button onclick="this.closest('.emergencyModal').remove()" style="
+          background: #dc3545;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          border-radius: 5px;
+          cursor: pointer;
+          flex: 1;
+        ">Kapat</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Tıklayınca kapat
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
 }
 
 // ========== FAVORİ İŞLEMLERİ ==========
@@ -652,6 +836,15 @@ async function doGoogleLogin() {
 function openAIModal() {
   const m = $("aiModal");
   if (!m) return;
+  
+  // API Key varsa göster
+  const savedKey = localStorage.getItem('gemini_api_key');
+  const keyInput = $("aiApiKey");
+  
+  if (savedKey && keyInput) {
+    keyInput.value = savedKey; // Key'i göster
+  }
+  
   m.classList.add("show");
 }
 
@@ -788,29 +981,61 @@ function setupButtons() {
   $("btnSaveApi")?.addEventListener("click", saveAPISettings);
   $("btnTestApi")?.addEventListener("click", checkAPIStatus);
   
-  // 9. AI AYARLARI KAYDETME BUTONU (YENİ EKLENEN)
-  $("btnSaveAI")?.addEventListener("click", async () => {
-    const provider = $("aiProvider")?.value || "gemini";
-    const apiKey = $("aiApiKey")?.value?.trim();
+  // 9. AI AYARLARI KAYDETME BUTONU (DAHA BASİT)
+$("btnSaveAI")?.addEventListener("click", async () => {
+  const apiKey = $("aiApiKey")?.value?.trim();
+  
+  if (!apiKey) {
+    toast("API Key boş olamaz", "error");
+    return;
+  }
+  
+  // Sadece kaydet, test etme
+  localStorage.setItem('gemini_api_key', apiKey);
+  localStorage.setItem('gemini_api_key_saved', new Date().toLocaleString());
+  
+  toast("✅ API Key kaydedildi", "success");
+  
+  // Hemen test et
+  setTimeout(() => {
+    testAiSimple();
+  }, 1000);
+  
+  closeAIModal();
+});
+
+// BASİT AI TEST FONKSİYONU
+async function testAiSimple() {
+  const geminiKey = localStorage.getItem('gemini_api_key');
+  if (!geminiKey) return;
+  
+  toast("🔍 API Key test ediliyor...", "info");
+  
+  try {
+    // Çok basit bir test
+    const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiKey}`;
     
-    if (!apiKey) {
-      toast("API Key gerekli", "error");
-      return;
-    }
+    const response = await fetch(testUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: "Merhaba" }]
+        }]
+      })
+    });
     
-    try {
-      // ai.js'deki fonksiyonu kullan
-      await saveGeminiKey({
-        apiKey: apiKey,
-        pin: "1234", // Varsayılan PIN - sonra değiştirebilirsin
-        rememberPin: false
-      });
-      toast("✅ AI API Key kaydedildi", "success");
-      closeAIModal();
-    } catch (error) {
-      toast("Hata: " + error.message, "error");
+    if (response.ok) {
+      console.log("✅ API Key çalışıyor!");
+      toast("✅ API Key geçerli!", "success");
+    } else {
+      console.error("❌ API Key geçersiz");
+      toast("❌ API Key geçersiz olabilir", "warning");
     }
-  });
+  } catch (error) {
+    console.error("Test hatası:", error);
+  }
+}
   
   // 10. LOGOUT BUTONU
   $("logoutBtn")?.addEventListener("click", async () => {
