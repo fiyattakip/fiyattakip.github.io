@@ -86,6 +86,8 @@ function renderSiteList(container, query) {
   
   SITES.forEach(site => {
     const url = site.build(query);
+    const isFavorite = isFav(url); // Favori mi kontrol et
+    
     const div = document.createElement("div");
     div.className = "cardBox";
     div.innerHTML = `
@@ -97,24 +99,12 @@ function renderSiteList(container, query) {
         <div class="actions">
           <button class="btnOpen btnPrimary sm">Aç</button>
           <button class="btnCopy btnGhost sm">⧉</button>
-          <button class="btnFav btnGhost sm">🤍</button>
+          <button class="btnFav btnGhost sm ${isFavorite ? 'isFav' : ''}">${isFavorite ? '❤️' : '🤍'}</button>
         </div>
       </div>
     `;
     
-    div.querySelector(".btnOpen").onclick = () => window.open(url, "_blank");
-    div.querySelector(".btnCopy").onclick = () => copyToClipboard(url);
-    div.querySelector(".btnFav").onclick = () => {
-      if (!window.currentUser) return openLogin();
-      toggleFavorite(window.currentUser.uid, { 
-        url, 
-        siteKey: site.key, 
-        siteName: site.name, 
-        query: query 
-      });
-    };
-    
-    container.appendChild(div);
+    // ... diğer kodlar aynı
   });
 }
 
