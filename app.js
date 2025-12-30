@@ -1,5 +1,6 @@
 // app.js - TAM VERSİYON (Login + Kamera + Favoriler + AI)
 import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
+import { saveGeminiKey } from "./ai.js";  // ← BU SATIRI EKLE (BURAYA!)
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -14,7 +15,6 @@ import {
 
 const db = getFirestore();
 const $ = (id) => document.getElementById(id);
-
 // ========== API KONFİGÜRASYONU ==========
 let API_URL = localStorage.getItem('fiyattakip_api_url') || "https://fiyattakip-api.onrender.com";
 // "api" kısmını kaldırdım çünkü server.js'te endpoint'ler "/api/" ile başlıyor
