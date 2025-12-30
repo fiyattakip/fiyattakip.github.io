@@ -18,8 +18,8 @@ const db = getFirestore();
 const $ = (id) => document.getElementById(id);
 
 // ========== API KONFİGÜRASYONU ==========
-const DEFAULT_API_URL = 'https://fiyattakip-api.onrender.com/api';
-let API_URL = normalizeAPIUrl(localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL);
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com/api";
+let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
 
 // ========== SAYFALAMA AYARLARI ==========
 let currentPage = 1;
@@ -907,8 +907,7 @@ async function checkAPIStatus() {
 }
 
 function saveAPISettings() {
-  const raw = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
-  const url = normalizeAPIUrl(raw);
+  const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
   API_URL = url;
   localStorage.setItem('fiyattakip_api_url', url);
   toast("API URL kaydedildi", "success");
@@ -1132,18 +1131,4 @@ window.changePage = changePage;
 window.changeSort = changeSort;
 window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
-window.getAiCommentForFavorite = getAiCommentForFavoritefunction normalizeAPIUrl(input){
-  try{
-    let u = (input || '').trim();
-    if(!u) return DEFAULT_API_URL;
-    u = u.replace(/\s+/g,'').replace(/\/+$/,'');
-    // Eğer kullanıcı direkt endpoint girdiyse /api'ye indir
-    u = u.replace(/\/api\/[^/]+$/,'/api');
-    if(!/\/api$/.test(u)) u = u + '/api';
-    return u;
-  }catch(e){
-    return DEFAULT_API_URL;
-  }
-}
-
-;
+window.getAiCommentForFavorite = getAiCommentForFavorite;
