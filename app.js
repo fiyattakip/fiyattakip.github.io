@@ -981,7 +981,7 @@ function setupButtons() {
   $("btnSaveApi")?.addEventListener("click", saveAPISettings);
   $("btnTestApi")?.addEventListener("click", checkAPIStatus);
   
-  // 9. AI AYARLARI KAYDETME BUTONU (DAHA BASİT)
+ // 9. AI AYARLARI KAYDETME BUTONU
 $("btnSaveAI")?.addEventListener("click", async () => {
   const apiKey = $("aiApiKey")?.value?.trim();
   
@@ -990,50 +990,101 @@ $("btnSaveAI")?.addEventListener("click", async () => {
     return;
   }
   
-  // Sadece kaydet, test etme
+  // Basit format kontrolü
+  if (!apiKey.startsWith("AIza")) {
+    toast("❌ API Key formatı yanlış. 'AIza...' şeklinde başlamalı.", "error");
+    return;
+  }
+  
+  // Önce kaydet
   localStorage.setItem('gemini_api_key', apiKey);
   localStorage.setItem('gemini_api_key_saved', new Date().toLocaleString());
   
-  toast("✅ API Key kaydedildi", "success");
+  toast("✅ API Key kaydedildi. Test ediliyor...", "info");
   
-  // Hemen test et
-  setTimeout(() => {
-    testAiSimple();
-  }, 1000);
+  // Hemen test et (doğru modelle)
+  const isValid = await testAiSimpleCorrect(apiKey);
   
-  closeAIModal();
+  if (isValid) {
+    toast("🎉 AI başarıyla ayarlandı!", "success");
+    closeAIModal();
+  } else {
+    toast("⚠️ Key kaydedildi ama test başarısız. AI özellikleri çalışmayabilir.", "warning");
+  }
 });
 
-// BASİT AI TEST FONKSİYONU
-async function testAiSimple() {
-  const geminiKey = localStorage.getItem('gemini_api_key');
-  if (!geminiKey) return;
-  
-  toast("🔍 API Key test ediliyor...", "info");
-  
+// DOĞRU TEST FONKSİYONU
+async function testAiSimpleCorrect(apiKey) {
   try {
-    // Çok basit bir test
-    const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiKey}`;
+    const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await fetch(testUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: "Merhaba" }]
+          parts: [{ text: "Test" }]
         }]
       })
     });
     
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+// BASİT AI TEST FONKSİYONU - DÜZGÜN VERSİYON
+async function testAiSimple() {
+  const geminiKey = localStorage.getItem('gemini_api_key');
+  if (!geminiKey) {
+    toast("API Key bulunamadı", "error");
+    return;
+  }
+  
+  toast("🔍 API Key test ediliyor...", "info");
+  
+  try {
+    // DOĞRU URL: gemini-1.5-flash kullan
+    const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+    
+    console.log("🧪 Test URL:", testUrl);
+    
+    const response = await fetch(testUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: "Merhaba, bu bir test mesajıdır. Türkçe cevap ver." }]
+        }]
+      })
+    });
+    
+    console.log("📊 Test sonucu:", response.status);
+    
     if (response.ok) {
-      console.log("✅ API Key çalışıyor!");
-      toast("✅ API Key geçerli!", "success");
+      const data = await response.json();
+      console.log("✅ API Key çalışıyor!", data);
+      toast("✅ API Key geçerli! AI çalışıyor.", "success");
+      return true;
     } else {
-      console.error("❌ API Key geçersiz");
-      toast("❌ API Key geçersiz olabilir", "warning");
+      const errorData = await response.json();
+      console.error("❌ API Key test hatası:", errorData);
+      
+      // Hata türüne göre mesaj
+      if (response.status === 404) {
+        toast("❌ Model bulunamadı. Lütfen 'gemini-1.5-flash' modelini kontrol edin.", "error");
+      } else if (response.status === 400 || response.status === 403) {
+        toast("❌ API Key geçersiz veya yetkisiz.", "error");
+      } else {
+        toast(`❌ API hatası: ${response.status}`, "error");
+      }
+      return false;
     }
   } catch (error) {
-    console.error("Test hatası:", error);
+    console.error("❌ Test bağlantı hatası:", error);
+    toast("❌ Sunucuya bağlanılamıyor.", "error");
+    return false;
   }
 }
   
