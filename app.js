@@ -371,113 +371,75 @@ async function cameraAiSearch() {
   }
 }
 
-// ========== AI YORUM ==========
+// ========== GERÇEK AI YORUM ==========
 async function getAiCommentForFavorite(favorite) {
   try {
-    toast("🤖 AI analiz yapıyor...", "info");
+    toast("🤖 AI analiz ediyor...", "info");
     
-    console.log("📤 AI analizi için:", favorite);
-    
-    // 1. API KEY kontrolü
+    // 1. API Key kontrolü
     const geminiKey = localStorage.getItem('gemini_api_key');
     if (!geminiKey) {
-      toast("⚠️ AI API Key bulunamadı. Ayarlardan ekleyin.", "error");
+      toast("API Key bulunamadı. Lütfen AI ayarlarından ekleyin.", "error");
       openAIModal();
       return;
     }
     
-    console.log("🔑 API Key var");
+    console.log("🔑 API Key ile AI çağrısı yapılıyor...");
     
-    // 2. DOĞRU ENDPOINT
-    // 500 hatası alıyorsanız endpoint yanlış olabilir
-    let apiEndpoint;
-    
-    // DENEME 1: /api/ai-yorum
-    apiEndpoint = "https://fiyattakip-api.onrender.com/api/ai-yorum";
-    console.log("🌐 Endpoint 1:", apiEndpoint);
-    
-    // 3. BASİT VERİ HAZIRLA
-    const requestData = {
-      urun: favorite.query || favorite.urun || "Ürün",
-      fiyatlar: favorite.fiyat ? [{
-        site: favorite.siteName || "Site",
-        fiyat: favorite.fiyat
-      }] : [],
-      apiKey: geminiKey,
-      test: true
-    };
-    
-    console.log("📦 Gönderilen veri:", requestData);
-    
-    // 4. İSTEK YAP
-    const response = await fetch(apiEndpoint, {
+    // 2. Sunucuya istek yap
+    const response = await fetch(`${API_URL}/api/ai-yorum`, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify(requestData)
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        urun: favorite.query || favorite.urun || "Ürün",
+        fiyatlar: favorite.fiyat ? [{
+          site: favorite.siteName || favorite.site || "Site",
+          fiyat: favorite.fiyat
+        }] : [],
+        apiKey: geminiKey  // KEY'İ GÖNDER
+      })
     });
     
-    console.log("📥 Durum:", response.status);
-    
-    // 5. HATA KONTROLÜ
-    if (!response.ok) {
-      // Hata detayını al
-      let errorText = "";
-      try {
-        errorText = await response.text();
-        console.error("❌ Sunucu hatası:", errorText);
-      } catch (e) {
-        errorText = "Hata detayı alınamadı";
-      }
-      
-      // 500 hatası için alternatif endpoint dene
-      if (response.status === 500) {
-        console.log("🔄 500 hatası, alternatif endpoint deneniyor...");
-        
-        // DENEME 2: Farklı endpoint
-        const altEndpoint = "https://fiyattakip-api.onrender.com/ai-yorum";
-        console.log("🌐 Endpoint 2:", altEndpoint);
-        
-        const altResponse = await fetch(altEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestData)
-        });
-        
-        if (altResponse.ok) {
-          const altData = await altResponse.json();
-          console.log("✅ Alternatif çalıştı!", altData);
-          
-          if (altData.success) {
-            showSimpleAiModal(favorite, altData.aiYorum || "AI analiz yaptı");
-            return;
-          }
-        }
-      }
-      
-      throw new Error(`Sunucu hatası: ${response.status}`);
-    }
-    
-    // 6. BAŞARILI YANIT
     const data = await response.json();
-    console.log("✅ AI Yanıtı:", data);
+    console.log("📦 AI yanıtı:", data);
     
     if (data.success) {
-      showSimpleAiModal(favorite, data.aiYorum || data.yorum || "Analiz tamamlandı");
+      // Modal göster
+      const modal = document.createElement('div');
+      modal.className = 'aiModal';
+      modal.innerHTML = `
+        <div class="aiModalContent">
+          <div class="aiModalHeader">
+            <h3>🤖 AI Analizi</h3>
+            <button class="closeAiModal">✕</button>
+          </div>
+          <div class="aiModalBody">
+            <div class="aiProduct">
+              <strong>${favorite.query || favorite.urun}</strong>
+              <small>${favorite.siteName || favorite.site}</small>
+              ${favorite.fiyat ? `<div class="aiPrice">${favorite.fiyat}</div>` : ''}
+            </div>
+            <div class="aiComment">
+              ${data.aiYorum.replace(/\n/g, '<br>')}
+            </div>
+            ${data.model ? `<div class="aiModel">Model: ${data.model}</div>` : ''}
+          </div>
+          <div class="aiModalFooter">
+            <button class="btnPrimary" onclick="this.closest('.aiModal').remove()">Tamam</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      modal.querySelector('.closeAiModal').onclick = () => modal.remove();
+      
     } else {
       throw new Error(data.error || "AI yanıt alamadı");
     }
     
   } catch (error) {
-    console.error("❌ AI hatası detayı:", error);
-    
-    // KULLANICIYA BASİT MESAJ
-    toast("AI servisi şu an kullanılamıyor. Daha sonra tekrar deneyin.", "error");
-    
-    // ACİL DURUM MODAL'I GÖSTER
-    showEmergencyModal(favorite);
+    console.error("AI hatası:", error);
+    toast("AI servisi kullanılamıyor", "error");
   }
 }
 
