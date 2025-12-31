@@ -22,8 +22,12 @@ const DEFAULT_API_BASE = "https://fiyattakip-api.onrender.com";
 function normalizeApiBase(url){
   if(!url) return DEFAULT_API_BASE;
   url = String(url).trim();
+
+  // If user pastes full endpoint like .../api or .../api/ or .../health
   url = url.replace(/\/+$/, "");
-  url = url.replace(/\/api$/, "");
+  url = url.replace(/\/(api|health)$/i, "");
+  url = url.replace(/\/(api|health)$/i, ""); // run twice to handle .../api/health pasted accidentally
+
   return url;
 }
 let API_BASE = normalizeApiBase(localStorage.getItem("fiyattakip_api_base") || DEFAULT_API_BASE);
