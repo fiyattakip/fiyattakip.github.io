@@ -42,19 +42,16 @@ async function decryptString(pin, blob){
   const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, ct);
   return td(pt);
 }
-
-export function setSessionPin(pin){ sessionPin = pin || null; }
-export function clearSessionPin(){ sessionPin = null; }
-
-export function loadAiCfg(){
+function setSessionPin(pin){ sessionPin = pin || null; }
+function clearSessionPin(){ sessionPin = null; }
+function loadAiCfg(){
   try{ return JSON.parse(localStorage.getItem(LS_CFG) || "null"); }catch{ return null; }
 }
-export function aiConfigured(){
+function aiConfigured(){
   const cfg = loadAiCfg();
   return !!(cfg && cfg.provider === "gemini" && cfg.encKey);
 }
-
-export async function getGeminiKeyOrThrow(){
+async function getGeminiKeyOrThrow(){
   const cfg = loadAiCfg();
   if (!cfg || cfg.provider !== "gemini" || !cfg.encKey) throw new Error("AI key kayıtlı değil.");
   const pin = sessionPin || prompt("PIN gir (AI için):");
@@ -63,8 +60,7 @@ export async function getGeminiKeyOrThrow(){
   setSessionPin(pin);
   return key;
 }
-
-export async function saveGeminiKey({ apiKey, pin, rememberPin }){
+async function saveGeminiKey({ apiKey, pin, rememberPin }){
   if (!apiKey?.startsWith("AIza")) throw new Error("Gemini API key hatalı görünüyor.");
   if (!pin || pin.length < 4) throw new Error("PIN en az 4 karakter olmalı.");
 
@@ -79,14 +75,13 @@ export async function saveGeminiKey({ apiKey, pin, rememberPin }){
   sessionPin = rememberPin ? pin : null;
   return true;
 }
-
-export function clearAiCfg(){
+function clearAiCfg(){
   localStorage.removeItem(LS_CFG);
   sessionPin = null;
 }
 
 /** Gemini text */
-export async function geminiText(prompt){
+async function geminiText(prompt){
   const key = await getGeminiKeyOrThrow();
   const model = "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
@@ -114,7 +109,7 @@ export async function geminiText(prompt){
 }
 
 /** Gemini vision (image -> text) */
-export async function geminiVision({ prompt, mime, base64Data }){
+async function geminiVision({ prompt, mime, base64Data }){
   const key = await getGeminiKeyOrThrow();
   const model = "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(key)}`;

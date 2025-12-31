@@ -18,18 +18,17 @@ const db = getFirestore();
 const $ = (id) => document.getElementById(id);
 
 // ========== API KONFİGÜRASYONU ==========
-const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com/api";
-let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
-
-function sanitizeApiBase(url){
-  if(!url) return "";
-  let u = url.trim();
-  u = u.replace(/\/+$/,"");          // trailing /
-  u = u.replace(/\/api$/i,"");       // remove /api
-  u = u.replace(/\/api\/?$/i,"");    // just in case
-  return u;
+const DEFAULT_API_BASE = "https://fiyattakip-api.onrender.com";
+function normalizeApiBase(url){
+  if(!url) return DEFAULT_API_BASE;
+  url = String(url).trim();
+  url = url.replace(/\/+$/, "");
+  url = url.replace(/\/api$/, "");
+  return url;
 }
-
+let API_BASE = normalizeApiBase(localStorage.getItem("fiyattakip_api_base") || DEFAULT_API_BASE);
+let API_URL = API_BASE + "/api";
+let HEALTH_URL = API_BASE + "/health";
 // ========== SAYFALAMA AYARLARI ==========
 let currentPage = 1;
 let currentSort = 'asc';
@@ -110,7 +109,7 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
   try {
     toast("Fiyatlar çekiliyor...", "info");
     
-    const response = await fetch(`${sanitizeApiBase(API_URL)}/api/fiyat-cek`, {
+    const response = await fetch(`${API_URL}/fiyat-cek`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -134,7 +133,7 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
       currentSort = data.siralama || 'asc';
       currentSearch = query;
       totalPages = data.toplamSayfa || 1;
-      allProducts = normalized || [];
+      allProducts = data.fiyatlar || [];
       
       renderFiyatSonuclari(data);
       updatePaginationControls();
@@ -163,7 +162,7 @@ function renderFiyatSonuclari(data) {
   const container = $("normalList");
   if (!container) return;
   
-  if (!normalized || normalized.length === 0) {
+  if (!data.fiyatlar || data.fiyatlar.length === 0) {
     container.innerHTML = `
       <div class="emptyState">
         <div class="emptyIcon">😕</div>
@@ -186,8 +185,8 @@ function renderFiyatSonuclari(data) {
   `;
   
   // En ucuz ürün banner'ı (ilk ürün)
-  if (normalized.length > 0) {
-    const cheapest = normalized[0];
+  if (data.fiyatlar.length > 0) {
+    const cheapest = data.fiyatlar[0];
     html += `
       <div class="cheapestBanner">
         <div class="bannerHeader">
@@ -213,7 +212,7 @@ function renderFiyatSonuclari(data) {
   // Diğer ürünler (max 3 tane - toplam 4 ürün)
   html += '<div class="productList">';
   
-  normalized.forEach((product, index) => {
+  data.fiyatlar.forEach((product, index) => {
     if (index === 0) return; // En ucuz zaten gösterildi
     if (index >= 4) return; // Sadece 4 ürün göster
     
@@ -403,13 +402,20 @@ async function cameraAiSearch() {
 
 // ========== FAVORİ AI YORUM ==========
 async function getAiCommentForFavorite(favorite) {
+  const geminiKey = (localStorage.getItem(GEMINI_KEY_STORAGE) || \"\").trim();
+  if(!geminiKey){
+    alert('AI yorum için önce Ayarlar > AI Ayarları kısmından Gemini API Key gir.');
+    openAIModal();
+    return;
+  }
   try {
     toast("🤖 AI analiz yapıyor...", "info");
     
-    const response = await fetch(`${sanitizeApiBase(API_URL)}/api/ai-yorum`, {
+    const response = await fetch(`${API_URL}/ai-yorum`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-gemini-key": (localStorage.getItem(GEMINI_KEY_STORAGE) || ""),
       },
       body: JSON.stringify({
         urun: favorite.query || favorite.urun,
@@ -897,7 +903,7 @@ async function checkAPIStatus() {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
     
-    const response = await fetch(sanitizeApiBase(API_URL), {
+    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -917,8 +923,10 @@ async function checkAPIStatus() {
 
 function saveAPISettings() {
   const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
-  API_URL = url;
-  localStorage.setItem('fiyattakip_api_url', url);
+  API_BASE = normalizeApiBase(url);
+      API_URL = API_BASE + "/api";
+      HEALTH_URL = API_BASE + "/health";
+  localStorage.setItem('fiyattakip_api_base', normalizeApiBase(url));
   toast("API URL kaydedildi", "success");
   closeAPIModal();
 }
