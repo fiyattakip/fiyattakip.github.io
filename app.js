@@ -17,18 +17,18 @@ import {
 const db = getFirestore();
 const $ = (id) => document.getElementById(id);
 
-// --- FAILSAFE: Global error logging (prevents "hiçbir şey basmıyor" sessiz hataları) ---
-window.addEventListener('error', (ev) => {
-  try { console.error('JS ERROR:', ev?.message || ev); } catch(_) {}
-});
-window.addEventListener('unhandledrejection', (ev) => {
-  try { console.error('PROMISE ERROR:', ev?.reason || ev); } catch(_) {}
-});
-
-
 // ========== API KONFİGÜRASYONU ==========
-const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com/api";
 let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
+
+function sanitizeApiBase(url){
+  if(!url) return "";
+  let u = url.trim();
+  u = u.replace(/\/+$/,"");          // trailing /
+  u = u.replace(/\/api$/i,"");       // remove /api
+  u = u.replace(/\/api\/?$/i,"");    // just in case
+  return u;
+}
 
 // ========== SAYFALAMA AYARLARI ==========
 let currentPage = 1;
@@ -39,20 +39,6 @@ let allProducts = [];
 
 // ========== FAVORİLER ==========
 let favCache = [];
-
-// LocalStorage fallback (favorites cache) – keeps UI stable even if Firestore temporarily fails
-function favStorageKey(uid){ return uid ? `fiyattakip_favs_${uid}` : 'fiyattakip_favs_guest'; }
-function loadFavsLocal(uid){
-  try {
-    const raw = localStorage.getItem(favStorageKey(uid));
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch { return []; }
-}
-function saveFavsLocal(uid, favs){
-  try { localStorage.setItem(favStorageKey(uid), JSON.stringify(favs || [])); } catch {}
-}
-
 
 // ========== TOAST MESAJ ==========
 function toast(msg, type = 'info'){
@@ -124,7 +110,7 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
   try {
     toast("Fiyatlar çekiliyor...", "info");
     
-    const response = await fetch(`${API_URL}/fiyat-cek`, {
+    const response = await fetch(`${sanitizeApiBase(API_URL)}/api/fiyat-cek`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -148,7 +134,7 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
       currentSort = data.siralama || 'asc';
       currentSearch = query;
       totalPages = data.toplamSayfa || 1;
-      allProducts = data.fiyatlar || [];
+      allProducts = normalized || [];
       
       renderFiyatSonuclari(data);
       updatePaginationControls();
@@ -177,7 +163,7 @@ function renderFiyatSonuclari(data) {
   const container = $("normalList");
   if (!container) return;
   
-  if (!data.fiyatlar || data.fiyatlar.length === 0) {
+  if (!normalized || normalized.length === 0) {
     container.innerHTML = `
       <div class="emptyState">
         <div class="emptyIcon">😕</div>
@@ -200,8 +186,8 @@ function renderFiyatSonuclari(data) {
   `;
   
   // En ucuz ürün banner'ı (ilk ürün)
-  if (data.fiyatlar.length > 0) {
-    const cheapest = data.fiyatlar[0];
+  if (normalized.length > 0) {
+    const cheapest = normalized[0];
     html += `
       <div class="cheapestBanner">
         <div class="bannerHeader">
@@ -227,7 +213,7 @@ function renderFiyatSonuclari(data) {
   // Diğer ürünler (max 3 tane - toplam 4 ürün)
   html += '<div class="productList">';
   
-  data.fiyatlar.forEach((product, index) => {
+  normalized.forEach((product, index) => {
     if (index === 0) return; // En ucuz zaten gösterildi
     if (index >= 4) return; // Sadece 4 ürün göster
     
@@ -420,7 +406,7 @@ async function getAiCommentForFavorite(favorite) {
   try {
     toast("🤖 AI analiz yapıyor...", "info");
     
-    const response = await fetch(`${API_URL}/ai-yorum`, {
+    const response = await fetch(`${sanitizeApiBase(API_URL)}/api/ai-yorum`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -504,14 +490,10 @@ async function loadFavorites(uid){
   try {
     const snap = await getDocs(FAV_COLL(uid));
     favCache = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-    // keep a local snapshot too
-    saveFavsLocal(uid, favCache);
   } catch(e) {
-    console.error('Favori yükleme hatası:', e);
-    // fallback: show last known local cache (if any)
-    favCache = loadFavsLocal(uid);
+    console.error("Favori yükleme hatası:", e);
+    favCache = [];
   }
-  updateFavBadges();
   return favCache;
 }
 
@@ -915,7 +897,7 @@ async function checkAPIStatus() {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
     
-    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
+    const response = await fetch(sanitizeApiBase(API_URL), {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -1087,46 +1069,7 @@ function wireUI(){
     if (url) await copyToClipboard(url);
   });
 
-  
-
-// AI yorum (Favoriler) - Render backend: POST /api/ai-yorum
-document.addEventListener("click", async (e) => {
-  const btn = e.target?.closest?.(".btnAiComment");
-  if (!btn) return;
-
-  const favId = btn.getAttribute("data-fav-id") || "";
-  const fav = (window.favCache || []).find(x => String(x.id) === String(favId)) || null;
-
-  const urun = (fav?.query || fav?.urun || fav?.siteName || "Ürün").toString();
-  // fiyatlar opsiyonel: backend analiz için ister; favoride yoksa boş gönderiyoruz.
-  const fiyatlar = [];
-  try{
-    if (fav?.fiyat){
-      const p = Number(String(fav.fiyat).replace(/[^0-9.,]/g,"").replace(".", "").replace(",", "."));
-      if (!Number.isNaN(p) && p>0) fiyatlar.push(p);
-    }
-  }catch(_){}
-
-  try {
-    toast("🤖 AI yorum hazırlanıyor...", "info");
-
-    const res = await fetch(`${API_URL}/ai-yorum`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urun, fiyatlar })
-    });
-
-    const data = await res.json().catch(() => ({}));
-    const text = data.yorum || data.aiYorum || data.text || "AI yorum alınamadı.";
-    toast("✅ AI yorum hazır", "ok");
-    alert(text);
-  } catch (err) {
-    console.error(err);
-    toast("AI yorum alınamadı", "err");
-    alert("AI yorum alınamadı");
-  }
-});
-// Tab butonları
+  // Tab butonları
   document.querySelectorAll(".tab[data-page]").forEach(btn => {
     btn.addEventListener("click", () => showPage(btn.dataset.page));
   });
@@ -1160,38 +1103,26 @@ function setAuthedUI(isAuthed){
 }
 
 // ========== UYGULAMA BAŞLANGICI ==========
-window.addEventListener("DOMContentLoaded", ()=>{
-  try {
-    wireUI();
-    renderRecentSearches();
-    addCameraButton();
-
-    if (firebaseConfigLooksInvalid()){
-      toast(
-        "Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.",
-        "error"
-      );
-    }
-
-    onAuthStateChanged(auth, async (user) => {
-      window.currentUser = user || null;
-      setAuthedUI(!!user);
-
-      if (user){
-        try {
-          await loadFavorites(user.uid);
-          renderFavoritesPage(user.uid);
-          applyFavUI();
-        } catch (e) {
-          console.error("Favori yükleme hatası:", e);
-        }
-      }
-    });
-
-  } catch (e) {
-    console.error("Uygulama başlatma hatası:", e);
-    alert("Uygulama başlatılırken hata oluştu. Console'u kontrol et.");
+window.addEventListener("DOMContentLoaded", () => {
+  wireUI();
+  renderRecentSearches();
+  addCameraButton();
+  
+  if (firebaseConfigLooksInvalid()){
+    toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.", "error");
   }
+
+  onAuthStateChanged(auth, async (user) => {
+    window.currentUser = user || null;
+    setAuthedUI(!!user);
+    if (user){
+      try{
+        await loadFavorites(user.uid);
+        renderFavoritesPage(user.uid);
+        applyFavUI();
+      }catch(e){ console.error(e); }
+    }
+  });
 });
 
 // ========== GLOBAL FONKSIYONLAR ==========
