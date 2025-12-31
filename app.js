@@ -1,445 +1,716 @@
-// app.js (STABLE + SECURE)
-// - NO import/export (works with normal <script>)
-// - Gemini API key is ONLY on backend (Render ENV), frontend never stores it.
 
-(function(){
-  const $ = (id)=>document.getElementById(id);
-
-  // ---------- Global error logging ----------
-  window.addEventListener("error", (ev)=>{ try{ console.error("JS ERROR:", ev.message, ev.error); }catch(_){} });
-  window.addEventListener("unhandledrejection", (ev)=>{ try{ console.error("PROMISE ERROR:", ev.reason); }catch(_){} });
-
-  // ---------- Toast ----------
-  function toast(msg, type="info"){
-    const t = $("toast");
-    if (!t){ console.log("[toast]", type, msg); return; }
-    t.textContent = msg;
-    t.className = `toast ${type}`;
-    t.classList.remove("hidden");
-    clearTimeout(toast._t);
-    toast._t = setTimeout(()=> t.classList.add("hidden"), 2200);
+function normalizeUrl(raw){
+  try{
+    const u = new URL(raw);
+    // strip tracking params
+    const drop = new Set(["utm_source","utm_medium","utm_campaign","utm_term","utm_content","gclid","fbclid","yclid","mc_eid","ref","referrer","source","spm"]);
+    [...u.searchParams.keys()].forEach(k=>{ if(drop.has(k)) u.searchParams.delete(k); });
+    u.hash = "";
+    // normalize protocol+host+pathname (remove trailing slash)
+    let path = u.pathname.replace(/\/$/,"");
+    return (u.origin + path + (u.searchParams.toString()?("?"+u.searchParams.toString()):"")).toLowerCase();
+  }catch{
+    return String(raw||"").trim().toLowerCase();
   }
-  window.toast = toast;
+}
 
-  // ---------- API URL (base) ----------
-  const DEFAULT_API_BASE = "https://fiyattakip-api.onrender.com";
-  function normalizeBase(u){
-    u = String(u||"").trim();
-    if (!u) return DEFAULT_API_BASE;
-    u = u.replace(/\/+$/g,"");
-    // if user pasted endpoint like /api/health, reduce to base
-    u = u.replace(/\/(api\/)?(health|ai-yorum)\/?$/i,"");
-    return u.replace(/\/+$/g,"");
+// app.js (theme preserved) — Link-only normal search + Firebase auth (email + Google)
+// Normal arama: e-ticaret sitelerinden ÜRÜN ÇEKMEZ; sadece arama LİNKİ üretir (stabil).
+// Tema/HTML bozulmaz.
+
+import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+import {
+  getFirestore, collection, getDocs, doc, setDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const db = getFirestore();
+
+
+const $ = (id) => document.getElementById(id);
+
+// ---------- Toast ----------
+function toast(msg){
+  const t = $("toast");
+  if (!t) { console.log(msg); return; }
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.add("hidden"), 2200);
+}
+
+async function copyToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    toast("Kopyalandı");
+  }catch(e){
+    const ta=document.createElement("textarea");
+    ta.value=text;
+    ta.style.position="fixed"; ta.style.left="-9999px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{ document.execCommand("copy"); toast("Kopyalandı"); }catch(_){}
+    document.body.removeChild(ta);
   }
-  function api(base, path){
-    const b = normalizeBase(base);
-    const p = String(path||"").replace(/^\/+/,"");
-    return `${b}/${p}`;
-  }
-  let API_BASE = normalizeBase(localStorage.getItem("fiyattakip_api_base") || DEFAULT_API_BASE);
+}
 
-  // ---------- Pages ----------
-  function showPage(key){
-    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-    document.querySelectorAll(".tabbar .tab").forEach(t=>t.classList.remove("active"));
-    const page = document.querySelector(`#page-${CSS.escape(key)}`);
-    if (page) page.classList.add("active");
-    const tab = document.querySelector(`.tabbar .tab[data-page="${CSS.escape(key)}"]`);
-    if (tab) tab.classList.add("active");
-
-    if (key==="favs") renderFavorites();
-  }
-  window.showPage = showPage;
-
-  // ---------- Clipboard ----------
-  async function copyToClipboard(text){
-    try{ await navigator.clipboard.writeText(text); toast("Kopyalandı","success"); }
-    catch(_){
-      const ta=document.createElement("textarea");
-      ta.value=text; ta.style.position="fixed"; ta.style.left="-9999px";
-      document.body.appendChild(ta); ta.focus(); ta.select();
-      try{ document.execCommand("copy"); toast("Kopyalandı","success"); }catch(__){}
-      document.body.removeChild(ta);
+async function clearAppCache(){
+  try{
+    // Clear Cache Storage
+    if (window.caches && caches.keys){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
     }
+    // Clear storages
+    try{ localStorage.clear(); }catch(e){}
+    try{ sessionStorage.clear(); }catch(e){}
+    // Clear IndexedDB (best effort)
+    if (indexedDB && indexedDB.databases){
+      const dbs = await indexedDB.databases();
+      await Promise.all((dbs||[]).map(db=>{
+        if (!db || !db.name) return Promise.resolve();
+        return new Promise(res=>{
+          const req = indexedDB.deleteDatabase(db.name);
+          req.onsuccess=req.onerror=req.onblocked=()=>res();
+        });
+      }));
+    }
+    toast("Önbellek temizlendi. Yenileniyor...");
+  }catch(e){
+    console.error(e);
+    toast("Temizleme hatası");
   }
-  window.copyToClipboard = copyToClipboard;
+  setTimeout(()=>location.reload(true), 600);
+}
 
-  // ---------- Search mode ----------
-  function setSearchMode(mode){
-    localStorage.setItem("searchMode", mode);
-    $("modeNormal")?.classList.toggle("active", mode==="normal");
-    $("modeFiyat")?.classList.toggle("active", mode==="fiyat");
-    $("modeAI")?.classList.toggle("active", mode==="ai");
+
+
+// ---------- Pages / Tabs ----------
+function showPage(key){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+
+  const page = document.querySelector(`#page-${CSS.escape(key)}`);
+  if (page) page.classList.add("active");
+
+  const tab = document.querySelector(`.tab[data-page="${CSS.escape(key)}"]`);
+  if (tab) tab.classList.add("active");
+}
+
+// ---------- Search mode (Normal / AI toggle on home) ----------
+function setSearchMode(mode){
+  localStorage.setItem("searchMode", mode);
+  $("modeNormal")?.classList.toggle("active", mode==="normal");
+  $("modeAI")?.classList.toggle("active", mode==="ai");
+  const hint = $("modeHint");
+  if (hint){
+    hint.textContent = mode==="ai"
+      ? "AI arama: yazdığını analiz eder, daha net ürün sorgusuyla arar."
+      : "Normal arama: sitelerde direkt arar.";
   }
-  function getSearchMode(){ return localStorage.getItem("searchMode") || "normal"; }
+}
+function getSearchMode(){
+  return localStorage.getItem("searchMode") || "normal";
+}
 
-  // ---------- Sites (link only) ----------
-  const SITES = [
-    { key:"trendyol", name:"Trendyol", build:q=>`https://www.trendyol.com/sr?q=${encodeURIComponent(q)}` },
-    { key:"hepsiburada", name:"Hepsiburada", build:q=>`https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}` },
-    { key:"n11", name:"N11", build:q=>`https://www.n11.com/arama?q=${encodeURIComponent(q)}` },
-    { key:"amazontr", name:"Amazon TR", build:q=>`https://www.amazon.com.tr/s?k=${encodeURIComponent(q)}` },
-    { key:"pazarama", name:"Pazarama", build:q=>`https://www.pazarama.com/arama?q=${encodeURIComponent(q)}` },
-    { key:"ciceksepeti", name:"ÇiçekSepeti", build:q=>`https://www.ciceksepeti.com/arama?query=${encodeURIComponent(q)}` },
-    { key:"idefix", name:"idefix", build:q=>`https://www.idefix.com/arama/?q=${encodeURIComponent(q)}` },
-  ];
+// ---------- Login modal helpers ----------
 
-  function renderSiteList(container, query){
-    if (!container) return;
-    const q = String(query||"").trim();
-    if (!q){
-      container.innerHTML = `<div class="cardBox"><b>Bir şey yaz.</b></div>`;
+function setAuthPane(mode){
+  const loginPane = document.getElementById("loginPane");
+  const registerPane = document.getElementById("registerPane");
+  const tL = document.getElementById("tabLogin");
+  const tR = document.getElementById("tabRegister");
+  if (!loginPane || !registerPane) return;
+  const isReg = mode === "register";
+  loginPane.classList.toggle("hidden", isReg);
+  registerPane.classList.toggle("hidden", !isReg);
+  tL?.classList.toggle("isActive", !isReg);
+  tR?.classList.toggle("isActive", isReg);
+}
+
+function openLogin(){
+  setAuthPane('login');
+  const m = $("loginModal");
+  if (!m) return;
+  m.classList.add("show");
+  m.setAttribute("aria-hidden","false");
+  document.body.classList.add("modalOpen");
+}
+function closeLogin(){
+  const m = $("loginModal");
+  if (!m) return;
+  m.classList.remove("show");
+  m.setAttribute("aria-hidden","true");
+  document.body.classList.remove("modalOpen");
+}
+
+// ---------- Sites (link-only) ----------
+const SITES = [
+  { key:"trendyol", name:"Trendyol", build:q=>`https://www.trendyol.com/sr?q=${encodeURIComponent(q)}` },
+  { key:"hepsiburada", name:"Hepsiburada", build:q=>`https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}` },
+  { key:"n11", name:"N11", build:q=>`https://www.n11.com/arama?q=${encodeURIComponent(q)}` },
+  { key:"amazontr", name:"Amazon TR", build:q=>`https://www.amazon.com.tr/s?k=${encodeURIComponent(q)}` },
+  { key:"pazarama", name:"Pazarama", build:q=>`https://www.pazarama.com/arama?q=${encodeURIComponent(q)}` },
+  { key:"ciceksepeti", name:"ÇiçekSepeti", build:q=>`https://www.ciceksepeti.com/arama?query=${encodeURIComponent(q)}` },
+  { key:"idefix", name:"idefix", build:q=>`https://www.idefix.com/arama/?q=${encodeURIComponent(q)}` },
+];
+
+// ---------- Favorites (Firestore) ----------
+let favCache = []; // [{id, url, siteKey, siteName, query, ...}]
+
+function favIdFromUrl(url){
+  try{
+    const u = new URL(url);
+    const key = (u.hostname + u.pathname + u.search).toLowerCase();
+    let h=0; for (let i=0;i<key.length;i++){ h=((h<<5)-h)+key.charCodeAt(i); h|=0; }
+    return "fav_" + Math.abs(h);
+  }catch{
+    return "fav_" + Math.random().toString(36).slice(2);
+  }
+}
+
+const FAV_COLL = (uid)=> collection(db, "users", uid, "favorites");
+
+// =========================
+// Local favorites fallback (works even if login/firestore fails)
+// =========================
+const LOCAL_FAV_KEY = "fiyattakip_local_favorites_v1";
+function getLocalFavorites(){
+  try{ return JSON.parse(localStorage.getItem(LOCAL_FAV_KEY) || "[]"); }catch{ return []; }
+}
+function setLocalFavorites(list){
+  try{ localStorage.setItem(LOCAL_FAV_KEY, JSON.stringify(list.slice(0,200))); }catch{}
+}
+function upsertLocalFavorite(item){
+  const list = getLocalFavorites();
+  const idx = list.findIndex(x => x.id === item.id);
+  if(idx>=0) list[idx]=item; else list.unshift(item);
+  setLocalFavorites(list);
+}
+function removeLocalFavorite(id){
+  const list = getLocalFavorites().filter(x => x.id !== id);
+  setLocalFavorites(list);
+}
+
+
+async function loadFavorites(uid){
+  favCache.clear();
+
+  // Always load local favorites first (offline / no-login)
+  try{
+    for(const it of getLocalFavorites()){
+      if(it && it.id) favCache.set(it.id, it);
+    }
+  }catch{}
+
+  if(!uid){
+    updateFavUI();
+    return;
+  }
+
+  try{
+    const snap = await getDocs(FAV_COLL(uid));
+    snap.forEach((d)=> favCache.set(d.id, d.data()));
+    updateFavUI();
+  }catch(e){
+    console.warn("Favoriler yüklenemedi (Firestore):", e);
+    updateFavUI(); // at least local will show
+  }
+}
+
+function isFav(url){
+  const id = favIdFromUrl(url);
+  return favCache.some(f=>f.id===id);
+}
+
+
+async function toggleFavorite(item){
+  try{
+    const id = item.id || favIdFromUrl(item.url || "");
+    const safeItem = {
+      id,
+      title: item.title || item.name || "Ürün",
+      price: item.price || "",
+      site: item.site || item.market || "",
+      url: item.url || "",
+      image: item.image || "",
+      ts: Date.now()
+    };
+
+    // If not logged in, use local favorites only
+    if(!currentUser){
+      const list = getLocalFavorites();
+      const exists = list.some(x => x.id === id);
+      if(exists){ removeLocalFavorite(id); favCache.delete(id); }
+      else { upsertLocalFavorite(safeItem); favCache.set(id, safeItem); }
+      updateFavUI();
+      toast(exists ? "Favoriden çıkarıldı" : "Favoriye eklendi");
       return;
     }
-    container.innerHTML = "";
-    for (const s of SITES){
-      const url = s.build(q);
-      const card = document.createElement("div");
-      card.className = "cardBox";
-      card.innerHTML = `
-        <div class="rowLine">
-          <div>
-            <div class="ttl">${s.name}</div>
-            <div class="sub">${q}</div>
-          </div>
-          <div class="actions">
-            <button class="btnPrimary sm btnOpen" type="button">Aç</button>
-            <button class="btnGhost sm btnCopy" type="button" data-copy-url="${url}" title="Linki kopyala">⧉</button>
-            <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
-          </div>
-        </div>
-      `;
-      card.querySelector(".btnOpen")?.addEventListener("click", ()=> window.open(url,"_blank","noopener"));
-      card.querySelector(".btnFav")?.addEventListener("click", ()=> toggleFavorite({ url, siteKey:s.key, siteName:s.name, query:q }));
-      container.appendChild(card);
+
+    // Logged in: try Firestore, but always keep local fallback too
+    const ref = doc(FAV_COLL(currentUser.uid), id);
+    const exists = favCache.has(id);
+    if(exists){
+      await deleteDoc(ref);
+      favCache.delete(id);
+      removeLocalFavorite(id);
+      toast("Favoriden çıkarıldı");
+    }else{
+      await setDoc(ref, safeItem, { merge:true });
+      favCache.set(id, safeItem);
+      upsertLocalFavorite(safeItem);
+      toast("Favoriye eklendi");
     }
-    applyFavUI();
+    updateFavUI();
+  }catch(err){
+    console.warn("toggleFavorite hata:", err);
+    // last resort: local
+    try{
+      const id = item.id || favIdFromUrl(item.url || "");
+      const list = getLocalFavorites();
+      const exists = list.some(x => x.id === id);
+      if(exists){ removeLocalFavorite(id); favCache.delete(id); }
+      else { upsertLocalFavorite({ ...item, id, ts: Date.now() }); favCache.set(id, { ...item, id, ts: Date.now() }); }
+      updateFavUI();
+    }catch{}
+    toast("Favori işlemi yapılamadı");
+  }
+}
+
+function applyFavUI(){
+  document.querySelectorAll("[data-fav-url]").forEach(btn=>{
+    const url = btn.getAttribute("data-fav-url") || "";
+    const fav = isFav(url);
+    btn.classList.toggle("isFav", fav);
+    btn.textContent = fav ? "❤️" : "🤍";
+    btn.title = fav ? "Favoride" : "Favoriye ekle";
+  });
+}
+
+function renderFavoritesPage(uid){
+  const list = $("favList");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!favCache.length){
+    list.innerHTML = `<div class="empty">Favori yok.</div>`;
+    return;
+  }
+  for (const it of favCache){
+    const card = document.createElement("div");
+    card.className = "cardBox";
+    card.innerHTML = `
+      <div class="rowLine">
+        <div>
+          <div class="ttl">${it.siteName || "Favori"}</div>
+          <div class="sub">${it.query || ""}</div>
+        </div>
+        <div class="actions">
+          <button class="btnPrimary sm" type="button" data-open-url="${it.url||""}" data-copy-url="${it.url||""}">Aç</button>
+          <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${it.url||""}" data-fav-id="${it.id}" data-site-key="${it.siteKey||""}" data-site-name="${it.siteName||""}" data-query="${it.query||""}">❤️</button>
+        
+      <button class="btnGhost sm btnAi" type="button"
+        data-ai-title="${it.query || it.siteName || 'Ürün'}"
+        data-ai-store="${it.siteName || ''}">🤖</button>
+    </div>
+      </div>
+      
+    `;
+    card.querySelector("[data-open-url]")?.addEventListener("click", ()=>{
+      if (it.url) window.open(it.url, "_blank", "noopener");
+    });
+    card.querySelector("[data-fav-url]")?.addEventListener("click", async ()=>{
+      await toggleFavorite(uid, { url: it.url, siteKey: it.siteKey||"", siteName: it.siteName||"", query: it.query||"" });
+      renderFavoritesPage(uid);
+    });
+    list.appendChild(card);
+  }
+  applyFavUI();
+}
+
+function renderSiteList(container, query){
+  if (!container) return;
+  const q = String(query||"").trim();
+  if (!q){
+    container.innerHTML = `<div class="cardBox"><b>Bir şey yaz.</b></div>`;
+    return;
   }
 
-  // ---------- Favorites (localStorage, stable) ----------
-  function favStoreKey(){
-    const uid = window.currentUser?.uid || "guest";
-    return `fiyattakip_favs_${uid}`;
+  container.innerHTML = "";
+  for (const s of SITES){
+    const url = s.build(q);
+    const card = document.createElement("div");
+    card.className = "cardBox";
+    card.innerHTML = `
+      <div class="rowLine">
+        <div>
+          <div class="ttl">${s.name}</div>
+          <div class="sub">${q}</div>
+        </div>
+        <div class="actions">
+          <button class="btnPrimary sm btnOpen" type="button">Aç</button>
+          <button class="btnGhost sm btnCopy" type="button" data-copy-url="${url}" title="Linki kopyala">⧉</button>
+          <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
+        </div>
+      </div>
+      
+    `;
+    card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
+      window.open(url, "_blank", "noopener");
+    });
+        card.querySelector(".btnFav")?.addEventListener("click", async ()=>{
+      if (!window.__uid) return toast("Favori için giriş yap.");
+      await toggleFavorite(window.__uid, { url, siteKey: s.key, siteName: s.name, query: q });
+    });
+container.appendChild(card);
   }
-  function loadFavorites(){
-    try{ return JSON.parse(localStorage.getItem(favStoreKey()) || "[]"); }
-    catch(_){ return []; }
+}
+
+window.renderSiteList = renderSiteList;
+window.doNormalSearch = (query)=>{
+  showPage("search");
+  renderSiteList($("normalList"), query);
+};
+
+// ---------- Auth state ----------
+window.currentUser = null;
+
+async function doEmailLogin(isRegister){
+  const btnL = $("btnLogin");
+  const btnR = $("btnRegister");
+  if (btnL) btnL.disabled = true;
+  if (btnR) btnR.disabled = true;
+
+  const email = (isRegister ? ($("regEmail")?.value || "") : ($("loginEmail")?.value || "")).trim();
+  const pass  = (isRegister ? ($("regPass")?.value || "") : ($("loginPass")?.value || ""));
+  const pass2 = (isRegister ? ($("regPass2")?.value || "") : "");
+
+  if (!email || !pass){
+    if (btnL) btnL.disabled = false;
+    if (btnR) btnR.disabled = false;
+    return toast("E-posta ve şifre gir.");
   }
-  function saveFavorites(list){
-    localStorage.setItem(favStoreKey(), JSON.stringify(list||[]));
-  }
-  function favIdFromUrl(url){
-    try{
-      const u = new URL(url);
-      const key = (u.hostname + u.pathname + u.search).toLowerCase();
-      let h=0; for (let i=0;i<key.length;i++){ h=((h<<5)-h)+key.charCodeAt(i); h|=0; }
-      return "fav_" + Math.abs(h);
-    }catch(_){
-      return "fav_" + Math.random().toString(36).slice(2);
+  if (isRegister){
+    if (pass.length < 6){
+      if (btnL) btnL.disabled = false;
+      if (btnR) btnR.disabled = false;
+      return toast("Şifre en az 6 karakter olmalı.");
+    }
+    if (!pass2 || pass !== pass2){
+      if (btnL) btnL.disabled = false;
+      if (btnR) btnR.disabled = false;
+      return toast("Şifreler uyuşmuyor.");
     }
   }
-  function isFav(url){
-    const id = favIdFromUrl(url);
-    return loadFavorites().some(f=>f.id===id);
+
+  toast(isRegister ? "Kayıt deneniyor..." : "Giriş deneniyor...");
+
+  try{
+    if (isRegister){
+      await createUserWithEmailAndPassword(auth, email, pass);
+      toast("Kayıt tamam. Giriş yapıldı.");
+      setAuthPane("login");
+    } else {
+      await signInWithEmailAndPassword(auth, email, pass);
+      toast("Giriş başarılı.");
+    }
+  }catch(e){
+    console.error(e);
+    const code = String(e?.code || "");
+    const msg = String(e?.message || e || "");
+    if (code.includes("auth/email-already-in-use")) return toast("Bu e-posta zaten kayıtlı. Giriş yap.");
+    if (code.includes("auth/weak-password")) return toast("Şifre çok zayıf (en az 6 karakter).");
+    if (code.includes("auth/invalid-email")) return toast("E-posta formatı hatalı.");
+    if (code.includes("auth/operation-not-allowed")) return toast("Email/Şifre ile kayıt kapalı. Firebase Console > Auth > Sign-in method: Email/Password aç.");
+    toast("Hata: " + msg.replace(/^Firebase:\s*/,""));
+  }finally{
+    if (btnL) btnL.disabled = false;
+    if (btnR) btnR.disabled = false;
   }
-  function toggleFavorite(fav){
+}
+
+async function doGoogleLogin(){
+  try{
+    await signInWithPopup(auth, googleProvider);
+    return;
+  }catch(e){
+    // popup blocked / mobile -> redirect
+    try{
+      await signInWithRedirect(auth, googleProvider);
+      return;
+    }catch(e2){
+      const msg = String(e2?.message || e?.message || e2 || e || "");
+      if (msg.includes("auth/unauthorized-domain")){
+        toast("Google giriş için domain yetkisi yok. Firebase > Authentication > Settings > Authorized domains içine siteni ekle (örn: fiyattakip.github.io).");
+        return;
+      }
+      toast("Google giriş hatası: " + msg.replace(/^Firebase:\s*/,""));
+    }
+  }
+}
+
+// Redirect dönüşünü sessizce işle
+getRedirectResult(auth).catch(()=>{});
+
+// ---------- Wire UI ----------
+function wireUI(){
+  $("btnAiSettings")?.addEventListener("click", openAIModal);
+  $("closeAi")?.addEventListener("click", closeAIModal);
+  $("aiBackdrop")?.addEventListener("click", closeAIModal);
+  $("btnSaveAI")?.addEventListener("click", saveAISettings);
+
+  $("btnClearCache")?.addEventListener("click", ()=>clearAppCache());
+
+  $("tabLogin")?.addEventListener("click", ()=>setAuthPane("login"));
+  $("tabRegister")?.addEventListener("click", ()=>setAuthPane("register"));
+  // ikinci Google butonu (kayıt paneli)
+  $("btnGoogleLogin2")?.addEventListener("click", ()=>doGoogleLogin());
+
+
+  // Favori click delegation (arama + favoriler)
+  document.addEventListener("click", async (e)=>{
+    const btn = e.target && e.target.closest ? e.target.closest("[data-fav-url]") : null;
+    if (!btn) return;
+    e.preventDefault();
+    const u = window.currentUser;
+    if (!u){ openLogin(); return; }
+
+    const favId = btn.getAttribute("data-fav-id") || "";
+    const urlRaw = btn.getAttribute("data-fav-url") || "";
+    const norm = normalizeUrl(urlRaw);
+
+    // Favoriler sayfasından kaldırma: id varsa direkt sil + duplicate cleanup
+    if (favId){
+      try{ await deleteDoc(doc(db, "users", u.uid, "favorites", favId)); }catch(e){ console.error(e); }
+      // aynı ürünün diğer kopyalarını da temizle
+      const dups = (window.__favCache||[]).filter(f=>{
+        const fNorm = f.normUrl || normalizeUrl(f.url||"");
+        return norm && fNorm === norm;
+      });
+      for (const it of dups){
+        if (it.id === favId) continue;
+        try{ await deleteDoc(doc(db, "users", u.uid, "favorites", it.id)); }catch(e){ console.error(e); }
+      }
+      await loadFavorites(u.uid);
+      renderFavoritesPage(u.uid);
+      applyFavUI();
+      return;
+    }
+
+    // Arama listesinden toggle
+    const url = urlRaw;
+    const siteKey = btn.getAttribute("data-site-key") || "";
+    const siteName = btn.getAttribute("data-site-name") || "";
+    const query = btn.getAttribute("data-query") || "";
+    await toggleFavorite(u.uid, { url, siteKey, siteName, query });
+    renderFavoritesPage(u.uid);
+    applyFavUI();
+  });
+
+  // bottom tabs
+  document.querySelectorAll(".tab[data-page]").forEach(btn=>{
+    btn.addEventListener("click", ()=> showPage(btn.dataset.page));
+  });
+
+  $("modeNormal")?.addEventListener("click", ()=> setSearchMode("normal"));
+  $("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
+  setSearchMode(getSearchMode());
+
+    $("btnFavRefresh")?.addEventListener("click", async ()=>{
+    const u = window.currentUser;
+    if (!u) return openLogin();
+    await loadFavorites(u.uid);
+    renderFavoritesPage(u.uid);
+    applyFavUI();
+  });
+
+  // close login guard
+  $("closeLogin")?.addEventListener("click", ()=>{
     if (!window.currentUser){
+      toast("Giriş yapmadan kullanamazsın.");
       openLogin();
       return;
     }
-    const list = loadFavorites();
-    const id = favIdFromUrl(fav.url);
-    const idx = list.findIndex(x=>x.id===id);
-    if (idx>=0){
-      list.splice(idx,1);
-      toast("Favoriden çıkarıldı","info");
-    }else{
-      list.unshift({ id, ...fav, createdAt: Date.now() });
-      toast("Favorilere eklendi","success");
-    }
-    saveFavorites(list);
-    applyFavUI();
-    if (document.querySelector("#page-favs.active")) renderFavorites();
-  }
-  function applyFavUI(){
-    document.querySelectorAll("[data-fav-url]").forEach(btn=>{
-      const url = btn.getAttribute("data-fav-url") || "";
-      const fav = isFav(url);
-      btn.classList.toggle("isFav", fav);
-      btn.textContent = fav ? "❤️" : "🤍";
-      btn.title = fav ? "Favoride" : "Favoriye ekle";
-    });
-  }
-
-  function renderFavorites(){
-    const listEl = $("favList");
-    if (!listEl) return;
-    const list = loadFavorites();
-    listEl.innerHTML = "";
-    if (!list.length){
-      listEl.innerHTML = `<div class="emptyState">Favori yok.</div>`;
+    closeLogin();
+  });
+  $("loginBackdrop")?.addEventListener("click", ()=>{
+    if (!window.currentUser){
+      toast("Giriş yapmadan kullanamazsın.");
+      openLogin();
       return;
     }
-
-    for (const fav of list){
-      const card = document.createElement("div");
-      card.className = "cardBox favoriteCard";
-      card.innerHTML = `
-        <div class="favoriteHeader">
-          <div class="favoriteInfo">
-            <div class="favSite">${fav.siteName || "Favori"}</div>
-            <div class="favQuery">${fav.query || ""}</div>
-          </div>
-          <div class="favoriteActions">
-            <button class="btnGhost sm" type="button" data-open="${fav.url}">Aç</button>
-            <button class="btnGhost sm" type="button" data-copy-url="${fav.url}">⧉</button>
-            <button class="btnGhost sm btnAiComment" type="button" data-product="${encodeURIComponent(fav.query||"")}">🤖 AI</button>
-            <button class="btnGhost sm btnFav isFav" type="button" data-fav-url="${fav.url}">❤️</button>
-          </div>
-        </div>
-      `;
-      card.querySelector("[data-open]")?.addEventListener("click", ()=> window.open(fav.url,"_blank","noopener"));
-      card.querySelector(".btnFav")?.addEventListener("click", ()=> toggleFavorite({ url:fav.url, siteKey:fav.siteKey, siteName:fav.siteName, query:fav.query }));
-      card.querySelector(".btnAiComment")?.addEventListener("click", ()=> aiYorum(String(fav.query||"")));
-      listEl.appendChild(card);
-    }
-    applyFavUI();
-  }
-
-  // ---------- AI comment (backend) ----------
-  async function aiYorum(product){
-    const p = String(product||"").trim();
-    if (!p){ toast("Ürün adı yok","error"); return; }
-    toast("🤖 AI yorum hazırlanıyor...", "info");
-    try{
-      const res = await fetch(api(API_BASE, "api/ai-yorum"), {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ urun: p })
-      });
-      const data = await res.json().catch(()=> ({}));
-      if (!res.ok) throw new Error(data.error || ("HTTP "+res.status));
-      const text = data.text || data.yorum || "AI yorum alınamadı.";
-      alert(text);
-      toast("✅ AI yorum hazır", "success");
-    }catch(e){
-      console.error(e);
-      toast("AI yorum alınamadı", "error");
-      alert("AI yorum alınamadı");
-    }
-  }
-  window.aiYorum = aiYorum;
-
-  // ---------- Camera (stable placeholder) ----------
-  async function cameraAiSearch(){
-    // Most stable: prompt + optional camera later
-    const q = prompt("Kamera AI (beta): Şimdilik ürün adını yaz (örn: Xiaomi Pad 7 256GB)");
-    if (!q) return;
-    // AI mode behaviour
-    showPage("search");
-    renderSiteList($("normalList"), q);
-    aiYorum(q);
-  }
-  window.cameraAiSearch = cameraAiSearch;
-
-  // ---------- API Settings modal ----------
-  async function checkAPIStatus(){
-    const statusElement = $("apiStatus");
-    if (!statusElement) return;
-    try{
-      statusElement.textContent = "Bağlanıyor...";
-      statusElement.className = "apiStatus checking";
-      const res = await fetch(api(API_BASE, "health"), { method:"GET" });
-      if (res.ok){
-        statusElement.textContent = "Çalışıyor";
-        statusElement.className = "apiStatus online";
-      }else{
-        statusElement.textContent = "Hata";
-        statusElement.className = "apiStatus error";
-      }
-    }catch(_){
-      statusElement.textContent = "Bağlantı yok";
-      statusElement.className = "apiStatus offline";
-    }
-  }
-  function saveAPISettings(){
-    const url = ($("apiUrl")?.value || "").trim();
-    API_BASE = normalizeBase(url || DEFAULT_API_BASE);
-    localStorage.setItem("fiyattakip_api_base", API_BASE);
-    toast("API URL kaydedildi","success");
-    closeAPIModal();
-  }
-
-  function openAPIModal(){
-    const m = $("apiModal"); if(!m) return;
-    m.classList.add("show");
-    $("apiUrl").value = API_BASE;
-    checkAPIStatus();
-  }
-  function closeAPIModal(){
-    const m = $("apiModal"); if(!m) return;
-    m.classList.remove("show");
-  }
-
-  // ---------- Login (Firebase Auth compat) ----------
-  window.currentUser = null;
-
-  function setAuthPane(mode){
-    const loginPane=$("loginPane"), registerPane=$("registerPane");
-    const tL=$("tabLogin"), tR=$("tabRegister");
-    if (!loginPane || !registerPane) return;
-    const isReg = mode==="register";
-    loginPane.classList.toggle("hidden", isReg);
-    registerPane.classList.toggle("hidden", !isReg);
-    tL?.classList.toggle("isActive", !isReg);
-    tR?.classList.toggle("isActive", isReg);
-  }
-
-  function openLogin(){
-    setAuthPane("login");
-    const m=$("loginModal"); if(!m) return;
-    m.classList.add("show");
-    document.body.classList.add("modalOpen");
-  }
-  function closeLogin(){
-    const m=$("loginModal"); if(!m) return;
-    m.classList.remove("show");
-    document.body.classList.remove("modalOpen");
-  }
-
-  async function doEmailLogin(isRegister){
-    const email = (isRegister ? $("regEmail")?.value : $("loginEmail")?.value || "").trim();
-    const pass  = (isRegister ? $("regPass")?.value : $("loginPass")?.value || "");
-    const pass2 = (isRegister ? $("regPass2")?.value : "");
-    if (!email || !pass) return toast("E-posta ve şifre gir.","error");
-    if (isRegister){
-      if (pass.length<6) return toast("Şifre en az 6 karakter.","error");
-      if (pass !== pass2) return toast("Şifreler uyuşmuyor.","error");
-    }
-    if (!window.auth){ toast("Firebase yüklenemedi.","error"); return; }
-
-    try{
-      if (isRegister){
-        await auth.createUserWithEmailAndPassword(email, pass);
-        toast("Kayıt tamam.","success");
-      }else{
-        await auth.signInWithEmailAndPassword(email, pass);
-        toast("Giriş başarılı.","success");
-      }
-    }catch(e){
-      console.error(e);
-      toast("Hata: " + (e?.message||""), "error");
-    }
-  }
-
-  async function doGoogleLogin(){
-    if (!window.auth || !window.googleProvider){ toast("Firebase yüklenemedi.","error"); return; }
-    try{
-      await auth.signInWithPopup(googleProvider);
-    }catch(e){
-      console.error(e);
-      toast("Google giriş hatası", "error");
-    }
-  }
-
-  // ---------- Wire UI ----------
-  function addCameraButton(){
-    const tabbar = document.querySelector(".tabbar");
-    if (!tabbar) return;
-    const spacer = tabbar.querySelector(".tabSpacer");
-    if (!spacer) return;
-    const btn = document.createElement("button");
-    btn.id = "fabCamera";
-    btn.className = "tab main";
-    btn.type = "button";
-    btn.innerHTML = `<span class="ico">📷</span><span class="lbl">Kamera</span>`;
-    btn.addEventListener("click", cameraAiSearch);
-    spacer.replaceWith(btn);
-  }
-
-  function wireUI(){
-    // Mode
-    $("modeNormal")?.addEventListener("click", ()=> setSearchMode("normal"));
-    $("modeFiyat")?.addEventListener("click", ()=> setSearchMode("fiyat"));
-    $("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
-    setSearchMode(getSearchMode());
-
-    // Search button
-    $("btnNormal")?.addEventListener("click", ()=>{
-      const query = ($("qNormal")?.value || "").trim();
-      if (!query) return toast("Ürün adı girin","error");
-      const mode = getSearchMode();
-
-      showPage("search");
-      renderSiteList($("normalList"), query);
-
-      // Fiyat/Aİ modunda: fiyat çekme yok → sadece AI özet
-      if (mode === "ai" || mode === "fiyat"){
-        aiYorum(query);
-      }
-    });
-
-    $("qNormal")?.addEventListener("keypress",(e)=>{ if (e.key==="Enter") $("btnNormal")?.click(); });
-
-    // API modal
-    $("btnApiSettings")?.addEventListener("click", openAPIModal);
-    $("closeApi")?.addEventListener("click", closeAPIModal);
-    $("apiBackdrop")?.addEventListener("click", closeAPIModal);
-    $("btnSaveApi")?.addEventListener("click", saveAPISettings);
-    $("btnTestApi")?.addEventListener("click", checkAPIStatus);
-
-    // Login modal
-    $("tabLogin")?.addEventListener("click", ()=> setAuthPane("login"));
-    $("tabRegister")?.addEventListener("click", ()=> setAuthPane("register"));
-    $("btnLogin")?.addEventListener("click", ()=> doEmailLogin(false));
-    $("btnRegister")?.addEventListener("click", ()=> doEmailLogin(true));
-    $("btnGoogleLogin")?.addEventListener("click", doGoogleLogin);
-    $("btnGoogleLogin2")?.addEventListener("click", doGoogleLogin);
-    $("closeLogin")?.addEventListener("click", closeLogin);
-    $("loginBackdrop")?.addEventListener("click", closeLogin);
-
-    // Clear search
-    $("btnClearSearch")?.addEventListener("click", ()=> { $("normalList").innerHTML=""; toast("Temizlendi","info"); });
-
-    // Logout
-    $("logoutBtn")?.addEventListener("click", async ()=>{
-      try{ await auth.signOut(); toast("Çıkış yapıldı","info"); }
-      catch(e){ console.error(e); }
-    });
-
-    // Delegated copy
-    document.addEventListener("click", async (e)=>{
-      const btn = e.target?.closest?.("[data-copy-url]");
-      if (!btn) return;
-      const url = btn.getAttribute("data-copy-url") || "";
-      if (url) await copyToClipboard(url);
-    });
-  }
-
-  // ---------- Boot ----------
-  document.addEventListener("DOMContentLoaded", ()=>{
-    wireUI();
-    addCameraButton();
-
-    // Firebase config check
-    if (typeof window.firebaseConfigLooksInvalid === "function" && firebaseConfigLooksInvalid()){
-      toast("Firebase config eksik/yanlış.", "error");
-    }
-
-    // Auth state
-    if (window.auth && auth.onAuthStateChanged){
-      auth.onAuthStateChanged((user)=>{
-        window.currentUser = user || null;
-        if (!user) openLogin(); else closeLogin();
-        applyFavUI();
-        if (document.querySelector("#page-favs.active")) renderFavorites();
-      });
-    }else{
-      // If firebase not available, allow app but no favorites
-      toast("Firebase yüklenemedi. Favoriler kapalı.", "error");
-    }
-
-    // Default
-    showPage("home");
+    closeLogin();
   });
-})();
+
+  // login buttons
+  $("btnLogin")?.addEventListener("click", ()=>doEmailLogin(false));
+  $("btnRegister")?.addEventListener("click", ()=>doEmailLogin(true));
+  $("btnGoogle")?.addEventListener("click", ()=>doGoogleLogin());
+
+  // auth tab switch (email/google) if present
+  document.querySelectorAll(".segBtn[data-auth]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      document.querySelectorAll(".segBtn[data-auth]").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      const which = b.dataset.auth;
+      const emailBox = $("authEmail");
+      const gBox = $("authGoogle");
+      if (emailBox && gBox){
+        emailBox.style.display = which==="email" ? "" : "none";
+        gBox.style.display = which==="google" ? "" : "none";
+      }
+    });
+  });
+
+  // home search
+  $("btnNormal")?.addEventListener("click", async ()=>{
+    const q = ($("qNormal")?.value || "").trim();
+    if (!q) return toast("Bir şey yaz.");
+    // Normal / AI toggle: AI yoksa normal davran
+    if (getSearchMode()==="ai" && typeof window.aiText === "function"){
+      toast("AI sorgu hazırlanıyor...");
+      try{
+        const built = await window.aiText(`Sadece tek satır arama sorgusu üret. Çıktı sadece düz metin. Kullanıcı: ${q}`);
+        const qq = String(built||q).replace(/\s+/g," ").trim().slice(0,80);
+        $("qNormal").value = qq;
+        window.doNormalSearch(qq);
+      }catch{
+        window.doNormalSearch(q);
+      }
+    } else {
+      window.doNormalSearch(q);
+    }
+  });
+
+  // camera button (AI visual sayfaya gitsin)
+  $("fabCamera")?.addEventListener("click", ()=>{
+    // Eğer görsel sayfa yoksa settings'e kayma olmasın:
+    const visualTab = $("tabAIVisual") || $("tabVisual");
+    if (visualTab) visualTab.click();
+    else showPage("settings");
+  });
+
+  // logout if exists
+  $("logoutBtn")?.addEventListener("click", async ()=>{
+    try{ await signOut(auth); }catch{}
+  });
+  // Copy link
+  document.addEventListener("click", async (e)=>{
+    const b = e.target && e.target.closest ? e.target.closest("[data-copy-url]") : null;
+    if (!b) return;
+    // only when clicking copy button (avoid open button)
+    if (!b.classList.contains("btnCopy")) return;
+    e.preventDefault();
+    const url = b.getAttribute("data-copy-url") || "";
+    if (url) await copyToClipboard(url);
+  });
+}
+
+// ---------- Auth visibility ----------
+function setAuthedUI(isAuthed){
+  // App içinde giriş zorunlu: authed değilse modal aç
+  if (!isAuthed) openLogin();
+  else closeLogin();
+}
+
+// Boot
+window.addEventListener("DOMContentLoaded", ()=>{
+  wireUI();
+  wireGoogleButtons();
+
+  if (firebaseConfigLooksInvalid()){
+    toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.");
+  }
+
+  onAuthStateChanged(auth, async (u)=>{
+    window.currentUser = u || null;
+    setAuthedUI(!!u);
+    if (u){
+      try{
+        await loadFavorites(u.uid);
+        renderFavoritesPage(u.uid);
+        applyFavUI();
+      }catch(e){ console.error(e); }
+    }
+  });
+});
+
+// === AI SETTINGS (STEP 5A) ===
+function loadAISettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem("aiSettings")||"{}");
+    $("aiEnabled") && ($("aiEnabled").value = s.enabled || "on");
+    $("aiProvider") && ($("aiProvider").value = s.provider || "gemini");
+    $("aiApiKey") && ($("aiApiKey").value = s.key || "");
+  }catch(e){}
+}
+function saveAISettings(){
+  const s={
+    enabled: $("aiEnabled")?.value || "on",
+    provider: $("aiProvider")?.value || "gemini",
+    key: $("aiApiKey")?.value || ""
+  };
+  localStorage.setItem("aiSettings", JSON.stringify(s));
+  toast("AI ayarları kaydedildi");
+}
+function openAIModal(){
+  const m = document.getElementById("aiModal");
+  if(!m) return;
+  m.classList.add("show");
+  m.setAttribute("aria-hidden","false");
+  loadAISettings();
+}
+function closeAIModal(){
+  const m = document.getElementById("aiModal");
+  if(!m) return;
+  m.classList.remove("show");
+  m.setAttribute("aria-hidden","true");
+}
+
+
+// === GOOGLE LOGIN CLICK FIX (SAFE) ===
+function wireGoogleButtons(){
+  const ids = ["btnGoogle", "btnGoogleLogin", "btnGoogleLogin2"];
+  ids.forEach(id=>{
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.addEventListener("click", async (e)=>{
+      e.preventDefault();
+      try{
+        await doGoogleLogin();
+      }catch(err){
+        console.error(err);
+      }
+    });
+  });
+}
+
+
+// FAVORILERDE AI YORUM (STABİL – IZOLASYON)
+document.addEventListener("click", async (e)=>{
+  const btn = e.target.closest(".btnAi");
+  if (!btn) return;
+  const title = btn.dataset.aiTitle || "Ürün";
+  const store = btn.dataset.aiStore || "Favoriler";
+  alert("🤖 AI yorum hazırlanıyor...");
+  try {
+    const r = await fetch("https://fiyattakip-api.onrender.com/ai-yorum", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ title, store })
+    });
+    const j = await r.json();
+    alert(j.text || "AI yorum alınamadı.");
+  } catch {
+    alert("AI servisi kapalı.");
+  }
+});
