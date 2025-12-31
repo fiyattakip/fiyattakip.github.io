@@ -1,13 +1,22 @@
 const CACHE = "fiyattakip-cache-v7";
 const ASSETS = [
-  "./",
-  "./index.html",
-  "./styles.css",
-  "./app.js",
-  "./firebase.js",
-  "./manifest.json",
-  "./icon-172.png",
-  "./icon-512.png"
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/app.js',
+  '/app.nav.js',
+  '/ai.js',
+  '/firebase.js',
+  '/firebase-config.js',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/home.png',
+  '/favorite.png',
+  '/settings.png',
+  '/camera.png',
+  '/chart.png',
+  '/chat.png'
 ];
 
 self.addEventListener("install", (e) => {

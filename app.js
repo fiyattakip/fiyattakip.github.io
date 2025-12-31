@@ -18,8 +18,31 @@ const db = getFirestore();
 const $ = (id) => document.getElementById(id);
 
 // ========== API KONFİGÜRASYONU ==========
-const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com/api";
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
 let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
+
+function normalizeApiBase(input){
+  let u = (input || '').toString().trim();
+  if(!u) return DEFAULT_API_URL;
+  u = u.replace(/\/+$/g,'');
+  // If user pasted a full endpoint, reduce to base
+  u = u.replace(/\/(api\/)?(fiyat-cek|ai-yorum|health)\/?$/i,'');
+  u = u.replace(/\/+$/g,'');
+  return u;
+}
+
+function apiJoin(base, path){
+  const b = base.replace(/\/+$/g,'');
+  const p = path.replace(/^\/+/, '');
+  return `${b}/${p}`;
+}
+
+function getApiEndpoint(path){
+  const base = normalizeApiBase(API_URL);
+  // backend hem '/x' hem '/api/x' destekliyor; kullanıcı '/api' eklediyse sorun olmaz
+  return apiJoin(base, path);
+}
+
 
 // ========== SAYFALAMA AYARLARI ==========
 let currentPage = 1;
@@ -101,7 +124,7 @@ async function fiyatAra(query, page = 1, sort = 'asc') {
   try {
     toast("Fiyatlar çekiliyor...", "info");
     
-    const response = await fetch(`${API_URL}/fiyat-cek`, {
+    const response = await fetch(`${getApiEndpoint('fiyat-cek')}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -362,7 +385,7 @@ async function cameraAiSearch() {
       toast("Görsel AI ile analiz ediliyor...", "info");
       
       try {
-        const response = await fetch(`${API_URL}/kamera-ai`, {
+        const response = await fetch(`${getApiEndpoint('kamera-ai')}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -397,7 +420,7 @@ async function getAiCommentForFavorite(favorite) {
   try {
     toast("🤖 AI analiz yapıyor...", "info");
     
-    const response = await fetch(`${API_URL}/ai-yorum`, {
+    const response = await fetch(`${getApiEndpoint('ai-yorum')}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -883,43 +906,31 @@ function closeAPIModal(){
 async function checkAPIStatus() {
   const statusElement = $("apiStatus");
   if (!statusElement) return;
-
-  // API_URL saklama kuralı: mutlaka .../api ile biter
-  const base = (API_URL || "").replace(/\s+/g, "").replace(/\/+$/g, "");
-  const apiBase = base.endsWith("/api") ? base : (base + "/api");
-  const healthUrl = apiBase.replace(/\/api$/i, "") + "/health";
-
+  
   try {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
-
-    const response = await fetch(healthUrl, { method: "GET" });
-
+    
+    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
     if (response.ok) {
-      statusElement.textContent = "OK";
-      statusElement.className = "apiStatus ok";
-      return true;
+      statusElement.textContent = "Çalışıyor";
+      statusElement.className = "apiStatus online";
     } else {
       statusElement.textContent = "Hata";
       statusElement.className = "apiStatus error";
-      return false;
     }
-  } catch (err) {
-    statusElement.textContent = "Hata";
-    statusElement.className = "apiStatus error";
-    console.error("API status check error:", err);
-    return false;
+  } catch (error) {
+    statusElement.textContent = "Bağlantı yok";
+    statusElement.className = "apiStatus offline";
   }
 }
 
 function saveAPISettings() {
-  let url = ($("apiUrl")?.value || "").trim();
-  if (!url) url = DEFAULT_API_URL;
-
-  // Normalize: boşlukları at, sondaki /'leri sil, /api yoksa ekle
-  url = url.replace(/\s+/g, "").replace(/\/+$/g, "");
-  if (!url.endsWith("/api")) url = url + "/api";
-
+  const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
   API_URL = url;
   localStorage.setItem('fiyattakip_api_url', url);
   toast("API URL kaydedildi", "success");
