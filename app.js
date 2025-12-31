@@ -911,7 +911,7 @@ async function checkAPIStatus() {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
     
-    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
+    const response = await fetch(API_URL + "/health"), {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
