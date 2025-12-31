@@ -197,7 +197,7 @@
         <span class="ico">🏠</span><span class="lbl">Ana</span>
       </button>
 
-      <button class="tab" type="button" data-page="graph">
+      <button class="tab" type="button" data-page="search">
         <span class="ico">📊</span><span class="lbl">Grafik</span>
       </button>
 
@@ -288,8 +288,16 @@
   </div>
 
   <!-- SCRIPTS -->
+  <!-- Firebase compat (stable, no module) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js" defer></script>
+
+  <script src="firebase-config.js" defer></script>
+  <script src="firebase.js" defer></script>
+
   <script src="app.nav.js" defer></script>
   <script src="ai.js" defer></script>
-  <script type="module" src="app.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>

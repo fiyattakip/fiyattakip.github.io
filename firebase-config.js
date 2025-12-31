@@ -1,8 +1,6 @@
-// 🔴 Burayı Firebase Console > Project settings > Your apps (Web) kısmından aldığın config ile doldur.
-// Bu dosya repoda durur ama secret değildir (Firebase web config genelde public sayılır).
-// ÖNEMLİ: Domain kısıtlamalarını Firebase/Google Cloud'da yap.
-
-export const firebaseConfig = {
+// firebase-config.js (global)
+// Firebase Console > Project settings > Web app config
+window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBcXkVFQzB2XtxO7wqnbXhzM1Io54zCsBI",
   authDomain: "fiyattakip-ttoxub.firebaseapp.com",
   projectId: "fiyattakip-ttoxub",
