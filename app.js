@@ -18,8 +18,8 @@ const db = getFirestore();
 const $ = (id) => document.getElementById(id);
 
 // ========== API KONFİGÜRASYONU ==========
-const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com/api";
-let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
+cconst DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
+const API_URL = DEFAULT_API_URL;
 
 // ========== SAYFALAMA AYARLARI ==========
 let currentPage = 1;
@@ -393,24 +393,43 @@ async function cameraAiSearch() {
 }
 
 // ========== FAVORİ AI YORUM ==========
-async function getAiCommentForFavorite(favorite) {
+async function getAiCommentForFavorite(fav) {
   try {
-    toast("🤖 AI analiz yapıyor...", "info");
-    
-    const response = await fetch(`${API_URL}/ai-yorum`, {
+    const ai = loadAISettings();
+
+    if (!ai.key) {
+      toast("AI API anahtarı girilmemiş", "error");
+      openAIModal();
+      return;
+    }
+
+    toast("🤖 AI yorum hazırlanıyor...", "info");
+
+    const res = await fetch(`${API_URL}/api/ai-yorum`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Gemini-Key": (loadAISettings().key || ""),
+        "X-Gemini-Key": ai.key
       },
       body: JSON.stringify({
-        urun: favorite.query || favorite.urun,
-        fiyatlar: [{
-          site: favorite.siteName || favorite.site,
-          fiyat: favorite.fiyat || "Fiyat bilgisi yok"
-        }]
+        urun: fav.query || fav.urun || fav.siteName
       })
     });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      throw new Error("AI cevap vermedi");
+    }
+
+    alert(data.aiYorum);
+
+  } catch (e) {
+    console.error(e);
+    toast("AI yorum alınamadı", "error");
+  }
+}
+
     
     if (response.ok) {
       const data = await response.json();
@@ -918,12 +937,12 @@ function saveAPISettings() {
 // ========== AI AYARLARI ==========
 function loadAISettings(){
   try{
-    const s=JSON.parse(localStorage.getItem("aiSettings")||"{}");
-    $("aiEnabled") && ($("aiEnabled").value = s.enabled || "on");
-    $("aiProvider") && ($("aiProvider").value = s.provider || "gemini");
-    $("aiApiKey") && ($("aiApiKey").value = s.key || "");
-  }catch(e){}
+    return JSON.parse(localStorage.getItem("aiSettings") || "{}");
+  }catch{
+    return {};
+  }
 }
+
 
 function saveAISettings(){
   const s={
