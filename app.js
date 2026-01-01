@@ -1,3 +1,7 @@
+"use strict";
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
+let API_URL = localStorage.getItem("fiyattakip_api_url") || DEFAULT_API_URL;
+
 /* =====================
    GLOBAL API AYARLARI
 ===================== */
@@ -11,12 +15,6 @@ function getUserAIKey() {
 }
 
 // =======================
-// API SABİTLERİ (ZORUNLU)
-// =======================
-
-const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
-let API_URL = localStorage.getItem("fiyattakip_api_url") || DEFAULT_API_URL;
-
 
 /* sonra aşağıda diğer functionlar */
 
@@ -1140,22 +1138,27 @@ window.addEventListener("DOMContentLoaded", () => {
   wireUI();
   renderRecentSearches();
   addCameraButton();
-  
-  if (firebaseConfigLooksInvalid()){
-    toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.", "error");
+
+  if (firebaseConfigLooksInvalid()) {
+    toast("Firebase config eksik/yanlış", "error");
   }
 
   onAuthStateChanged(auth, async (user) => {
     window.currentUser = user || null;
-    setAuthedUI(!!user);
-    if (user){
-      try{
+    setAuthUI(!!user);
+
+    if (user) {
+      try {
         await loadFavorites(user.uid);
         renderFavoritesPage(user.uid);
         applyFavUI();
-      }catch(e){ console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     }
   });
+
+  bindUIEvent(); // ✅ BURASI – EN ALT, if DIŞINDA
 });
 
 // ========== GLOBAL FONKSIYONLAR ==========
@@ -1174,3 +1177,4 @@ window.changeSort = changeSort;
 window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
+
