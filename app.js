@@ -1,3 +1,15 @@
+/* =====================
+   GLOBAL API AYARLARI
+===================== */
+
+"use strict";
+
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
+let API_URL = localStorage.getItem("fiyattakip_api_url") || DEFAULT_API_URL;
+
+/* sonra aşağıda diğer functionlar */
+
+
 // app.js - Fiyat Takip Uygulaması (Render API entegreli)
 import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
 import {
