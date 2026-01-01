@@ -415,7 +415,9 @@ async function cameraAiSearch() {
 }
 
 // ========== FAVORİ AI YORUM ==========
-async function getAiCommentForFavorite(fav) {
+async function getAiCommentForFavorite(fav){
+  try { const s = JSON.parse(localStorage.getItem('aiSettings')||'{}'); if(!s.key){ alert('Önce Gemini API key gir'); return;} } catch(e){}
+
   const apiKey = getUserAIKey();
 
   if (!apiKey) {
@@ -929,7 +931,7 @@ async function checkAPIStatus() {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
 
-    const response = await fetch(API_URL + "/health");
+    const response = await fetch(API_URL.replace(/\/api(\/.*)?$/, '') + '/health');
 
     if (response.ok) {
       statusElement.textContent = "Çalışıyor";
