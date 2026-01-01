@@ -1020,9 +1020,8 @@ function wireUI(){
     const mode = getSearchMode();
     
     if (mode === "fiyat") {
-  alert("Fiyat arama bu sürümde devre dışı");
-  return;
-} else if (mode === "ai") {
+      await fiyatAra(query);
+    } else if (mode === "ai") {
       toast("AI ile optimize ediliyor...", "info");
       await fiyatAra(query);
     } else {
