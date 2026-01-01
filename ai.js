@@ -141,3 +141,16 @@ async function geminiVision({ prompt, mime, base64Data }){
   if (!text) throw new Error("Görselden metin çıkarılamadı.");
   return text;
 }
+
+
+// Expose helpers for non-module usage
+window.FiyatTakipAI = {
+  setSessionPin,
+  clearSessionPin,
+  saveGeminiKey,
+  clearAiCfg,
+  aiConfigured,
+  loadAiCfg,
+  geminiText,
+  geminiVision,
+};
