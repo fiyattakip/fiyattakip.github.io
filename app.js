@@ -10,10 +10,13 @@ function getUserAIKey() {
   }
 }
 
-"use strict";
+// =======================
+// API SABİTLERİ (ZORUNLU)
+// =======================
 
 const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
 let API_URL = localStorage.getItem("fiyattakip_api_url") || DEFAULT_API_URL;
+
 
 /* sonra aşağıda diğer functionlar */
 
@@ -920,18 +923,15 @@ function closeAPIModal(){
 }
 
 async function checkAPIStatus() {
-  const statusElement = $("apiStatus");
+  const statusElement = document.getElementById("apiStatus");
   if (!statusElement) return;
-  
+
   try {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
-    
-    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
+
+    const response = await fetch(API_URL + "/health");
+
     if (response.ok) {
       statusElement.textContent = "Çalışıyor";
       statusElement.className = "apiStatus online";
@@ -944,6 +944,7 @@ async function checkAPIStatus() {
     statusElement.className = "apiStatus offline";
   }
 }
+
 
 function saveAPISettings() {
   const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
