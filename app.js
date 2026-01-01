@@ -1,25 +1,3 @@
-"use strict";
-
-const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
-let API_URL = localStorage.getItem("fiyattakip_api_url") || DEFAULT_API_URL;
-
-/* =====================
-   GLOBAL API AYARLARI
-===================== */
-function getUserAIKey() {
-  try {
-    const s = JSON.parse(localStorage.getItem("aiSettings") || "{}");
-    return s.key || null;
-  } catch {
-    return null;
-  }
-}
-
-// =======================
-
-/* sonra aşağıda diğer functionlar */
-
-
 // app.js - Fiyat Takip Uygulaması (Render API entegreli)
 import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
 import {
@@ -40,8 +18,8 @@ const db = getFirestore();
 const $ = (id) => document.getElementById(id);
 
 // ========== API KONFİGÜRASYONU ==========
-cconst DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
-const API_URL = DEFAULT_API_URL;
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com/api";
+let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
 
 // ========== SAYFALAMA AYARLARI ==========
 let currentPage = 1;
@@ -415,47 +393,27 @@ async function cameraAiSearch() {
 }
 
 // ========== FAVORİ AI YORUM ==========
-async function getAiCommentForFavorite(fav){
-  try { const s = JSON.parse(localStorage.getItem('aiSettings')||'{}'); if(!s.key){ alert('Önce Gemini API key gir'); return;} } catch(e){}
-
-  const apiKey = getUserAIKey();
-
-  if (!apiKey) {
-    alert("AI Ayarları > Gemini API Key girmen gerekiyor");
-    return;
-  }
-
-  const urun =
-    fav?.query ||
-    fav?.urun ||
-    fav?.title ||
-    "Ürün";
-
+async function getAiCommentForFavorite(favorite) {
   try {
-    alert("🤖 AI yorum hazırlanıyor...");
-
-    const res = await fetch(
-      "https://fiyattakip-api.onrender.com/api/ai-yorum",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-gemini-key": apiKey
-        },
-        body: JSON.stringify({ urun })
-      }
-    );
-
-    if (!res.ok) throw new Error("AI hata");
-
-    const data = await res.json();
-    alert(data.yorum);
-  } catch (e) {
-    console.error(e);
-    alert("AI yorum alınamadı");
-  }
-}
-
+    toast("🤖 AI analiz yapıyor...", "info");
+    
+    const response = await fetch(`${API_URL}/ai-yorum`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Gemini-Key": (loadAISettings().key || ""),
+      },
+      body: JSON.stringify({
+        urun: favorite.query || favorite.urun,
+        fiyatlar: [{
+          site: favorite.siteName || favorite.site,
+          fiyat: favorite.fiyat || "Fiyat bilgisi yok"
+        }]
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
       
       // AI yorum modalı göster
       const modal = document.createElement('div');
@@ -924,15 +882,18 @@ function closeAPIModal(){
 }
 
 async function checkAPIStatus() {
-  const statusElement = document.getElementById("apiStatus");
+  const statusElement = $("apiStatus");
   if (!statusElement) return;
-
+  
   try {
     statusElement.textContent = "Bağlanıyor...";
     statusElement.className = "apiStatus checking";
-
-    const response = await fetch(API_URL.replace(/\/api(\/.*)?$/, '') + '/health');
-
+    
+    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
     if (response.ok) {
       statusElement.textContent = "Çalışıyor";
       statusElement.className = "apiStatus online";
@@ -946,7 +907,6 @@ async function checkAPIStatus() {
   }
 }
 
-
 function saveAPISettings() {
   const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
   API_URL = url;
@@ -958,25 +918,23 @@ function saveAPISettings() {
 // ========== AI AYARLARI ==========
 function loadAISettings(){
   try{
-    return JSON.parse(localStorage.getItem("aiSettings") || "{}");
-  }catch{
-    return {};
-  }
+    const s=JSON.parse(localStorage.getItem("aiSettings")||"{}");
+    $("aiEnabled") && ($("aiEnabled").value = s.enabled || "on");
+    $("aiProvider") && ($("aiProvider").value = s.provider || "gemini");
+    $("aiApiKey") && ($("aiApiKey").value = s.key || "");
+  }catch(e){}
 }
 
-
-function saveAISettings() {
-  const s = {
-    enabled: "on",
-    key: document.getElementById("aiApiKey")?.value?.trim() || ""
+function saveAISettings(){
+  const s={
+    enabled: $("aiEnabled")?.value || "on",
+    provider: $("aiProvider")?.value || "gemini",
+    key: $("aiApiKey")?.value || ""
   };
-
   localStorage.setItem("aiSettings", JSON.stringify(s));
-  toast("AI key kaydedildi", "success");
+  toast("AI ayarları kaydedildi", "success");
   closeAIModal();
 }
-
-
 
 // ========== YARDIMCI FONKSİYONLAR ==========
 async function copyToClipboard(text){
@@ -1137,30 +1095,24 @@ function setAuthedUI(isAuthed){
 }
 
 // ========== UYGULAMA BAŞLANGICI ==========
-window.addEventListener("DOMContentLoaded", async () => {
-  console.log("🚀 App başlatıldı");
-
+window.addEventListener("DOMContentLoaded", () => {
   wireUI();
   renderRecentSearches();
   addCameraButton();
-  bindUIEvent(); // 🔴 SADECE BURADA
-
-  if (firebaseConfigLooksInvalid()) {
-    toast("Firebase config eksik/yanlış", "error");
+  
+  if (firebaseConfigLooksInvalid()){
+    toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.", "error");
   }
 
   onAuthStateChanged(auth, async (user) => {
     window.currentUser = user || null;
-    setAuthUI(!!user);
-
-    if (user) {
-      try {
+    setAuthedUI(!!user);
+    if (user){
+      try{
         await loadFavorites(user.uid);
         renderFavoritesPage(user.uid);
         applyFavUI();
-      } catch (e) {
-        console.error(e);
-      }
+      }catch(e){ console.error(e); }
     }
   });
 });
@@ -1181,4 +1133,3 @@ window.changeSort = changeSort;
 window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
-
