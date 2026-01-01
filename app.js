@@ -1,6 +1,14 @@
 /* =====================
    GLOBAL API AYARLARI
 ===================== */
+function getUserAIKey() {
+  try {
+    const s = JSON.parse(localStorage.getItem("aiSettings") || "{}");
+    return s.key || null;
+  } catch {
+    return null;
+  }
+}
 
 "use strict";
 
@@ -406,45 +414,44 @@ async function cameraAiSearch() {
 
 // ========== FAVORİ AI YORUM ==========
 async function getAiCommentForFavorite(fav) {
+  const apiKey = getUserAIKey();
+
+  if (!apiKey) {
+    alert("AI Ayarları > Gemini API Key girmen gerekiyor");
+    return;
+  }
+
+  const urun =
+    fav?.query ||
+    fav?.urun ||
+    fav?.title ||
+    "Ürün";
+
   try {
-    const ai = loadAISettings();
+    alert("🤖 AI yorum hazırlanıyor...");
 
-    if (!ai.key) {
-      toast("AI API anahtarı girilmemiş", "error");
-      openAIModal();
-      return;
-    }
+    const res = await fetch(
+      "https://fiyattakip-api.onrender.com/api/ai-yorum",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-gemini-key": apiKey
+        },
+        body: JSON.stringify({ urun })
+      }
+    );
 
-    toast("🤖 AI yorum hazırlanıyor...", "info");
-
-    const res = await fetch(`${API_URL}/api/ai-yorum`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Gemini-Key": ai.key
-      },
-      body: JSON.stringify({
-        urun: fav.query || fav.urun || fav.siteName
-      })
-    });
+    if (!res.ok) throw new Error("AI hata");
 
     const data = await res.json();
-
-    if (!data.success) {
-      throw new Error("AI cevap vermedi");
-    }
-
-    alert(data.aiYorum);
-
+    alert(data.yorum);
   } catch (e) {
     console.error(e);
-    toast("AI yorum alınamadı", "error");
+    alert("AI yorum alınamadı");
   }
 }
 
-    
-    if (response.ok) {
-      const data = await response.json();
       
       // AI yorum modalı göster
       const modal = document.createElement('div');
@@ -956,16 +963,18 @@ function loadAISettings(){
 }
 
 
-function saveAISettings(){
-  const s={
-    enabled: $("aiEnabled")?.value || "on",
-    provider: $("aiProvider")?.value || "gemini",
-    key: $("aiApiKey")?.value || ""
+function saveAISettings() {
+  const s = {
+    enabled: "on",
+    key: document.getElementById("aiApiKey")?.value?.trim() || ""
   };
+
   localStorage.setItem("aiSettings", JSON.stringify(s));
-  toast("AI ayarları kaydedildi", "success");
+  toast("AI key kaydedildi", "success");
   closeAIModal();
 }
+
+
 
 // ========== YARDIMCI FONKSİYONLAR ==========
 async function copyToClipboard(text){
