@@ -300,6 +300,11 @@
 <script type="module" src="ai.js"></script>
 <script type="module" src="app.nav.js"></script>
 <script type="module" src="app.js"></script>
+  <script>
+  window.onerror = function(msg, src, line, col, err) {
+    alert("JS HATA: " + msg + " (Satır: " + line + ")");
+  };
+</script>
 </body>
 </html>
 
