@@ -42,16 +42,19 @@ async function decryptString(pin, blob){
   const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, ct);
   return td(pt);
 }
-function setSessionPin(pin){ sessionPin = pin || null; }
-function clearSessionPin(){ sessionPin = null; }
-function loadAiCfg(){
+
+export function setSessionPin(pin){ sessionPin = pin || null; }
+export function clearSessionPin(){ sessionPin = null; }
+
+export function loadAiCfg(){
   try{ return JSON.parse(localStorage.getItem(LS_CFG) || "null"); }catch{ return null; }
 }
-function aiConfigured(){
+export function aiConfigured(){
   const cfg = loadAiCfg();
   return !!(cfg && cfg.provider === "gemini" && cfg.encKey);
 }
-async function getGeminiKeyOrThrow(){
+
+export async function getGeminiKeyOrThrow(){
   const cfg = loadAiCfg();
   if (!cfg || cfg.provider !== "gemini" || !cfg.encKey) throw new Error("AI key kayıtlı değil.");
   const pin = sessionPin || prompt("PIN gir (AI için):");
@@ -60,7 +63,8 @@ async function getGeminiKeyOrThrow(){
   setSessionPin(pin);
   return key;
 }
-async function saveGeminiKey({ apiKey, pin, rememberPin }){
+
+export async function saveGeminiKey({ apiKey, pin, rememberPin }){
   if (!apiKey?.startsWith("AIza")) throw new Error("Gemini API key hatalı görünüyor.");
   if (!pin || pin.length < 4) throw new Error("PIN en az 4 karakter olmalı.");
 
@@ -75,13 +79,14 @@ async function saveGeminiKey({ apiKey, pin, rememberPin }){
   sessionPin = rememberPin ? pin : null;
   return true;
 }
-function clearAiCfg(){
+
+export function clearAiCfg(){
   localStorage.removeItem(LS_CFG);
   sessionPin = null;
 }
 
 /** Gemini text */
-async function geminiText(prompt){
+export async function geminiText(prompt){
   const key = await getGeminiKeyOrThrow();
   const model = "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
@@ -109,7 +114,7 @@ async function geminiText(prompt){
 }
 
 /** Gemini vision (image -> text) */
-async function geminiVision({ prompt, mime, base64Data }){
+export async function geminiVision({ prompt, mime, base64Data }){
   const key = await getGeminiKeyOrThrow();
   const model = "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
@@ -141,16 +146,3 @@ async function geminiVision({ prompt, mime, base64Data }){
   if (!text) throw new Error("Görselden metin çıkarılamadı.");
   return text;
 }
-
-
-// Expose helpers for non-module usage
-window.FiyatTakipAI = {
-  setSessionPin,
-  clearSessionPin,
-  saveGeminiKey,
-  clearAiCfg,
-  aiConfigured,
-  loadAiCfg,
-  geminiText,
-  geminiVision,
-};

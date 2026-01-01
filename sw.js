@@ -1,69 +1,56 @@
-// FiyatTakip Service Worker (v21) - cache safe, update-friendly
-const CACHE_NAME = "fiyattakip-cache-v21";
-const PRECACHE_URLS = [
+const CACHE = "fiyattakip-cache-v7";
+const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
-  "./manifest.json"
+  "./app.js",
+  "./firebase.js",
+  "./manifest.json",
+  "./icon-172.png",
+  "./icon-512.png"
 ];
 
-self.addEventListener("install", (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).catch(() => {})
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => (k !== CACHE_NAME ? caches.delete(k) : Promise.resolve())));
-      await self.clients.claim();
-    })()
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.map(k => {
+          if (k !== CACHE) {
+            return caches.delete(k);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  const url = new URL(req.url);
-
-  // Only handle GET
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
   if (req.method !== "GET") return;
 
-  // For API calls, always go to network (no cache)
-  if (url.pathname.startsWith("/api") || url.pathname.includes("onrender.com")) {
-    return;
-  }
-
-  // Cache-first for same-origin static; update cache in background
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(req, { ignoreSearch: false });
-        if (cached) {
-          // update in background
-          event.waitUntil(
-            fetch(req).then((res) => {
-              if (res && res.ok) cache.put(req, res.clone());
-            }).catch(() => {})
-          );
-          return cached;
+  e.respondWith(
+    caches.match(req).then(cached => {
+      if (cached) return cached;
+      
+      return fetch(req).then(response => {
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE).then(cache => {
+            cache.put(req, clone);
+          });
         }
-        try {
-          const res = await fetch(req);
-          if (res && res.ok) cache.put(req, res.clone());
-          return res;
-        } catch (e) {
-          // offline fallback to cached index for navigation
-          if (req.mode === "navigate") {
-            const fallback = await cache.match("./index.html");
-            if (fallback) return fallback;
-          }
-          throw e;
-        }
-      })()
-    );
-  }
+        return response;
+      }).catch(() => {
+        return new Response("Offline", { status: 503 });
+      });
+    })
+  );
 });
