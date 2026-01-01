@@ -1,4 +1,5 @@
 "use strict";
+
 const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
 let API_URL = localStorage.getItem("fiyattakip_api_url") || DEFAULT_API_URL;
 
@@ -1135,11 +1136,12 @@ function setAuthedUI(isAuthed){
 
 // ========== UYGULAMA BAŞLANGICI ==========
 window.addEventListener("DOMContentLoaded", async () => {
-  console.log("🚀 App başlatılıyor");
+  console.log("🚀 App başlatıldı");
 
   wireUI();
   renderRecentSearches();
   addCameraButton();
+  bindUIEvent(); // 🔴 SADECE BURADA
 
   if (firebaseConfigLooksInvalid()) {
     toast("Firebase config eksik/yanlış", "error");
@@ -1159,9 +1161,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     }
   });
-
-  // 🔴 TIKLAMA SORUNUNU ÇÖZEN SATIR
-  bindUIEvent();
 });
 
 // ========== GLOBAL FONKSIYONLAR ==========
