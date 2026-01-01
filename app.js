@@ -1134,7 +1134,9 @@ function setAuthedUI(isAuthed){
 }
 
 // ========== UYGULAMA BAŞLANGICI ==========
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
+  console.log("🚀 App başlatılıyor");
+
   wireUI();
   renderRecentSearches();
   addCameraButton();
@@ -1158,7 +1160,8 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  bindUIEvent(); // ✅ BURASI – EN ALT, if DIŞINDA
+  // 🔴 TIKLAMA SORUNUNU ÇÖZEN SATIR
+  bindUIEvent();
 });
 
 // ========== GLOBAL FONKSIYONLAR ==========
