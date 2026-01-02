@@ -583,57 +583,38 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-// AI yorum butonu - YENİ
-card.querySelector('.btnAiComment').addEventListener('click', async () => {
-  const button = card.querySelector('.btnAiComment');
+// AI yorum butonu - KESİN ÇÖZÜM
+const aiBtn = card.querySelector('.btnAiComment');
+// ESKİ EVENT'I TEMİZLE
+aiBtn.replaceWith(aiBtn.cloneNode(true));
+
+// YENİ EVENT EKLE
+card.querySelector('.btnAiComment').addEventListener('click', function() {
+  const button = this;
   const originalText = button.textContent;
   
   button.disabled = true;
   button.textContent = 'Analiz...';
   
-  try {
-    // YENİ FONKSİYONU KULLAN
-    const aiYorum = await getAiYorum({
-      title: fav.query || '',
-      price: fav.fiyat || '',
-      site: fav.siteName || ''
-    });
-    
-    // Modal aç
-    const modal = document.createElement('div');
-    modal.className = 'aiModal';
-    modal.innerHTML = `
-      <div class="aiModalContent">
-        <div class="aiModalHeader">
-          <h3>🤖 AI Analizi</h3>
-          <button class="closeAiModal">✕</button>
-        </div>
-        <div class="aiModalBody">
-          <div class="aiProduct">
-            <strong>${fav.query || ''}</strong>
-            <small>${fav.siteName || ''}</small>
-            ${fav.fiyat ? `<div style="color:#36d399;">${fav.fiyat}</div>` : ''}
-          </div>
-          <div class="aiComment">
-            ${aiYorum.replace(/\n/g, '<br>')}
-          </div>
-        </div>
-        <div class="aiModalFooter">
-          <button class="btnPrimary" onclick="this.closest('.aiModal').remove()">Tamam</button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-    modal.querySelector('.closeAiModal').onclick = () => modal.remove();
-    modal.onclick = (e) => e.target === modal && modal.remove();
-    
-  } catch (error) {
-    alert('AI yorumu alınamadı: ' + error.message);
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
-  }
+  // HEMEN FEEDBACK VER
+  setTimeout(async () => {
+    try {
+      const aiYorum = await getAiYorum({
+        title: fav.query || '',
+        price: fav.fiyat || '',
+        site: fav.siteName || ''
+      });
+      
+      // BASİT ALERT İLE TEST
+      alert(`🤖 AI YORUMU:\n\n${aiYorum}`);
+      
+    } catch (error) {
+      alert('Hata: ' + error.message);
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }, 100);
 });
     
     // Sayfaya ekle
