@@ -1133,3 +1133,46 @@ window.changeSort = changeSort;
 window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
+// ==============================
+// AI YORUM – STABIL EK
+// UI / TAB / NAV BOZMAZ
+// ==============================
+
+async function getAIComment(item) {
+  try {
+    const res = await fetch("https://fiyattakip-api.onrender.com/ai/yorum", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: item.title,
+        price: item.price,
+        site: item.site
+      })
+    });
+
+    const data = await res.json();
+    return data.yorum || "Yorum bulunamadı.";
+  } catch (e) {
+    return "AI servisi şu anda kullanılamıyor.";
+  }
+}
+
+// EVENT DELEGATION – UI BOZMAZ
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".btnAI");
+  if (!btn) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const item = {
+    title: btn.dataset.title || "Ürün",
+    price: btn.dataset.price || "",
+    site: btn.dataset.site || "Pazar yeri"
+  };
+
+  toast("AI yorumu hazırlanıyor...");
+  const yorum = await getAIComment(item);
+  alert(yorum);
+});
+
