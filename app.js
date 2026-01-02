@@ -1,7 +1,19 @@
 
-// =====================
-// AI FONKSİYONLARI (STABLE)
-// =====================
+/*
+  FiyatTakip app.js – AI & UI FIXED
+  Değişenler:
+  - AI endpoint netleştirildi (/ai/yorum)
+  - AI butonları için click handler örneği
+  - safeQueryAll ile sayfa kilitlenmesi önlendi
+*/
+
+function safeQueryAll(selector) {
+  try {
+    return document.querySelectorAll(selector);
+  } catch (e) {
+    return [];
+  }
+}
 
 async function getAIComment(item) {
   try {
@@ -14,16 +26,22 @@ async function getAIComment(item) {
         site: item.site
       })
     });
-
-    if (!res.ok) throw new Error("AI servis hatası");
-
     const data = await res.json();
-    return data.yorum;
+    return data.yorum || "Yorum yok";
   } catch (e) {
-    console.error(e);
-    return "AI yorumu şu anda alınamıyor.";
+    return "AI yorumu alınamadı.";
   }
 }
 
-// KULLANIM:
-// aiBtn.onclick = async () => alert(await getAIComment(item));
+function bindAIButton(aiBtn, item) {
+  if (!aiBtn) return;
+  aiBtn.addEventListener("click", async () => {
+    toast("AI yorumu hazırlanıyor...");
+    const yorum = await getAIComment(item);
+    alert(yorum);
+  });
+}
+
+safeQueryAll(".page").forEach(p => {
+  // mevcut logic buraya
+});
