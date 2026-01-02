@@ -564,23 +564,32 @@ function renderFavoritesPage(uid){
   
   list.innerHTML = paginationHTML;
   
-  for (const fav of pagedFavs){
-    const card = document.createElement("div");
-    card.className = "cardBox favoriteCard";
-    card.innerHTML = `
-      <div class="favoriteHeader">
-        <div class="favoriteInfo">
-          <div class="favSite">${fav.siteName || "Favori"}</div>
-          <div class="favQuery">${fav.query || fav.urun || ""}</div>
-          ${fav.fiyat ? `<div class="favPrice">${fav.fiyat}</div>` : ''}
-        </div>
-        <div class="favoriteActions">
-          <button class="btnGhost sm" onclick="window.open('${fav.url||""}', '_blank')">Aç</button>
-          <button class="btnGhost sm btnAiComment" data-fav-id="${fav.id}">🤖 AI</button>
-          <button class="btnGhost sm btnFav isFav" data-fav-url="${fav.url||""}">❤️</button>
-        </div>
+ for (const fav of pagedFavs){
+  const card = document.createElement("div");
+  card.className = "cardBox favoriteCard";
+  card.innerHTML = `
+    <div class="favoriteHeader">
+      <div class="favoriteInfo">
+        <div class="favSite">${fav.siteName || "Favori"}</div>
+        <div class="favQuery">${fav.query || fav.urun || ""}</div>
+        ${fav.fiyat ? `<div class="favPrice">${fav.fiyat}</div>` : ''}
       </div>
-    `;
+      <div class="favoriteActions">
+        <button class="btnGhost sm" onclick="window.open('${fav.url||""}', '_blank')">Aç</button>
+
+        <button
+          class="btnGhost sm btnAiComment"
+          data-title="${fav.query || fav.urun || ''}"
+          data-price="${fav.fiyat || ''}"
+          data-site="${fav.siteName || ''}"
+        >🤖 AI</button>
+
+        <button class="btnGhost sm btnFav isFav" data-fav-url="${fav.url||""}">❤️</button>
+      </div>
+    </div>
+  `;
+}
+
     
     // AI yorum butonu
     card.querySelector('.btnAiComment').addEventListener('click', () => {
