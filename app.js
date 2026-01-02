@@ -1226,48 +1226,32 @@ window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
 // === MEVCUT KODA DOKUNMAYIN ===
-// Bu fonksiyonu app.js dosyasının EN SONUNA ekleyin.
-// AI'yı UI'dan tamamen izole eden güvenli adaptör fonksiyonu
-// === GÜVENLİ AI YORUM FONKSİYONU (DÜZELTİLMİŞ) ===
 async function getAiYorumSafe(payload) {
-  console.log("🤖 getAiYorumSafe BAŞLADI", payload);
+  const API_BASE = "https://fiyattakip-api.onrender.com";
   
-  // ⚠️ ÇOK ÖNEMLİ: Backend'iniz "/ai/yorum" endpoint'ini kullanıyor
-  // Ama "/api/ai/yorum" DEĞİL, "/ai/yorum" kullanmalıyız
-  const API_BASE = "https://fiyattakip-api.onrender.com"; // /api OLMADAN!
+  // KULLANICI KEY'INI AL
+  const aiSettings = JSON.parse(localStorage.getItem("aiSettings") || "{}");
+  const userApiKey = aiSettings.key || "";
   
-  // Backend'in beklediği format (server.js'ye göre)
   const requestBody = {
     title: payload.title,
     price: payload.price,
-    site: payload.site
-    // "instruction" EKLEMEYİN! Backend'de yok
+    site: payload.site,
+    apiKey: userApiKey // KULLANICI KEY'İNİ GÖNDER
   };
 
   try {
-    console.log("📡 İstek URL:", `${API_BASE}/ai/yorum`);
-    
     const response = await fetch(`${API_BASE}/ai/yorum`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody)
     });
-    
-    console.log("📦 Status Code:", response.status, response.statusText);
-    
-    if (!response.ok) {
-      throw new Error(`API Hatası: ${response.status} ${response.statusText}`);
-    }
 
     const data = await response.json();
-    console.log("✅ AI Yanıtı:", data);
-    
-    // Backend: { success: true, yorum: "..." } döndürüyor
-    return data?.yorum || "AI yorumu alınamadı.";
+    return data.success ? data.yorum : `Hata: ${data.yorum}`;
     
   } catch (error) {
-    console.error("❌ AI Yorum Hatası:", error);
-    return "AI servisi şu anda kullanılamıyor. Hata: " + error.message;
+    return "AI servisi şu anda kullanılamıyor.";
   }
 }
 // === FONKSİYON SONU ===
