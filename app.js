@@ -641,7 +641,7 @@ function renderFavoritesPage(uid){
       </div>
     `;
     
-    // AI yorum butonu - ÇALIŞAN KOD
+    // 🔥 AI YORUM BUTONU - MODAL İLE
     card.querySelector('.btnAiComment').addEventListener('click', async () => {
       const button = card.querySelector('.btnAiComment');
       const originalText = button.textContent;
@@ -651,15 +651,11 @@ function renderFavoritesPage(uid){
       toast("🤖 AI analiz yapıyor...", "info");
       
       try {
-        console.log("🟡 AI başlıyor:", fav.query);
-        
         const aiYorum = await getAiYorumSafe({
           title: fav.query || fav.urun || "",
           price: fav.fiyat || "Fiyat bilgisi yok",
           site: fav.siteName || "Bilinmeyen site"
         });
-        
-        console.log("🟢 AI yorumu alındı:", aiYorum);
         
         // MODAL AÇ
         const modal = document.createElement('div');
@@ -697,7 +693,6 @@ function renderFavoritesPage(uid){
         };
         
       } catch (error) {
-        console.error("🔴 AI Hatası:", error);
         alert(`AI yorumu alınamadı: ${error.message}`);
       } finally {
         button.disabled = false;
@@ -714,6 +709,12 @@ function renderFavoritesPage(uid){
     list.appendChild(card);
   }
   
+  if (favTotalPages > 1) {
+    list.insertAdjacentHTML('beforeend', paginationHTML);
+  }
+  
+  applyFavUI();
+}
   // Alt sayfalama
   if (favTotalPages > 1) {
     list.insertAdjacentHTML('beforeend', paginationHTML);
