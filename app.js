@@ -583,100 +583,127 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-// AI yorum butonu - KESİN ÇÖZÜM
-card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
-  const button = event.target;
-  const originalText = button.textContent;
+// ========== FAVORİLERİ GÖSTER (AI YORUM BUTONLU) ==========
+function renderFavoritesPage(uid){
+  const list = $("favList");
+  if (!list) return;
+  list.innerHTML = "";
   
-  button.disabled = true;
-  button.textContent = 'Analiz...';
-  
-  // Hemen feedback ver
-  toast("🤖 AI analiz yapıyor...", "info");
-  
-  try {
-    const aiYorum = await getAiYorumSafe({
-      title: fav.query || fav.urun || "",
-      price: fav.fiyat || "Fiyat bilgisi yok",
-      site: fav.siteName || "Bilinmeyen site"
-    });
-    
-    console.log("💬 AI Yorumu hazır:", aiYorum);
-    
-    // ============ MODAL AÇ ============
-    const modal = document.createElement('div');
-    modal.className = 'aiModal';
-    modal.innerHTML = `
-      <div class="aiModalContent">
-        <div class="aiModalHeader">
-          <h3>🤖 AI Analizi</h3>
-          <button class="closeAiModal">✕</button>
-        </div>
-        <div class="aiModalBody">
-          <div class="aiProduct">
-            <strong>${fav.query || fav.urun || ""}</strong>
-            <small>${fav.siteName || "Bilinmeyen site"}</small>
-            ${fav.fiyat ? `<div class="favPrice" style="margin-top:8px;color:#36d399;">${fav.fiyat}</div>` : ''}
-          </div>
-          <div class="aiComment">
-            ${aiYorum.replace(/\n/g, '<br>')}
-          </div>
-        </div>
-        <div class="aiModalFooter">
-          <button class="btnPrimary closeModalBtn">Tamam</button>
-        </div>
-      </div>
-    `;
-    
-    // Sayfaya ekle
-    document.body.appendChild(modal);
-    
-    // Kapatma işlevleri
-    const closeModal = () => modal.remove();
-    
-    modal.querySelector('.closeAiModal').onclick = closeModal;
-    modal.querySelector('.closeModalBtn').onclick = closeModal;
-    modal.onclick = (e) => {
-      if (e.target === modal) closeModal();
-    };
-    
-  } catch (error) {
-    console.error("AI yorum hatası:", error);
-    
-    // Hata durumunda da modal göster (hata mesajı ile)
-    const errorModal = document.createElement('div');
-    errorModal.className = 'aiModal';
-    errorModal.innerHTML = `
-      <div class="aiModalContent">
-        <div class="aiModalHeader">
-          <h3>❌ AI Hatası</h3>
-          <button class="closeAiModal">✕</button>
-        </div>
-        <div class="aiModalBody">
-          <div class="aiComment" style="background:rgba(255,71,87,0.1);border-color:rgba(255,71,87,0.3);">
-            AI yorumu alınamadı.<br>
-            Lütfen daha sonra tekrar deneyin.
-          </div>
-        </div>
-        <div class="aiModalFooter">
-          <button class="btnPrimary closeModalBtn">Tamam</button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(errorModal);
-    
-    errorModal.querySelector('.closeAiModal').onclick = () => errorModal.remove();
-    errorModal.querySelector('.closeModalBtn').onclick = () => errorModal.remove();
-    errorModal.onclick = (e) => {
-      if (e.target === errorModal) errorModal.remove();
-    };
-    
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
+  if (!favCache.length){
+    list.innerHTML = `<div class="emptyState">Favori yok.</div>`;
+    return;
   }
-});
+  
+  // Favorileri sayfalama (4'erli)
+  const pageSize = 4;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const pagedFavs = favCache.slice(startIndex, endIndex);
+  const favTotalPages = Math.ceil(favCache.length / pageSize);
+  
+  // Sayfalama kontrolleri
+  let paginationHTML = '';
+  if (favTotalPages > 1) {
+    paginationHTML = `
+      <div class="favPagination">
+        <button class="pageBtn ${currentPage === 1 ? 'disabled' : ''}" 
+                onclick="changeFavPage(${currentPage - 1})" 
+                ${currentPage === 1 ? 'disabled' : ''}>
+          ⬅️
+        </button>
+        <span class="pageInfo">${currentPage}/${favTotalPages}</span>
+        <button class="pageBtn ${currentPage >= favTotalPages ? 'disabled' : ''}" 
+                onclick="changeFavPage(${currentPage + 1})" 
+                ${currentPage >= favTotalPages ? 'disabled' : ''}>
+          ➡️
+        </button>
+      </div>
+    `;
+  }
+  
+  list.innerHTML = paginationHTML;
+  
+  for (const fav of pagedFavs){
+    const card = document.createElement("div");
+    card.className = "cardBox favoriteCard";
+    card.innerHTML = `
+      <div class="favoriteHeader">
+        <div class="favoriteInfo">
+          <div class="favSite">${fav.siteName || "Favori"}</div>
+          <div class="favQuery">${fav.query || fav.urun || ""}</div>
+          ${fav.fiyat ? `<div class="favPrice">${fav.fiyat}</div>` : ''}
+        </div>
+        <div class="favoriteActions">
+          <button class="btnGhost sm" onclick="window.open('${fav.url||""}', '_blank')">Aç</button>
+          <button class="btnGhost sm btnAiComment" data-fav-id="${fav.id}">🤖 AI</button>
+          <button class="btnGhost sm btnFav isFav" data-fav-url="${fav.url||""}">❤️</button>
+        </div>
+      </div>
+    `;
+    
+    // AI yorum butonu - ÇALIŞAN KOD
+    card.querySelector('.btnAiComment').addEventListener('click', async () => {
+      const button = card.querySelector('.btnAiComment');
+      const originalText = button.textContent;
+      
+      button.disabled = true;
+      button.textContent = 'Analiz...';
+      toast("🤖 AI analiz yapıyor...", "info");
+      
+      try {
+        console.log("🟡 AI başlıyor:", fav.query);
+        
+        const aiYorum = await getAiYorumSafe({
+          title: fav.query || fav.urun || "",
+          price: fav.fiyat || "Fiyat bilgisi yok",
+          site: fav.siteName || "Bilinmeyen site"
+        });
+        
+        console.log("🟢 AI yorumu alındı:", aiYorum);
+        
+        // MODAL AÇ
+        const modal = document.createElement('div');
+        modal.className = 'aiModal';
+        modal.innerHTML = `
+          <div class="aiModalContent">
+            <div class="aiModalHeader">
+              <h3>🤖 AI Analizi</h3>
+              <button class="closeAiModal">✕</button>
+            </div>
+            <div class="aiModalBody">
+              <div class="aiProduct">
+                <strong>${fav.query || fav.urun || ""}</strong>
+                <small>${fav.siteName || "Bilinmeyen site"}</small>
+                ${fav.fiyat ? `<div style="color:#36d399;margin-top:4px;">${fav.fiyat}</div>` : ''}
+              </div>
+              <div class="aiComment">
+                ${aiYorum.replace(/\n/g, '<br>')}
+              </div>
+            </div>
+            <div class="aiModalFooter">
+              <button class="btnPrimary closeBtn">Tamam</button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // KAPATMA
+        const closeModal = () => modal.remove();
+        modal.querySelector('.closeAiModal').onclick = closeModal;
+        modal.querySelector('.closeBtn').onclick = closeModal;
+        modal.onclick = (e) => {
+          if (e.target === modal) closeModal();
+        };
+        
+      } catch (error) {
+        console.error("🔴 AI Hatası:", error);
+        alert(`AI yorumu alınamadı: ${error.message}`);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    });
     
     // Favori çıkar butonu
     card.querySelector('.btnFav').addEventListener('click', async () => {
@@ -694,7 +721,6 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
   
   applyFavUI();
 }
-
 // ========== FAVORİ SAYFA DEĞİŞTİRME ==========
 function changeFavPage(newPage) {
   if (newPage < 1) return;
