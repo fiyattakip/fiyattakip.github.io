@@ -1133,3 +1133,38 @@ window.changeSort = changeSort;
 window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
+// === MEVCUT KODA DOKUNMAYIN ===
+// Bu fonksiyonu app.js dosyasının EN SONUNA ekleyin.
+// AI'yı UI'dan tamamen izole eden güvenli adaptör fonksiyonu
+async function getAiYorumSafe(payload) {
+  // 1. API Ayarlarınızdan URL'yi alın (örnekteki gibi)
+  const API_BASE = "https://flyattakip-api.onrender.com";
+  
+  // 2. Backend'inize uygun payload'u gönderin
+  const requestBody = {
+    title: payload.title,
+    price: payload.price,
+    site: payload.site,
+    instruction: "Bu ürünü fiyat performans, rakipler ve güncel piyasa açısından kısa ve net yorumla." // Daha iyi sonuç için
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}/ai/yorum`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Hatası: ${response.status}`);
+    }
+
+    const data = await response.json();
+    // 3. Backend'inizin döndüğü yapıya göre ayarlayın (ör: data.text, data.result)
+    return data?.yorum || data?.text || "AI yorumu alınamadı.";
+  } catch (error) {
+    console.error("AI Yorum Hatası:", error);
+    return "AI servisi şu anda kullanılamıyor.";
+  }
+}
+// === FONKSİYON SONU ===
