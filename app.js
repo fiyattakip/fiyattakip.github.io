@@ -1257,14 +1257,13 @@ async function getAiYorumSafe(payload) {
   const API_BASE = "https://fiyattakip-api.onrender.com";
   
   // KULLANICI KEY'INI AL
-  const aiSettings = JSON.parse(localStorage.getItem("aiSettings") || "{}");
-  const userApiKey = aiSettings.key || "";
+ async function getAiYorumSafe(payload) {
+  const API_BASE = "https://fiyattakip-api.onrender.com";
   
   const requestBody = {
     title: payload.title,
     price: payload.price,
-    site: payload.site,
-    apiKey: userApiKey // KULLANICI KEY'İNİ GÖNDER
+    site: payload.site
   };
 
   try {
@@ -1275,7 +1274,7 @@ async function getAiYorumSafe(payload) {
     });
 
     const data = await response.json();
-    return data.success ? data.yorum : `Hata: ${data.yorum}`;
+    return data.yorum || "Yorum alınamadı";
     
   } catch (error) {
     return "AI servisi şu anda kullanılamıyor.";
