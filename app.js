@@ -583,9 +583,13 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-card.querySelector('.btnAiComment').addEventListener('click', async () => {
-  const button = card.querySelector('.btnAiComment');
+// AI yorum butonu - KESİN ÇÖZÜM
+card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
+  // event.preventDefault(); // Gerekirse
+  const button = event.target;
   const originalText = button.textContent;
+  
+  console.log("🖱️ AI Butonuna tıklandı:", fav);
   
   button.disabled = true;
   button.textContent = 'Analiz...';
@@ -597,10 +601,17 @@ card.querySelector('.btnAiComment').addEventListener('click', async () => {
       site: fav.siteName || "Bilinmeyen site"
     });
     
+    console.log("💬 AI Yorumu hazır:", aiYorum);
+    
+    // 1. ALERT ile göster (en basit)
     alert(`🤖 AI Yorumu:\n\n${aiYorum}`);
+    
+    // VEYA 2. Uygulamanın toast fonksiyonu ile
+    // toast(aiYorum.substring(0, 100) + "...", "success");
+    
   } catch (error) {
     console.error("AI yorum hatası:", error);
-    alert("AI yorumu alınamadı.");
+    alert("AI yorumu alınamadı: " + error.message);
   } finally {
     button.disabled = false;
     button.textContent = originalText;
