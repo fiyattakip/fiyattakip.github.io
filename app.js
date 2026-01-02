@@ -1133,12 +1133,14 @@ window.changeSort = changeSort;
 window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
+
 // === MEVCUT KODA DOKUNMAYIN ===
 // Bu fonksiyonu app.js dosyasının EN SONUNA ekleyin.
 // AI'yı UI'dan tamamen izole eden güvenli adaptör fonksiyonu
 async function getAiYorumSafe(payload) {
-  // 1. API Ayarlarınızdan URL'yi alın (örnekteki gibi)
-  const API_BASE = "https://flyattakip-api.onrender.com";
+  // 1. UYGULAMANIN API_URL'SİNİ KULLAN (global değişken)
+  // API_URL zaten yukarıda tanımlanmış: "https://fiyattakip-api.onrender.com/api"
+  const API_BASE = API_URL.replace('/api/fiyat-cek', '/api'); // "/api" ekliyoruz
   
   // 2. Backend'inize uygun payload'u gönderin
   const requestBody = {
@@ -1149,19 +1151,38 @@ async function getAiYorumSafe(payload) {
   };
 
   try {
-    const response = await fetch(`${API_BASE}/ai/yorum`, {
+    // 3. HANGİ ENDPOINT'I KULLANACAĞIMIZI KONTROL ET
+    // Seçenek 1: /ai/yorum (yeni)
+    // Seçenek 2: /ai-yorum (mevcut fonksiyonda kullanılan)
+    const endpoint = `${API_BASE}/ai/yorum`;
+    
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
+      // Endpoint yoksa, diğer endpoint'i dene
+      if (response.status === 404) {
+        const altEndpoint = `${API_BASE}/ai-yorum`;
+        const altResponse = await fetch(altEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody)
+        });
+        
+        if (altResponse.ok) {
+          const altData = await altResponse.json();
+          return altData?.yorum || altData?.aiYorum || altData?.text || "AI yorumu alınamadı.";
+        }
+      }
       throw new Error(`API Hatası: ${response.status}`);
     }
 
     const data = await response.json();
-    // 3. Backend'inizin döndüğü yapıya göre ayarlayın (ör: data.text, data.result)
-    return data?.yorum || data?.text || "AI yorumu alınamadı.";
+    // 4. Backend'inizin döndüğü formatı kontrol edin
+    return data?.yorum || data?.aiYorum || data?.text || "AI yorumu alınamadı.";
   } catch (error) {
     console.error("AI Yorum Hatası:", error);
     return "AI servisi şu anda kullanılamıyor.";
