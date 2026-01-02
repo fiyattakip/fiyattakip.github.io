@@ -1157,55 +1157,46 @@ window.getAiCommentForFavorite = getAiCommentForFavorite;
 // === MEVCUT KODA DOKUNMAYIN ===
 // Bu fonksiyonu app.js dosyasının EN SONUNA ekleyin.
 // AI'yı UI'dan tamamen izole eden güvenli adaptör fonksiyonu
+// === GÜVENLİ AI YORUM FONKSİYONU (DÜZELTİLMİŞ) ===
 async function getAiYorumSafe(payload) {
-  // 1. UYGULAMANIN API_URL'SİNİ KULLAN (global değişken)
-  // API_URL zaten yukarıda tanımlanmış: "https://fiyattakip-api.onrender.com/api"
-  const API_BASE = API_URL.replace('/api/fiyat-cek', '/api'); // "/api" ekliyoruz
+  console.log("🤖 getAiYorumSafe BAŞLADI", payload);
   
-  // 2. Backend'inize uygun payload'u gönderin
+  // ⚠️ ÇOK ÖNEMLİ: Backend'iniz "/ai/yorum" endpoint'ini kullanıyor
+  // Ama "/api/ai/yorum" DEĞİL, "/ai/yorum" kullanmalıyız
+  const API_BASE = "https://fiyattakip-api.onrender.com"; // /api OLMADAN!
+  
+  // Backend'in beklediği format (server.js'ye göre)
   const requestBody = {
     title: payload.title,
     price: payload.price,
-    site: payload.site,
-    instruction: "Bu ürünü fiyat performans, rakipler ve güncel piyasa açısından kısa ve net yorumla." // Daha iyi sonuç için
+    site: payload.site
+    // "instruction" EKLEMEYİN! Backend'de yok
   };
 
   try {
-    // 3. HANGİ ENDPOINT'I KULLANACAĞIMIZI KONTROL ET
-    // Seçenek 1: /ai/yorum (yeni)
-    // Seçenek 2: /ai-yorum (mevcut fonksiyonda kullanılan)
-    const endpoint = `${API_BASE}/ai/yorum`;
+    console.log("📡 İstek URL:", `${API_BASE}/ai/yorum`);
     
-    const response = await fetch(endpoint, {
+    const response = await fetch(`${API_BASE}/ai/yorum`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody)
     });
-
+    
+    console.log("📦 Status Code:", response.status, response.statusText);
+    
     if (!response.ok) {
-      // Endpoint yoksa, diğer endpoint'i dene
-      if (response.status === 404) {
-        const altEndpoint = `${API_BASE}/ai-yorum`;
-        const altResponse = await fetch(altEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody)
-        });
-        
-        if (altResponse.ok) {
-          const altData = await altResponse.json();
-          return altData?.yorum || altData?.aiYorum || altData?.text || "AI yorumu alınamadı.";
-        }
-      }
-      throw new Error(`API Hatası: ${response.status}`);
+      throw new Error(`API Hatası: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-    // 4. Backend'inizin döndüğü formatı kontrol edin
-    return data?.yorum || data?.aiYorum || data?.text || "AI yorumu alınamadı.";
+    console.log("✅ AI Yanıtı:", data);
+    
+    // Backend: { success: true, yorum: "..." } döndürüyor
+    return data?.yorum || "AI yorumu alınamadı.";
+    
   } catch (error) {
-    console.error("AI Yorum Hatası:", error);
-    return "AI servisi şu anda kullanılamıyor.";
+    console.error("❌ AI Yorum Hatası:", error);
+    return "AI servisi şu anda kullanılamıyor. Hata: " + error.message;
   }
 }
 // === FONKSİYON SONU ===
