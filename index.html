@@ -248,58 +248,44 @@
   </div>
 
   <!-- AI AYARLARI MODAL -->
-<div id="aiModal" class="modalWrap" aria-hidden="true">
-  <div class="modalBack" id="aiBackdrop"></div>
-  <div class="modalCard" role="dialog" aria-modal="true" aria-label="AI Ayarları">
-    <div class="modalTop">
-      <div class="modalTitle">AI Ayarları</div>
-      <button id="closeAi" class="iconBtn" type="button" aria-label="Kapat">✕</button>
-    </div>
-
-    <div class="modalBody">
-      <div class="row">
-        <label class="lbl">AI Durumu</label>
-        <select id="aiEnabled" class="input inputDark">
-          <option value="on">Açık</option>
-          <option value="off">Kapalı</option>
-        </select>
+  <div id="aiModal" class="modalWrap" aria-hidden="true">
+    <div class="modalBack" id="aiBackdrop"></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-label="AI Ayarları">
+      <div class="modalTop">
+        <div class="modalTitle">AI Ayarları</div>
+        <button id="closeAi" class="iconBtn" type="button" aria-label="Kapat">✕</button>
       </div>
 
-      <div class="row">
-        <label class="lbl">Sağlayıcı</label>
-        <select id="aiProvider" class="input inputDark">
-          <option value="gemini">Gemini</option>
-          <option value="openai">OpenAI</option>
-        </select>
-      </div>
+      <div class="modalBody">
+        <div class="row">
+          <label class="lbl">AI Durumu</label>
+          <select id="aiEnabled" class="input inputDark">
+            <option value="on">Açık</option>
+            <option value="off">Kapalı</option>
+          </select>
+        </div>
 
-      <div class="row">
-        <label class="lbl">API Key</label>
-        <input id="aiApiKey" class="input inputDark" type="password" 
-               placeholder="AIzaSyD... (Google AI Studio'dan al)" />
-      </div>
+        <div class="row">
+          <label class="lbl">Sağlayıcı</label>
+          <select id="aiProvider" class="input inputDark">
+            <option value="gemini">Gemini</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </div>
 
-      <!-- BURAYA EKLENDİ 👇 -->
-      <div class="mini muted" style="margin-top: -8px; margin-bottom: 12px;">
-        <a href="https://makersuite.google.com/app/apikey" target="_blank" style="color:#7c5cff;">
-          🔗 Ücretsiz API Key almak için tıkla (Google AI Studio)
-        </a>
-      </div>
+        <div class="row">
+          <label class="lbl">API Key</label>
+          <input id="aiApiKey" class="input inputDark" type="password" placeholder="anahtarınızı girin" />
+        </div>
 
-      <div class="row">
-        <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
-      </div>
+        <div class="row">
+          <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
+        </div>
 
-      <div class="mini muted">
-        1. Linke tıkla, Google AI Studio'dan ücretsiz key al<br>
-        2. "AIzaSyD..." ile başlayan key'i kopyala<br>
-        3. Yukarıdaki kutuya yapıştır, "Kaydet"e tıkla<br>
-        ✨ Artık AI yorumların gerçek Gemini'den gelecek!<br>
-        🆓 Herkes kendi ücretsiz kotasını kullanır
+        <div class="mini muted">Test butonu bir sonraki adımda eklenecek.</div>
       </div>
     </div>
   </div>
-</div>
 
   <!-- SCRIPTS -->
   <script type="module" src="app.js"></script>
