@@ -584,38 +584,49 @@ function renderFavoritesPage(uid){
     
     // AI yorum butonu
 // AI yorum butonu - KESİN ÇÖZÜM
-const aiBtn = card.querySelector('.btnAiComment');
-// ESKİ EVENT'I TEMİZLE
-aiBtn.replaceWith(aiBtn.cloneNode(true));
-
-// YENİ EVENT EKLE
-card.querySelector('.btnAiComment').addEventListener('click', function() {
-  const button = this;
+card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
+  const button = event.target;
   const originalText = button.textContent;
   
   button.disabled = true;
   button.textContent = 'Analiz...';
   
-  // HEMEN FEEDBACK VER
-  setTimeout(async () => {
-    try {
-      const aiYorum = await getAiYorum({
-        title: fav.query || '',
-        price: fav.fiyat || '',
-        site: fav.siteName || ''
-      });
-      
-      // BASİT ALERT İLE TEST
-      alert(`🤖 AI YORUMU:\n\n${aiYorum}`);
-      
-    } catch (error) {
-      alert('Hata: ' + error.message);
-    } finally {
-      button.disabled = false;
-      button.textContent = originalText;
-    }
-  }, 100);
-});
+  // Hemen feedback ver
+  toast("🤖 AI analiz yapıyor...", "info");
+  
+  try {
+    const aiYorum = await getAiYorumSafe({
+      title: fav.query || fav.urun || "",
+      price: fav.fiyat || "Fiyat bilgisi yok",
+      site: fav.siteName || "Bilinmeyen site"
+    });
+    
+    console.log("💬 AI Yorumu hazır:", aiYorum);
+    
+    // ============ MODAL AÇ ============
+    const modal = document.createElement('div');
+    modal.className = 'aiModal';
+    modal.innerHTML = `
+      <div class="aiModalContent">
+        <div class="aiModalHeader">
+          <h3>🤖 AI Analizi</h3>
+          <button class="closeAiModal">✕</button>
+        </div>
+        <div class="aiModalBody">
+          <div class="aiProduct">
+            <strong>${fav.query || fav.urun || ""}</strong>
+            <small>${fav.siteName || "Bilinmeyen site"}</small>
+            ${fav.fiyat ? `<div class="favPrice" style="margin-top:8px;color:#36d399;">${fav.fiyat}</div>` : ''}
+          </div>
+          <div class="aiComment">
+            ${aiYorum.replace(/\n/g, '<br>')}
+          </div>
+        </div>
+        <div class="aiModalFooter">
+          <button class="btnPrimary closeModalBtn">Tamam</button>
+        </div>
+      </div>
+    `;
     
     // Sayfaya ekle
     document.body.appendChild(modal);
@@ -1214,26 +1225,6 @@ window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
-// ========== YENİ AI YORUM FONKSİYONU ==========
-async function getAiYorum(payload) {
-  try {
-    const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: payload.title,
-        price: payload.price,
-        site: payload.site
-      })
-    });
-    
-    const data = await response.json();
-    return data.yorum || 'Yorum alınamadı.';
-    
-  } catch (error) {
-    return 'AI servisi şu anda kullanılamıyor.';
-  }
-}
 // === MEVCUT KODA DOKUNMAYIN ===
 // Bu fonksiyonu app.js dosyasının EN SONUNA ekleyin.
 // AI'yı UI'dan tamamen izole eden güvenli adaptör fonksiyonu
@@ -1280,5 +1271,3 @@ async function getAiYorumSafe(payload) {
   }
 }
 // === FONKSİYON SONU ===
-
-
