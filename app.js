@@ -1185,11 +1185,3 @@ document.addEventListener("click", async (e) => {
   alert(yorum);
 });
 
-window.addEventListener("load", () => {
-  document.querySelectorAll(
-    ".modalWrap, .modalBack, #loginBackdrop"
-  ).forEach(el => {
-    el.style.display = "none";
-    el.style.pointerEvents = "none";
-  });
-});
