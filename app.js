@@ -1,90 +1,119 @@
+/* =====================================================
+   FiyatTakip – STABLE APP.JS
+   AI Yorum EKLENDİ – UI BOZULMAZ
+   ===================================================== */
+
 document.addEventListener("DOMContentLoaded", () => {
 
-/* ================================
-   FiyatTakip – STABLE app.js
-   AI MOD EKLENDİ (minimum risk)
-================================ */
+  /* =====================
+     GENEL YARDIMCILAR
+  ===================== */
 
-// -----------------------------
-// Yardımcılar
-// -----------------------------
-function $(id) {
-  return document.getElementById(id);
-}
+  const $ = (q) => document.querySelector(q);
+  const $$ = (q) => document.querySelectorAll(q);
 
-function toast(msg) {
-  console.log("[Toast]", msg);
-  alert(msg);
-}
-
-// Global seçili ürün (AI için)
-window.lastSelectedItem = null;
-
-// -----------------------------
-// AI SERVİSİ
-// -----------------------------
-async function getAIComment(item) {
-  try {
-    const res = await fetch("https://fiyattakip-api.onrender.com/ai/yorum", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: item.title || "Ürün",
-        price: item.price || "",
-        site: item.site || ""
-      })
-    });
-
-    if (!res.ok) throw new Error("AI servis hatası");
-
-    const data = await res.json();
-    return data.yorum || "AI yorum üretmedi.";
-  } catch (e) {
-    console.error(e);
-    return "AI servisi şu anda kullanılamıyor.";
-  }
-}
-
-// -----------------------------
-// 🤖 AI MODE BUTONU
-// HTML:
-// <button class="modeBtn" id="modeAI">🤖 AI</button>
-// -----------------------------
-const aiModeBtn = $("modeAI");
-
-if (aiModeBtn) {
-  aiModeBtn.addEventListener("click", async () => {
-    toast("AI yorumu hazırlanıyor...");
-
-    const item =
-      window.lastSelectedItem || {
-        title: "Genel ürün",
-        price: "",
-        site: ""
-      };
-
-    const yorum = await getAIComment(item);
-    alert(yorum);
-  });
-}
-
-// -----------------------------
-// ÜRÜN TIKLAMASI (ÖRNEK)
-// Bunu ürün kartı oluştururken çağır
-// -----------------------------
-window.setSelectedItemForAI = function (item) {
-  window.lastSelectedItem = {
-    title: item.title || "",
-    price: item.price || "",
-    site: item.site || ""
+  window.toast = function (msg) {
+    console.log("[Toast]", msg);
   };
-};
 
-// -----------------------------
-// DİKKAT
-// Mevcut kodların (kamera, grafik,
-// favori, navigation vs) ALTINA
-// EKLENMİŞTİR – SİLME!
-// -----------------------------
+  /* =====================
+     SAYFA / SEKME GEÇİŞİ
+  ===================== */
+
+  function showPage(pageId) {
+    $$(".page").forEach(p => p.classList.add("hidden"));
+    const page = $("#page-" + pageId);
+    if (page) page.classList.remove("hidden");
+  }
+
+  $$(".modeBtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.id.replace("mode", "").toLowerCase();
+      showPage(id);
+    });
+  });
+
+  showPage("link"); // default
+
+  /* =====================
+     AI YORUM FONKSİYONU
+  ===================== */
+
+  async function getAIComment(item) {
+    try {
+      const res = await fetch(
+        "https://fiyattakip-api.onrender.com/ai/yorum",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: item.title || "Ürün",
+            price: item.price || "",
+            site: item.site || ""
+          })
+        }
+      );
+
+      if (!res.ok) throw new Error("AI servis hatası");
+
+      const data = await res.json();
+      return data.yorum || "AI yorum üretmedi.";
+    } catch (e) {
+      console.error(e);
+      return "AI yorumu şu an alınamıyor.";
+    }
+  }
+
+  /* =====================
+     AI BUTON BAĞLAMA
+  ===================== */
+
+  function bindAIButtons() {
+    $$(".btnAI").forEach(btn => {
+      if (btn.dataset.bound === "1") return;
+      btn.dataset.bound = "1";
+
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        toast("🤖 AI yorumu hazırlanıyor...");
+
+        const item = {
+          title: btn.dataset.title || "",
+          price: btn.dataset.price || "",
+          site: btn.dataset.site || ""
+        };
+
+        const yorum = await getAIComment(item);
+        alert(yorum);
+      });
+    });
+  }
+
+  /* =====================
+     ÖRNEK ÜRÜN LİSTESİ
+     (SENİN MEVCUT LİSTENİ
+      BOZMAZ)
+  ===================== */
+
+  function renderDemoItems() {
+    const container = $("#demoList");
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="item">
+        <b>Xiaomi Pad 7 256GB</b>
+        <button class="btnAI"
+          data-title="Xiaomi Pad 7 256GB"
+          data-price="—"
+          data-site="Genel">
+          🤖 AI Yorum
+        </button>
+      </div>
+    `;
+
+    bindAIButtons();
+  }
+
+  renderDemoItems();
 
 });
