@@ -585,14 +585,14 @@ function renderFavoritesPage(uid){
     // AI yorum butonu
 // AI yorum butonu - KESİN ÇÖZÜM
 card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
-  // event.preventDefault(); // Gerekirse
   const button = event.target;
   const originalText = button.textContent;
   
-  console.log("🖱️ AI Butonuna tıklandı:", fav);
-  
   button.disabled = true;
   button.textContent = 'Analiz...';
+  
+  // Hemen feedback ver
+  toast("🤖 AI analiz yapıyor...", "info");
   
   try {
     const aiYorum = await getAiYorumSafe({
@@ -603,15 +603,75 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
     
     console.log("💬 AI Yorumu hazır:", aiYorum);
     
-    // 1. ALERT ile göster (en basit)
-    alert(`🤖 AI Yorumu:\n\n${aiYorum}`);
+    // ============ MODAL AÇ ============
+    const modal = document.createElement('div');
+    modal.className = 'aiModal';
+    modal.innerHTML = `
+      <div class="aiModalContent">
+        <div class="aiModalHeader">
+          <h3>🤖 AI Analizi</h3>
+          <button class="closeAiModal">✕</button>
+        </div>
+        <div class="aiModalBody">
+          <div class="aiProduct">
+            <strong>${fav.query || fav.urun || ""}</strong>
+            <small>${fav.siteName || "Bilinmeyen site"}</small>
+            ${fav.fiyat ? `<div class="favPrice" style="margin-top:8px;color:#36d399;">${fav.fiyat}</div>` : ''}
+          </div>
+          <div class="aiComment">
+            ${aiYorum.replace(/\n/g, '<br>')}
+          </div>
+        </div>
+        <div class="aiModalFooter">
+          <button class="btnPrimary closeModalBtn">Tamam</button>
+        </div>
+      </div>
+    `;
     
-    // VEYA 2. Uygulamanın toast fonksiyonu ile
-    // toast(aiYorum.substring(0, 100) + "...", "success");
+    // Sayfaya ekle
+    document.body.appendChild(modal);
+    
+    // Kapatma işlevleri
+    const closeModal = () => modal.remove();
+    
+    modal.querySelector('.closeAiModal').onclick = closeModal;
+    modal.querySelector('.closeModalBtn').onclick = closeModal;
+    modal.onclick = (e) => {
+      if (e.target === modal) closeModal();
+    };
     
   } catch (error) {
     console.error("AI yorum hatası:", error);
-    alert("AI yorumu alınamadı: " + error.message);
+    
+    // Hata durumunda da modal göster (hata mesajı ile)
+    const errorModal = document.createElement('div');
+    errorModal.className = 'aiModal';
+    errorModal.innerHTML = `
+      <div class="aiModalContent">
+        <div class="aiModalHeader">
+          <h3>❌ AI Hatası</h3>
+          <button class="closeAiModal">✕</button>
+        </div>
+        <div class="aiModalBody">
+          <div class="aiComment" style="background:rgba(255,71,87,0.1);border-color:rgba(255,71,87,0.3);">
+            AI yorumu alınamadı.<br>
+            Lütfen daha sonra tekrar deneyin.
+          </div>
+        </div>
+        <div class="aiModalFooter">
+          <button class="btnPrimary closeModalBtn">Tamam</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(errorModal);
+    
+    errorModal.querySelector('.closeAiModal').onclick = () => errorModal.remove();
+    errorModal.querySelector('.closeModalBtn').onclick = () => errorModal.remove();
+    errorModal.onclick = (e) => {
+      if (e.target === errorModal) errorModal.remove();
+    };
+    
   } finally {
     button.disabled = false;
     button.textContent = originalText;
