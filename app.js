@@ -583,9 +583,29 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-    card.querySelector('.btnAiComment').addEventListener('click', () => {
-      getAiCommentForFavorite(fav);
+card.querySelector('.btnAiComment').addEventListener('click', async () => {
+  const button = card.querySelector('.btnAiComment');
+  const originalText = button.textContent;
+  
+  button.disabled = true;
+  button.textContent = 'Analiz...';
+  
+  try {
+    const aiYorum = await getAiYorumSafe({
+      title: fav.query || fav.urun || "",
+      price: fav.fiyat || "Fiyat bilgisi yok",
+      site: fav.siteName || "Bilinmeyen site"
     });
+    
+    alert(`🤖 AI Yorumu:\n\n${aiYorum}`);
+  } catch (error) {
+    console.error("AI yorum hatası:", error);
+    alert("AI yorumu alınamadı.");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+});
     
     // Favori çıkar butonu
     card.querySelector('.btnFav').addEventListener('click', async () => {
