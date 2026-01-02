@@ -1088,8 +1088,3 @@ body{
 .hidden {
   display: none !important;
 }
-.modalWrap,
-.modalBack,
-#loginBackdrop {
-  pointer-events: none !important;
-}
