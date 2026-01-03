@@ -583,7 +583,7 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-// AI butonu - EN BASİT
+// AI yorum butonu - DÜZELTİLMİŞ
 card.querySelector('.btnAiComment').addEventListener('click', function() {
   const button = this;
   const originalText = button.textContent;
@@ -601,30 +601,13 @@ card.querySelector('.btnAiComment').addEventListener('click', function() {
   }, 2000);
 });
     
-    // 3. KAPATMA FONKSİYONLARI
-    modal.querySelector('.closeAiModal').onclick = () => modal.remove();
-    modal.onclick = (e) => {
-      if (e.target === modal) modal.remove();
-    };
-    
-  } catch (error) {
-    // 4. HATA DURUMU
-    alert('🤖 AI yorumu alınamadı\n\nLütfen:\n1. İnternet bağlantını kontrol et\n2. Daha sonra tekrar dene');
-    
-  } finally {
-    // 5. HER DURUMDA BUTONU ESKİ HALİNE GETİR
-    button.disabled = false;
-    button.textContent = originalText;
-  }
+// Favori çıkar butonu
+card.querySelector('.btnFav').addEventListener('click', async () => {
+  await toggleFavorite(uid, { url: fav.url, siteKey: fav.siteKey, siteName: fav.siteName, query: fav.query });
+  renderFavoritesPage(uid);
 });
-    
-    // Favori çıkar butonu
-    card.querySelector('.btnFav').addEventListener('click', async () => {
-      await toggleFavorite(uid, { url: fav.url, siteKey: fav.siteKey, siteName: fav.siteName, query: fav.query });
-      renderFavoritesPage(uid);
-    });
-    
-    list.appendChild(card);
+
+list.appendChild(card);
   }
   
   // Alt sayfalama
