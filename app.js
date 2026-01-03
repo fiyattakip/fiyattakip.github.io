@@ -1194,9 +1194,43 @@ window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
 // === MEVCUT KODA DOKUNMAYIN ===
-// ========== AI YORUM FONKSİYONU ==========
+// ========== API KEY SİSTEMİ ==========
+
+// 1. Key'i kaydet (Ayarlar sayfasında çağrılacak)
+function saveApiKey() {
+  const key = prompt("Google AI Studio'dan aldığınız API key'i yapıştırın:");
+  if (key && key.trim()) {
+    localStorage.setItem('geminiApiKey', key.trim());
+    alert('✅ API key kaydedildi!');
+  }
+}
+
+// 2. Key'i göster (Ayarlar sayfasında çağrılacak)
+function showApiKey() {
+  const key = localStorage.getItem('geminiApiKey');
+  if (!key) {
+    alert('Henüz API key kaydedilmemiş.');
+    return;
+  }
+  // Sadece ilk 6 ve son 4 karakteri göster
+  const masked = key.substring(0, 6) + '...' + key.substring(key.length - 4);
+  alert(`Kayıtlı API key: ${masked}\n\nKey'in tamamı localStorage'da saklanıyor.`);
+}
+
+// 3. Key'i temizle
+function clearApiKey() {
+  if (confirm('API key silinsin mi?')) {
+    localStorage.removeItem('geminiApiKey');
+    alert('Key silindi.');
+  }
+}
+
+// 4. Güncellenmiş AI fonksiyonu (ESKİ getAiYorum'u sil, bunu ekle)
 async function getAiYorum(payload) {
   console.log("🤖 AI isteniyor:", payload);
+  
+  // Kullanıcının key'ini al
+  const userApiKey = localStorage.getItem('geminiApiKey') || '';
   
   try {
     const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
@@ -1205,12 +1239,19 @@ async function getAiYorum(payload) {
       body: JSON.stringify({
         title: payload.title,
         price: payload.price,
-        site: payload.site
+        site: payload.site,
+        apiKey: userApiKey  // 🔑 Key'i backend'e gönder
       })
     });
     
     const data = await response.json();
     console.log("✅ Backend yanıtı:", data);
+    
+    // Eğer kullanıcı key'i kullanıldıysa bilgi ekle
+    if (data.keyUsed) {
+      return data.yorum + '\n\n🔑 (Kendi API key\'iniz kullanıldı)';
+    }
+    
     return data.yorum || 'Yorum alınamadı.';
     
   } catch (error) {
@@ -1218,4 +1259,4 @@ async function getAiYorum(payload) {
     return 'AI servisi şu anda kullanılamıyor.';
   }
 }
-// ========== FONKSİYON SONU ==========
+// ========== SİSTEM SONU ==========
