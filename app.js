@@ -583,31 +583,29 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-// AI yorum butonu - DÜZELTİLMİŞ
-card.querySelector('.btnAiComment').addEventListener('click', function() {
-  const button = this;
-  const originalText = button.textContent;
-  
-  button.disabled = true;
-  button.textContent = 'Analiz...';
-  
-  // HEMEN ALERT İLE TEST
-  alert(`🤖 TEST: ${fav.query}\n\nBackend çalışıyor!`);
-  
-  // 2 saniye sonra eski haline dön
-  setTimeout(() => {
-    button.disabled = false;
-    button.textContent = originalText;
-  }, 2000);
-});
+ // AI YORUM BUTONU - BASİT VE ÇALIŞAN
+    card.querySelector('.btnAiComment').addEventListener('click', function() {
+      const button = this;
+      const originalText = button.textContent;
+      
+      button.disabled = true;
+      button.textContent = 'Analiz...';
+      
+      alert(`🤖 AI TEST\nÜrün: ${fav.query}\nSite: ${fav.siteName}`);
+      
+      setTimeout(() => {
+        button.disabled = false;
+        button.textContent = originalText;
+      }, 2000);
+    });
     
-// Favori çıkar butonu
-card.querySelector('.btnFav').addEventListener('click', async () => {
-  await toggleFavorite(uid, { url: fav.url, siteKey: fav.siteKey, siteName: fav.siteName, query: fav.query });
-  renderFavoritesPage(uid);
-});
-
-list.appendChild(card);
+    // Favori çıkar butonu
+    card.querySelector('.btnFav').addEventListener('click', async () => {
+      await toggleFavorite(uid, { url: fav.url, siteKey: fav.siteKey, siteName: fav.siteName, query: fav.query });
+      renderFavoritesPage(uid);
+    });
+    
+    list.appendChild(card);
   }
   
   // Alt sayfalama
