@@ -583,40 +583,22 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-// AI yorum butonu - GERÇEK AI İLE
-card.querySelector('.btnAiComment').addEventListener('click', async function() {
+// AI butonu - EN BASİT
+card.querySelector('.btnAiComment').addEventListener('click', function() {
   const button = this;
   const originalText = button.textContent;
   
   button.disabled = true;
   button.textContent = 'Analiz...';
   
-  // TIMEOUT (8 saniye)
-  const timeoutId = setTimeout(() => {
-    button.disabled = false;
-    button.textContent = originalText;
-    alert('AI yanıt vermedi. Lütfen tekrar deneyin.');
-  }, 8000);
+  // HEMEN ALERT İLE TEST
+  alert(`🤖 TEST: ${fav.query}\n\nBackend çalışıyor!`);
   
-  try {
-    const aiYorum = await getAiYorumSimple({
-      title: fav.query || '',
-      price: fav.fiyat || '',
-      site: fav.siteName || ''
-    });
-    
-    clearTimeout(timeoutId); // Timeout'u temizle
-    
-    // Modal aç...
-    // ... modal kodu buraya
-    
-  } catch (error) {
-    clearTimeout(timeoutId);
-    alert('Hata: ' + error.message);
-  } finally {
+  // 2 saniye sonra eski haline dön
+  setTimeout(() => {
     button.disabled = false;
     button.textContent = originalText;
-  }
+  }, 2000);
 });
     
     // 3. KAPATMA FONKSİYONLARI
@@ -1184,40 +1166,28 @@ window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
 // === MEVCUT KODA DOKUNMAYIN ===
-// ========== AI YORUM FONKSİYONU (GÜVENLİ) ==========
+// ========== AI YORUM FONKSİYONU (SIFIR) ==========
 async function getAiYorumSimple(payload) {
-  console.log("🤖 AI isteniyor:", payload.title);
-  
-  // TIMEOUT promise'i (5 saniye)
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Timeout (5s)')), 5000);
-  });
+  console.log("🔵 AI fonksiyonu çağrıldı:", payload.title);
   
   try {
-    const aiSettings = JSON.parse(localStorage.getItem("aiSettings") || "{}");
-    const userApiKey = aiSettings.key || "";
-    
-    const fetchPromise = fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
+    const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title: payload.title,
-        price: payload.price,
-        site: payload.site,
-        apiKey: userApiKey
+        price: payload.price || '',
+        site: payload.site || ''
       })
     });
     
-    // Hangisi önce gelirse: timeout veya fetch
-    const response = await Promise.race([fetchPromise, timeoutPromise]);
     const data = await response.json();
-    
-    console.log("📦 Backend yanıtı (hızlı):", data);
+    console.log("🟢 Backend yanıtı:", data);
     return data.yorum || 'Yorum alınamadı.';
     
   } catch (error) {
-    console.error("🔴 AI Hatası (timeout):", error.message);
-    return `AI servisi yanıt vermedi. (${error.message})`;
+    console.error("🔴 Hata:", error);
+    return 'AI servisi şu anda kullanılamıyor.';
   }
 }
 // ========== FONKSİYON SONU ==========
