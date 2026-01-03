@@ -1194,43 +1194,227 @@ window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
 // === MEVCUT KODA DOKUNMAYIN ===
-// ========== API KEY SİSTEMİ ==========
+// ========== AI API KEY SİSTEMİ ==========
 
-// 1. Key'i kaydet (Ayarlar sayfasında çağrılacak)
-function saveApiKey() {
-  const key = prompt("Google AI Studio'dan aldığınız API key'i yapıştırın:");
-  if (key && key.trim()) {
-    localStorage.setItem('geminiApiKey', key.trim());
-    alert('✅ API key kaydedildi!');
+// 1. AI Ayarlarını Kaydet
+function saveAiSettings() {
+  const apiKey = document.getElementById('aiApiKey').value.trim();
+  const provider = document.getElementById('aiProvider').value;
+  const enabled = document.getElementById('aiEnabled').value;
+  
+  if (apiKey && !apiKey.startsWith('AIzaSy')) {
+    const confirmSave = confirm(
+      'Bu bir Gemini API key gibi görünmüyor.\n\nGoogle AI Studio\'dan aldığınız API key "AIzaSy..." şeklinde başlar.\n\nYine de kaydetmek istiyor musunuz?'
+    );
+    if (!confirmSave) return;
   }
+  
+  // Ayarları kaydet
+  localStorage.setItem('aiSettings', JSON.stringify({
+    apiKey: apiKey,
+    provider: provider,
+    enabled: enabled === 'on',
+    lastUpdated: new Date().toISOString()
+  }));
+  
+  // Key durumunu güncelle
+  updateAiKeyStatus();
+  
+  // Toast mesajı göster (mevcut toast sistemini kullan)
+  showToast('✅ AI ayarları kaydedildi!');
+  
+  // Modal'ı kapat
+  document.getElementById('aiModal').classList.remove('active');
 }
 
-// 2. Key'i göster (Ayarlar sayfasında çağrılacak)
-function showApiKey() {
-  const key = localStorage.getItem('geminiApiKey');
-  if (!key) {
-    alert('Henüz API key kaydedilmemiş.');
+// 2. AI Key'i Test Et
+async function testAiKey() {
+  const apiKey = document.getElementById('aiApiKey').value.trim();
+  
+  if (!apiKey) {
+    showToast('⚠️ Lütfen önce API key girin');
     return;
   }
-  // Sadece ilk 6 ve son 4 karakteri göster
-  const masked = key.substring(0, 6) + '...' + key.substring(key.length - 4);
-  alert(`Kayıtlı API key: ${masked}\n\nKey'in tamamı localStorage'da saklanıyor.`);
-}
-
-// 3. Key'i temizle
-function clearApiKey() {
-  if (confirm('API key silinsin mi?')) {
-    localStorage.removeItem('geminiApiKey');
-    alert('Key silindi.');
+  
+  const statusDiv = document.getElementById('aiKeyStatus');
+  statusDiv.innerHTML = `
+    <div style="color:#92400e; font-size:14px;">
+      🔄 API key test ediliyor...
+    </div>
+  `;
+  statusDiv.style.display = 'block';
+  statusDiv.style.background = '#fef3c7';
+  statusDiv.style.border = '1px solid #f59e0b';
+  
+  try {
+    // Backend üzerinden test et
+    const response = await fetch('https://fiyattakip-api.onrender.com/ai/test-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      statusDiv.innerHTML = `
+        <div style="color:#065f46; font-size:14px;">
+          ✅ API Key ÇALIŞIYOR!
+          <div style="margin-top:5px; font-size:13px;">
+            Model: ${data.model || 'Gemini'} | 
+            Kota: ${data.rateLimit || 'Bilinmiyor'}
+          </div>
+        </div>
+      `;
+      statusDiv.style.background = '#d1fae5';
+      statusDiv.style.border = '1px solid #10b981';
+      
+      showToast('✅ API key başarıyla test edildi!');
+    } else {
+      throw new Error(data.error || 'Key test edilemedi');
+    }
+    
+  } catch (error) {
+    statusDiv.innerHTML = `
+      <div style="color:#7f1d1d; font-size:14px;">
+        ❌ API Key HATALI
+        <div style="margin-top:5px; font-size:13px;">
+          Hata: ${error.message || 'Bağlantı hatası'}
+        </div>
+      </div>
+    `;
+    statusDiv.style.background = '#fee2e2';
+    statusDiv.style.border = '1px solid #ef4444';
+    
+    showToast('❌ API key testi başarısız');
   }
 }
 
-// 4. Güncellenmiş AI fonksiyonu (ESKİ getAiYorum'u sil, bunu ekle)
+// 3. AI Key'i Temizle
+function clearAiKey() {
+  if (confirm('API key silinecek. Emin misiniz?')) {
+    document.getElementById('aiApiKey').value = '';
+    localStorage.removeItem('aiSettings');
+    
+    const statusDiv = document.getElementById('aiKeyStatus');
+    statusDiv.style.display = 'none';
+    
+    showToast('🗑️ API key temizlendi');
+  }
+}
+
+// 4. Key Durumunu Güncelle
+function updateAiKeyStatus() {
+  const statusDiv = document.getElementById('aiKeyStatus');
+  const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+  
+  if (!settings.apiKey) {
+    statusDiv.style.display = 'none';
+    return;
+  }
+  
+  // Key'i maskele (güvenlik için)
+  const maskedKey = settings.apiKey.substring(0, 6) + '...' + 
+                   settings.apiKey.substring(settings.apiKey.length - 4);
+  
+  statusDiv.innerHTML = `
+    <div style="font-size:14px;">
+      <div style="color:#065f46; font-weight:bold; margin-bottom:5px;">
+        ✅ Kayıtlı API Key
+      </div>
+      <div style="font-family:monospace; font-size:13px; color:#666; margin-bottom:5px;">
+        ${maskedKey}
+      </div>
+      <div style="font-size:12px; color:#6b7280;">
+        Sağlayıcı: ${settings.provider || 'gemini'} | 
+        Durum: ${settings.enabled ? 'Açık' : 'Kapalı'}
+      </div>
+    </div>
+  `;
+  statusDiv.style.display = 'block';
+  statusDiv.style.background = '#d1fae5';
+  statusDiv.style.border = '1px solid #10b981';
+}
+
+// 5. AI Modal Açıldığında Key Durumunu Göster
+function initAiModal() {
+  const aiModal = document.getElementById('aiModal');
+  if (!aiModal) return;
+  
+  // Modal açıldığında kayıtlı ayarları yükle
+  const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+  
+  if (settings.apiKey) {
+    document.getElementById('aiApiKey').value = settings.apiKey;
+  }
+  if (settings.provider) {
+    document.getElementById('aiProvider').value = settings.provider;
+  }
+  if (settings.enabled !== undefined) {
+    document.getElementById('aiEnabled').value = settings.enabled ? 'on' : 'off';
+  }
+  
+  // Key durumunu göster
+  updateAiKeyStatus();
+}
+
+// ========== BUTONLARI BAĞLA ==========
+
+// AI Ayarları butonuna tıklanınca
+document.addEventListener('DOMContentLoaded', function() {
+  // AI ayarları butonu
+  const aiSettingsBtn = document.getElementById('btnAiSettings');
+  if (aiSettingsBtn) {
+    aiSettingsBtn.addEventListener('click', function() {
+      // Modal'ı aç
+      document.getElementById('aiModal').classList.add('active');
+      // Ayarları yükle
+      initAiModal();
+    });
+  }
+  
+  // AI modal içindeki butonlar
+  const saveAiBtn = document.getElementById('btnSaveAI');
+  if (saveAiBtn) {
+    saveAiBtn.addEventListener('click', saveAiSettings);
+  }
+  
+  const testAiBtn = document.getElementById('btnTestAI');
+  if (testAiBtn) {
+    testAiBtn.addEventListener('click', testAiKey);
+  }
+  
+  const clearAiBtn = document.getElementById('btnClearAI');
+  if (clearAiBtn) {
+    clearAiBtn.addEventListener('click', clearAiKey);
+  }
+  
+  // AI modal kapatma
+  const closeAiBtn = document.getElementById('closeAi');
+  const aiBackdrop = document.getElementById('aiBackdrop');
+  if (closeAiBtn) {
+    closeAiBtn.addEventListener('click', function() {
+      document.getElementById('aiModal').classList.remove('active');
+    });
+  }
+  if (aiBackdrop) {
+    aiBackdrop.addEventListener('click', function() {
+      document.getElementById('aiModal').classList.remove('active');
+    });
+  }
+});
+
+// ========== GÜNCELLENMİŞ getAiYorum FONKSİYONU ==========
 async function getAiYorum(payload) {
   console.log("🤖 AI isteniyor:", payload);
   
-  // Kullanıcının key'ini al
-  const userApiKey = localStorage.getItem('geminiApiKey') || '';
+  // AI ayarlarını kontrol et
+  const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+  
+  // AI kapalıysa
+  if (aiSettings.enabled === false) {
+    return 'AI özelliği kapalı. Ayarlardan açabilirsiniz.';
+  }
   
   try {
     const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
@@ -1240,7 +1424,7 @@ async function getAiYorum(payload) {
         title: payload.title,
         price: payload.price,
         site: payload.site,
-        apiKey: userApiKey  // 🔑 Key'i backend'e gönder
+        apiKey: aiSettings.apiKey || ''  // 🔑 Kullanıcının key'ini gönder
       })
     });
     
@@ -1248,7 +1432,7 @@ async function getAiYorum(payload) {
     console.log("✅ Backend yanıtı:", data);
     
     // Eğer kullanıcı key'i kullanıldıysa bilgi ekle
-    if (data.keyUsed) {
+    if (data.keyUsed && data.source === 'gemini_user_key') {
       return data.yorum + '\n\n🔑 (Kendi API key\'iniz kullanıldı)';
     }
     
