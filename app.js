@@ -1231,6 +1231,7 @@ function wireUI(){
 
 // ========== AUTH DURUMU ==========
 function setAuthedUI(isAuthed){
+  console.log('Auth durumu:', isAuthed ? 'Giriş yapıldı' : 'Çıkış yapıldı');
   if (!isAuthed) {
     openLogin();
   } else {
@@ -1244,35 +1245,51 @@ window.addEventListener("DOMContentLoaded", () => {
   renderRecentSearches();
   addCameraButton();
   
-  // AI butonlarını bağla
-  const testAiBtn = document.getElementById('btnTestAI');
-  if (testAiBtn) {
-    testAiBtn.addEventListener('click', testAiKey);
-  }
+  // DEBUG: Firebase durumu
+  console.log('Firebase auth:', auth ? 'Çalışıyor' : 'HATA');
   
-  const clearAiBtn = document.getElementById('btnClearAI');
-  if (clearAiBtn) {
-    clearAiBtn.addEventListener('click', clearAiKey);
-  }
-  
-  if (firebaseConfigLooksInvalid()){
+  if (firebaseConfigLooksInvalid && firebaseConfigLooksInvalid()){
     toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.", "error");
+    console.error('Firebase config hatası!');
   }
 
+  // Auth state listener
   onAuthStateChanged(auth, async (user) => {
+    console.log('Auth state changed:', user ? user.email : 'No user');
     window.currentUser = user || null;
+    
+    // UI güncelle
     setAuthedUI(!!user);
+    
     if (user){
       try{
+        console.log('Favoriler yükleniyor...');
         await loadFavorites(user.uid);
         renderFavoritesPage(user.uid);
         applyFavUI();
-      }catch(e){ console.error(e); }
+        toast(`✅ Hoş geldin ${user.email || 'Kullanıcı'}`, 'success');
+      }catch(e){ 
+        console.error("Favori yükleme hatası:", e);
+        toast("Favoriler yüklenemedi", "error");
+      }
+    } else {
+      // Kullanıcı çıkış yaptı
+      favCache = [];
+      renderFavoritesPage(null);
     }
   });
   
-  // API durumunu göster
-  checkAPIStatus();
+  // Backend durumunu göster (EĞER checkBackendStatus FONKSİYONU VARSA)
+  if (typeof checkBackendStatus === 'function') {
+    checkBackendStatus().then(status => {
+      console.log('Backend durumu:', status);
+    });
+  }
+  
+  // API durumunu göster (ESKİ FONKSİYON)
+  if (typeof checkAPIStatus === 'function') {
+    checkAPIStatus();
+  }
 });
 
 // ========== GLOBAL FONKSIYONLAR ==========
@@ -1292,7 +1309,6 @@ window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 
 // ========== BACKEND KONTROL FONKSİYONLARI ==========
-
 // Backend durumunu kontrol et
 async function checkBackendStatus() {
   try {
