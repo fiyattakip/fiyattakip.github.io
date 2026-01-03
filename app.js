@@ -583,7 +583,7 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-// AI yorum butonu - GERÇEK AI
+// AI yorum butonu - GERÇEK AI İLE
 card.querySelector('.btnAiComment').addEventListener('click', async function() {
   const button = this;
   const originalText = button.textContent;
@@ -592,14 +592,14 @@ card.querySelector('.btnAiComment').addEventListener('click', async function() {
   button.textContent = 'Analiz...';
   
   try {
-    // GERÇEK AI YORUMU AL
+    // 1. BACKEND'DEN GERÇEK YORUM AL
     const aiYorum = await getAiYorumSimple({
       title: fav.query || '',
       price: fav.fiyat || '',
       site: fav.siteName || ''
     });
     
-    // MODAL AÇ
+    // 2. MODAL AÇ
     const modal = document.createElement('div');
     modal.className = 'aiModal';
     modal.innerHTML = `
@@ -612,7 +612,7 @@ card.querySelector('.btnAiComment').addEventListener('click', async function() {
           <div class="aiProduct">
             <strong>${fav.query || ''}</strong>
             <small>${fav.siteName || ''}</small>
-            ${fav.fiyat ? `<div style="color:#36d399;">${fav.fiyat}</div>` : ''}
+            ${fav.fiyat ? `<div style="color:#36d399;margin-top:4px;">${fav.fiyat}</div>` : ''}
           </div>
           <div class="aiComment">
             ${aiYorum.replace(/\n/g, '<br>')}
@@ -625,12 +625,19 @@ card.querySelector('.btnAiComment').addEventListener('click', async function() {
     `;
     
     document.body.appendChild(modal);
+    
+    // 3. KAPATMA FONKSİYONLARI
     modal.querySelector('.closeAiModal').onclick = () => modal.remove();
-    modal.onclick = (e) => e.target === modal && modal.remove();
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.remove();
+    };
     
   } catch (error) {
-    alert('AI yorumu alınamadı.');
+    // 4. HATA DURUMU
+    alert('🤖 AI yorumu alınamadı\n\nLütfen:\n1. İnternet bağlantını kontrol et\n2. Daha sonra tekrar dene');
+    
   } finally {
+    // 5. HER DURUMDA BUTONU ESKİ HALİNE GETİR
     button.disabled = false;
     button.textContent = originalText;
   }
