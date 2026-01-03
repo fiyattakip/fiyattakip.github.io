@@ -1194,22 +1194,30 @@ window.getAiCommentForFavorite = getAiCommentForFavorite;
 // ========== AI YORUM FONKSİYONU (GÜVENLİ) ==========
 async function getAiYorumSimple(payload) {
   try {
-    // BACKEND TEST URL
+    // KULLANICI KEY'INI AL
+    const aiSettings = JSON.parse(localStorage.getItem("aiSettings") || "{}");
+    const userApiKey = aiSettings.key || ""; // Kullanıcının girdiği key
+    
     const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title: payload.title,
         price: payload.price,
-        site: payload.site
+        site: payload.site,
+        apiKey: userApiKey 
       })
     });
     
     const data = await response.json();
+    
+    if (!data.success) {
+      return `❌ ${data.yorum || "API key hatası"}`;
+    }
+    
     return data.yorum || 'Yorum alınamadı.';
     
   } catch (error) {
-    console.log('AI hatası:', error);
     return 'AI servisi şu anda kullanılamıyor.';
   }
 }
