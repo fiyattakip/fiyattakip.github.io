@@ -978,105 +978,170 @@ function saveAISettings(){
 }
 
 async function testAiKey() {
+async function testAiKey() {
   const apiKey = $("aiApiKey")?.value || '';
+  const statusDiv = document.getElementById('aiKeyStatus');
+  
+  console.log('🔑 API Key test ediliyor, key uzunluğu:', apiKey.length);
   
   if (!apiKey) {
     toast('⚠️ Lütfen önce API key girin', 'error');
     return;
   }
   
-  const statusDiv = document.getElementById('aiKeyStatus');
+  // Key format kontrolü
+  if (!apiKey.startsWith('AIzaSy')) {
+    statusDiv.innerHTML = `
+      <div style="color:#7f1d1d; font-size:14px;">
+        ❌ GEÇERSİZ KEY FORMATI
+        <div style="margin-top:5px; font-size:13px;">
+          Google Gemini API key'leri "AIzaSy..." ile başlar.
+          Mevcut key: ${apiKey.substring(0, 10)}...
+        </div>
+        <div style="margin-top:8px; font-size:12px;">
+          <a href="https://aistudio.google.com/apikey" target="_blank" 
+             style="color:#3b82f6; text-decoration:underline;">
+            🔗 Yeni key almak için tıkla
+          </a>
+        </div>
+      </div>
+    `;
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#fee2e2';
+    toast('Key formatı hatalı', 'error');
+    return;
+  }
+  
   statusDiv.innerHTML = `
     <div style="color:#92400e; font-size:14px;">
-      🔄 API key test ediliyor (Gemini API direkt)...
+      🔄 API key Gemini API'ye bağlanıyor...
     </div>
   `;
   statusDiv.style.display = 'block';
   statusDiv.style.background = '#fef3c7';
-  statusDiv.style.border = '1px solid #f59e0b';
   
   try {
-    // DİREKT GEMİNİ API TEST (Backend üzerinden değil)
+    console.log('📡 Gemini API test isteği gönderiliyor...');
+    
+    // DİREKT GEMİNİ API TEST - ÇOK BASİT
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       body: JSON.stringify({
         contents: [{
           parts: [{ 
-            text: "Merhaba! Bu bir test mesajıdır. Lütfen 'Test başarılı' yanıtını ver." 
+            text: "Test"  // En basit mesaj
           }]
         }],
         generationConfig: {
-          maxOutputTokens: 20,
-          temperature: 0.7
+          maxOutputTokens: 5,
+          temperature: 0.1
         }
       })
     });
     
-    // Response'u kontrol et
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+    console.log('📊 Response status:', response.status, response.statusText);
+    
+    // Response içeriğini kontrol et
+    const responseText = await response.text();
+    console.log('📄 Response (ilk 200 karakter):', responseText.substring(0, 200));
+    
+    // JSON'a çevirmeye çalış
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ JSON parse hatası:', parseError);
+      throw new Error(`API JSON döndürmedi: ${responseText.substring(0, 100)}`);
     }
     
-    const data = await response.json();
+    console.log('✅ Parsed data:', data);
     
-    // Başarı kontrolü
-    if (data.candidates && data.candidates[0]) {
-      statusDiv.innerHTML = `
-        <div style="color:#065f46; font-size:14px;">
-          ✅ API Key ÇALIŞIYOR!
-          <div style="margin-top:5px; font-size:13px;">
-            Model: Gemini Pro | Kota: 60 request/dakika
+    if (response.ok) {
+      if (data.candidates && data.candidates[0]) {
+        const aiResponse = data.candidates[0].content.parts[0].text;
+        
+        statusDiv.innerHTML = `
+          <div style="color:#065f46; font-size:14px;">
+            🎉 API Key ÇALIŞIYOR!
+            <div style="margin-top:5px; font-size:13px;">
+              Model: Gemini Pro | Kota: 60 request/dakika
+            </div>
+            <div style="margin-top:5px; font-size:12px; color:#6b7280;">
+              Yanıt: "${aiResponse}"
+            </div>
           </div>
-          <div style="margin-top:5px; font-size:12px; color:#6b7280;">
-            AI yanıtı: "${data.candidates[0].content.parts[0].text.substring(0, 50)}..."
-          </div>
-        </div>
-      `;
-      statusDiv.style.background = '#d1fae5';
-      statusDiv.style.border = '1px solid #10b981';
-      
-      toast('✅ API key başarıyla test edildi!', 'success');
-      
+        `;
+        statusDiv.style.background = '#d1fae5';
+        
+        // Key'i kaydet
+        const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+        settings.apiKey = apiKey;
+        settings.enabled = true;
+        localStorage.setItem('aiSettings', JSON.stringify(settings));
+        
+        toast('✅ API key testi BAŞARILI! Artık AI yorumlarınız kişiselleştirilecek.', 'success');
+        
+      } else if (data.error) {
+        throw new Error(data.error.message || 'API error');
+      } else {
+        throw new Error('Beklenmeyen yanıt formatı');
+      }
     } else {
-      throw new Error('AI yanıt vermedi');
+      // HTTP hatası
+      if (data.error) {
+        throw new Error(`${data.error.code || 'HTTP ' + response.status}: ${data.error.message}`);
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
     }
     
   } catch (error) {
-    console.error('Key test hatası:', error);
+    console.error('❌ Key test hatası:', error);
     
-    // Hata mesajını daha anlaşılır yap
-    let errorMessage = error.message || 'Bilinmeyen hata';
+    let errorMessage = error.message;
+    let suggestion = '';
     
-    if (errorMessage.includes('429')) {
-      errorMessage = 'Kota doldu. 1 dakika bekleyin.';
-    } else if (errorMessage.includes('403') || errorMessage.includes('API key')) {
-      errorMessage = 'API key geçersiz veya yetkisiz.';
+    // Hata türüne göre öneri
+    if (errorMessage.includes('403') || errorMessage.includes('PERMISSION_DENIED')) {
+      suggestion = 'Key geçersiz veya projede Gemini API aktif değil.';
+    } else if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+      suggestion = 'Kota doldu. 1 dakika bekleyin.';
+    } else if (errorMessage.includes('400') || errorMessage.includes('INVALID_ARGUMENT')) {
+      suggestion = 'Key formatı hatalı.';
     } else if (errorMessage.includes('Failed to fetch')) {
-      errorMessage = 'İnternet bağlantısı yok.';
+      suggestion = 'İnternet bağlantınızı kontrol edin.';
+    } else {
+      suggestion = 'Bilinmeyen hata.';
     }
     
     statusDiv.innerHTML = `
       <div style="color:#7f1d1d; font-size:14px;">
         ❌ API Key Testi BAŞARISIZ
+        <div style="margin-top:5px; font-size:13px; font-weight:bold;">
+          ${errorMessage}
+        </div>
         <div style="margin-top:5px; font-size:13px;">
-          Hata: ${errorMessage}
+          ${suggestion}
         </div>
         <div style="margin-top:8px; font-size:12px;">
-          🔧 Çözüm adımları:
-          <ol style="margin:5px 0 0 15px; padding-left:10px;">
-            <li>Key'in doğru olduğundan emin ol</li>
-            <li><a href="https://aistudio.google.com/apikey" target="_blank" style="color:#3b82f6;">Yeni key al</a></li>
-            <li>Internet bağlantını kontrol et</li>
-          </ol>
+          <a href="https://aistudio.google.com/apikey" target="_blank" 
+             style="color:#3b82f6; text-decoration:underline; display:block; margin-bottom:5px;">
+            🔄 Yeni API key al
+          </a>
+          <button onclick="location.reload()" 
+                  style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
+            🔁 Sayfayı yenile
+          </button>
         </div>
       </div>
     `;
     statusDiv.style.background = '#fee2e2';
-    statusDiv.style.border = '1px solid #ef4444';
     
-    toast('❌ API key testi başarısız: ' + errorMessage, 'error');
+    toast(`❌ Key testi başarısız: ${errorMessage.substring(0, 50)}`, 'error');
   }
 }
 
