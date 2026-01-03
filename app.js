@@ -583,23 +583,22 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-// AI yorum butonu - KESİN ÇÖZÜM
-card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
-  const button = event.target;
+// AI yorum butonu - BASİT ve ÇALIŞAN
+card.querySelector('.btnAiComment').addEventListener('click', function() {
+  const button = this;
   const originalText = button.textContent;
   
+  // 1. HEMEN BUTONU DEĞİŞTİR
   button.disabled = true;
   button.textContent = 'Analiz...';
   
-  // Hemen feedback ver
-  toast("🤖 AI analiz yapıyor...", "info");
-  
-  try {
-    const aiYorum = await getAiYorumSafe({
-      title: fav.query || fav.urun || "",
-      price: fav.fiyat || "Fiyat bilgisi yok",
-      site: fav.siteName || "Bilinmeyen site"
-    });
+  // 2. BASİT ALERT İLE TEST
+  setTimeout(() => {
+    alert(`🤖 AI TEST\nÜrün: ${fav.query}\nSite: ${fav.siteName}`);
+    button.disabled = false;
+    button.textContent = originalText;
+  }, 500);
+});
     
     console.log("💬 AI Yorumu hazır:", aiYorum);
     
@@ -1226,48 +1225,26 @@ window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
 // === MEVCUT KODA DOKUNMAYIN ===
-// Bu fonksiyonu app.js dosyasının EN SONUNA ekleyin.
-// AI'yı UI'dan tamamen izole eden güvenli adaptör fonksiyonu
-// === GÜVENLİ AI YORUM FONKSİYONU (DÜZELTİLMİŞ) ===
-async function getAiYorumSafe(payload) {
-  console.log("🤖 getAiYorumSafe BAŞLADI", payload);
-  
-  // ⚠️ ÇOK ÖNEMLİ: Backend'iniz "/ai/yorum" endpoint'ini kullanıyor
-  // Ama "/api/ai/yorum" DEĞİL, "/ai/yorum" kullanmalıyız
-  const API_BASE = "https://fiyattakip-api.onrender.com"; // /api OLMADAN!
-  
-  // Backend'in beklediği format (server.js'ye göre)
-  const requestBody = {
-    title: payload.title,
-    price: payload.price,
-    site: payload.site
-    // "instruction" EKLEMEYİN! Backend'de yok
-  };
-
+// ========== AI YORUM FONKSİYONU (GÜVENLİ) ==========
+async function getAiYorumSimple(payload) {
   try {
-    console.log("📡 İstek URL:", `${API_BASE}/ai/yorum`);
-    
-    const response = await fetch(`${API_BASE}/ai/yorum`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
+    // BACKEND TEST URL
+    const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: payload.title,
+        price: payload.price,
+        site: payload.site
+      })
     });
     
-    console.log("📦 Status Code:", response.status, response.statusText);
-    
-    if (!response.ok) {
-      throw new Error(`API Hatası: ${response.status} ${response.statusText}`);
-    }
-
     const data = await response.json();
-    console.log("✅ AI Yanıtı:", data);
-    
-    // Backend: { success: true, yorum: "..." } döndürüyor
-    return data?.yorum || "AI yorumu alınamadı.";
+    return data.yorum || 'Yorum alınamadı.';
     
   } catch (error) {
-    console.error("❌ AI Yorum Hatası:", error);
-    return "AI servisi şu anda kullanılamıyor. Hata: " + error.message;
+    console.log('AI hatası:', error);
+    return 'AI servisi şu anda kullanılamıyor.';
   }
 }
-// === FONKSİYON SONU ===
+// ========== FONKSİYON SONU ==========
