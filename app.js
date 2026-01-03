@@ -988,7 +988,7 @@ async function testAiKey() {
   const statusDiv = document.getElementById('aiKeyStatus');
   statusDiv.innerHTML = `
     <div style="color:#92400e; font-size:14px;">
-      🔄 API key test ediliyor...
+      🔄 API key test ediliyor (Gemini API direkt)...
     </div>
   `;
   statusDiv.style.display = 'block';
@@ -996,21 +996,41 @@ async function testAiKey() {
   statusDiv.style.border = '1px solid #f59e0b';
   
   try {
-    const response = await fetch('https://fiyattakip-api.onrender.com/ai/test-key', {
+    // DİREKT GEMİNİ API TEST (Backend üzerinden değil)
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey })
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ 
+            text: "Merhaba! Bu bir test mesajıdır. Lütfen 'Test başarılı' yanıtını ver." 
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 20,
+          temperature: 0.7
+        }
+      })
     });
+    
+    // Response'u kontrol et
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+    }
     
     const data = await response.json();
     
-    if (data.success) {
+    // Başarı kontrolü
+    if (data.candidates && data.candidates[0]) {
       statusDiv.innerHTML = `
         <div style="color:#065f46; font-size:14px;">
           ✅ API Key ÇALIŞIYOR!
           <div style="margin-top:5px; font-size:13px;">
-            Model: ${data.model || 'Gemini'} | 
-            Kota: ${data.rateLimit || 'Bilinmiyor'}
+            Model: Gemini Pro | Kota: 60 request/dakika
+          </div>
+          <div style="margin-top:5px; font-size:12px; color:#6b7280;">
+            AI yanıtı: "${data.candidates[0].content.parts[0].text.substring(0, 50)}..."
           </div>
         </div>
       `;
@@ -1018,68 +1038,46 @@ async function testAiKey() {
       statusDiv.style.border = '1px solid #10b981';
       
       toast('✅ API key başarıyla test edildi!', 'success');
+      
     } else {
-      throw new Error(data.error || 'Key test edilemedi');
+      throw new Error('AI yanıt vermedi');
     }
     
   } catch (error) {
+    console.error('Key test hatası:', error);
+    
+    // Hata mesajını daha anlaşılır yap
+    let errorMessage = error.message || 'Bilinmeyen hata';
+    
+    if (errorMessage.includes('429')) {
+      errorMessage = 'Kota doldu. 1 dakika bekleyin.';
+    } else if (errorMessage.includes('403') || errorMessage.includes('API key')) {
+      errorMessage = 'API key geçersiz veya yetkisiz.';
+    } else if (errorMessage.includes('Failed to fetch')) {
+      errorMessage = 'İnternet bağlantısı yok.';
+    }
+    
     statusDiv.innerHTML = `
       <div style="color:#7f1d1d; font-size:14px;">
-        ❌ API Key HATALI
+        ❌ API Key Testi BAŞARISIZ
         <div style="margin-top:5px; font-size:13px;">
-          Hata: ${error.message || 'Bağlantı hatası'}
+          Hata: ${errorMessage}
+        </div>
+        <div style="margin-top:8px; font-size:12px;">
+          🔧 Çözüm adımları:
+          <ol style="margin:5px 0 0 15px; padding-left:10px;">
+            <li>Key'in doğru olduğundan emin ol</li>
+            <li><a href="https://aistudio.google.com/apikey" target="_blank" style="color:#3b82f6;">Yeni key al</a></li>
+            <li>Internet bağlantını kontrol et</li>
+          </ol>
         </div>
       </div>
     `;
     statusDiv.style.background = '#fee2e2';
     statusDiv.style.border = '1px solid #ef4444';
     
-    toast('❌ API key testi başarısız', 'error');
+    toast('❌ API key testi başarısız: ' + errorMessage, 'error');
   }
-}
-
-function clearAiKey() {
-  if (confirm('API key silinecek. Emin misiniz?')) {
-    $("aiApiKey").value = '';
-    localStorage.removeItem('aiSettings');
-    
-    const statusDiv = document.getElementById('aiKeyStatus');
-    statusDiv.style.display = 'none';
-    
-    toast('🗑️ API key temizlendi', 'info');
-  }
-}
-
-function updateAiKeyStatus() {
-  const statusDiv = document.getElementById('aiKeyStatus');
-  const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
-  
-  if (!settings.apiKey) {
-    statusDiv.style.display = 'none';
-    return;
-  }
-  
-  // Key'i maskele (güvenlik için)
-  const maskedKey = settings.apiKey.substring(0, 6) + '...' + 
-                   settings.apiKey.substring(settings.apiKey.length - 4);
-  
-  statusDiv.innerHTML = `
-    <div style="font-size:14px;">
-      <div style="color:#065f46; font-weight:bold; margin-bottom:5px;">
-        ✅ Kayıtlı API Key
-      </div>
-      <div style="font-family:monospace; font-size:13px; color:#666; margin-bottom:5px;">
-        ${maskedKey}
-      </div>
-      <div style="font-size:12px; color:#6b7280;">
-        Sağlayıcı: ${settings.provider || 'gemini'} | 
-        Durum: ${settings.enabled ? 'Açık' : 'Kapalı'}
-      </div>
-    </div>
-  `;
-  statusDiv.style.display = 'block';
-  statusDiv.style.background = '#d1fae5';
-  statusDiv.style.border = '1px solid #10b981';
 }
 
 // ========== YARDIMCI FONKSİYONLAR ==========
@@ -1292,3 +1290,85 @@ window.changePage = changePage;
 window.changeSort = changeSort;
 window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
+
+// ========== BACKEND KONTROL FONKSİYONLARI ==========
+
+// Backend durumunu kontrol et
+async function checkBackendStatus() {
+  try {
+    const response = await fetch('https://fiyattakip-api.onrender.com/health');
+    return response.ok;
+  } catch (error) {
+    console.error('Backend kontrol hatası:', error);
+    return false;
+  }
+}
+
+// Backend durumunu API settings modal'ında göster
+async function updateApiStatusDisplay() {
+  const statusElement = document.getElementById('apiStatus');
+  if (!statusElement) return;
+  
+  const isBackendOk = await checkBackendStatus();
+  
+  if (isBackendOk) {
+    statusElement.textContent = '✅ Çalışıyor';
+    statusElement.className = 'apiStatus online';
+  } else {
+    statusElement.textContent = '❌ Kapalı';
+    statusElement.className = 'apiStatus offline';
+  }
+}
+
+// AI Modal açıldığında key durumunu güncelle
+function onAiModalOpen() {
+  updateAiKeyStatus();
+  updateApiStatusDisplay();
+}
+
+// Sayfa yüklendiğinde AI butonlarını bağla
+document.addEventListener('DOMContentLoaded', function() {
+  // AI modal açıldığında
+  const aiSettingsBtn = document.getElementById('btnAiSettings');
+  if (aiSettingsBtn) {
+    aiSettingsBtn.addEventListener('click', onAiModalOpen);
+  }
+  
+  // API test butonu
+  const apiTestBtn = document.getElementById('btnTestApi');
+  if (apiTestBtn) {
+    apiTestBtn.addEventListener('click', updateApiStatusDisplay);
+  }
+});
+
+// CSS stilleri (henüz yoksa ekle)
+if (!document.querySelector('#apiStatusStyle')) {
+  const style = document.createElement('style');
+  style.id = 'apiStatusStyle';
+  style.textContent = `
+    .apiStatus {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      display: inline-block;
+      border: 1px solid;
+    }
+    .apiStatus.online {
+      background: #d1fae5;
+      color: #065f46;
+      border-color: #10b981;
+    }
+    .apiStatus.offline {
+      background: #fee2e2;
+      color: #7f1d1d;
+      border-color: #ef4444;
+    }
+    .apiStatus.checking {
+      background: #e0f2fe;
+      color: #0369a1;
+      border-color: #0ea5e9;
+    }
+  `;
+  document.head.appendChild(style);
+}
