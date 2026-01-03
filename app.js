@@ -1193,32 +1193,38 @@ window.getAiCommentForFavorite = getAiCommentForFavorite;
 // === MEVCUT KODA DOKUNMAYIN ===
 // ========== AI YORUM FONKSİYONU (GÜVENLİ) ==========
 async function getAiYorumSimple(payload) {
+  console.log("🤖 AI isteniyor:", payload.title);
+  
+  // TIMEOUT promise'i (5 saniye)
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Timeout (5s)')), 5000);
+  });
+  
   try {
-    // KULLANICI KEY'INI AL
     const aiSettings = JSON.parse(localStorage.getItem("aiSettings") || "{}");
-    const userApiKey = aiSettings.key || ""; // Kullanıcının girdiği key
+    const userApiKey = aiSettings.key || "";
     
-    const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
+    const fetchPromise = fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title: payload.title,
         price: payload.price,
         site: payload.site,
-        apiKey: userApiKey 
+        apiKey: userApiKey
       })
     });
     
+    // Hangisi önce gelirse: timeout veya fetch
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
     const data = await response.json();
     
-    if (!data.success) {
-      return `❌ ${data.yorum || "API key hatası"}`;
-    }
-    
+    console.log("📦 Backend yanıtı (hızlı):", data);
     return data.yorum || 'Yorum alınamadı.';
     
   } catch (error) {
-    return 'AI servisi şu anda kullanılamıyor.';
+    console.error("🔴 AI Hatası (timeout):", error.message);
+    return `AI servisi yanıt vermedi. (${error.message})`;
   }
 }
 // ========== FONKSİYON SONU ==========
