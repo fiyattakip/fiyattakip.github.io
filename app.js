@@ -583,21 +583,68 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
- // AI YORUM BUTONU - BASİT VE ÇALIŞAN
-    card.querySelector('.btnAiComment').addEventListener('click', function() {
-      const button = this;
-      const originalText = button.textContent;
-      
-      button.disabled = true;
-      button.textContent = 'Analiz...';
-      
-      alert(`🤖 AI TEST\nÜrün: ${fav.query}\nSite: ${fav.siteName}`);
-      
-      setTimeout(() => {
-        button.disabled = false;
-        button.textContent = originalText;
-      }, 2000);
+// AI YORUM BUTONU - GERÇEK AI İLE
+card.querySelector('.btnAiComment').addEventListener('click', async function() {
+  const button = this;
+  const originalText = button.textContent;
+  
+  button.disabled = true;
+  button.textContent = 'Analiz...';
+  
+  try {
+    // 1. ÖNCE DOSYA SONUNDAKİ getAiYorum FONKSİYONUNU KULLAN
+    const aiYorum = await getAiYorum({
+      title: fav.query || '',
+      price: fav.fiyat || '',
+      site: fav.siteName || ''
     });
+    
+    // 2. MODAL AÇ
+    const modal = document.createElement('div');
+    modal.className = 'aiModal';
+    modal.innerHTML = `
+      <div class="aiModalContent">
+        <div class="aiModalHeader">
+          <h3>🤖 AI Analizi</h3>
+          <button class="closeAiModal">✕</button>
+        </div>
+        <div class="aiModalBody">
+          <div class="aiProduct">
+            <strong>${fav.query || ''}</strong>
+            <small>${fav.siteName || ''}</small>
+            ${fav.fiyat ? `<div style="color:#36d399;">${fav.fiyat}</div>` : ''}
+          </div>
+          <div class="aiComment">
+            ${aiYorum.replace(/\n/g, '<br>')}
+          </div>
+        </div>
+        <div class="aiModalFooter">
+          <button class="btnPrimary" onclick="this.closest('.aiModal').remove()">Tamam</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 3. KAPATMA
+    modal.querySelector('.closeAiModal').onclick = () => modal.remove();
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.remove();
+    };
+    
+  } catch (error) {
+    // 4. HATA DURUMUNDA ESKİ ALERT
+    alert(`AI yorumu alınamadı: ${error.message}\n\nEski sisteme dönülüyor...`);
+    
+    // Eski alert'i göster
+    alert(`🤖 AI TEST\nÜrün: ${fav.query}\nSite: ${fav.siteName}`);
+    
+  } finally {
+    // 5. HER DURUMDA BUTONU ESKİ HALİNE GETİR
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+});
     
     // Favori çıkar butonu
     card.querySelector('.btnFav').addEventListener('click', async () => {
@@ -1147,9 +1194,9 @@ window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
 // === MEVCUT KODA DOKUNMAYIN ===
-// ========== AI YORUM FONKSİYONU (SIFIR) ==========
-async function getAiYorumSimple(payload) {
-  console.log("🔵 AI fonksiyonu çağrıldı:", payload.title);
+// ========== AI YORUM FONKSİYONU ==========
+async function getAiYorum(payload) {
+  console.log("🤖 AI isteniyor:", payload);
   
   try {
     const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
@@ -1157,17 +1204,17 @@ async function getAiYorumSimple(payload) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title: payload.title,
-        price: payload.price || '',
-        site: payload.site || ''
+        price: payload.price,
+        site: payload.site
       })
     });
     
     const data = await response.json();
-    console.log("🟢 Backend yanıtı:", data);
+    console.log("✅ Backend yanıtı:", data);
     return data.yorum || 'Yorum alınamadı.';
     
   } catch (error) {
-    console.error("🔴 Hata:", error);
+    console.error("❌ AI hatası:", error);
     return 'AI servisi şu anda kullanılamıyor.';
   }
 }
