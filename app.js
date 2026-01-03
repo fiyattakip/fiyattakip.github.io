@@ -1405,6 +1405,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ========== GÜNCELLENMİŞ getAiYorum FONKSİYONU ==========
+// ========== AI YORUM FONKSİYONU ==========
 async function getAiYorum(payload) {
   console.log("🤖 AI isteniyor:", payload);
   
@@ -1442,5 +1443,196 @@ async function getAiYorum(payload) {
     console.error("❌ AI hatası:", error);
     return 'AI servisi şu anda kullanılamıyor.';
   }
+}
+// ========== FONKSİYON SONU ========== 
+// ⭐⭐⭐ BURAYA YAPIŞTIR ⭐⭐⭐
+// ========== BACKEND KONTROLÜ VE AI AYARLARI ==========
+
+// Backend durumunu kontrol et
+async function checkBackendStatus() {
+  try {
+    const healthRes = await fetch('https://fiyattakip-api.onrender.com/health');
+    const healthData = await healthRes.json();
+    return { health: healthData.status === 'ok', ai: true };
+  } catch (error) {
+    console.error('Backend kapalı:', error);
+    return { health: false, ai: false };
+  }
+}
+
+// AI ayarlarını kaydet
+function saveAiSettings() {
+  const apiKey = document.getElementById('aiApiKey')?.value || '';
+  const provider = document.getElementById('aiProvider')?.value || 'gemini';
+  const enabled = document.getElementById('aiEnabled')?.value === 'on';
+  
+  localStorage.setItem('aiSettings', JSON.stringify({
+    apiKey: apiKey,
+    provider: provider,
+    enabled: enabled,
+    lastUpdated: new Date().toISOString()
+  }));
+  
+  showToast('✅ AI ayarları kaydedildi!');
+  document.getElementById('aiModal').classList.remove('active');
+}
+
+// AI key'i test et
+async function testAiKey() {
+  const apiKey = document.getElementById('aiApiKey')?.value || '';
+  const statusDiv = document.getElementById('aiKeyStatus');
+  
+  if (!apiKey) {
+    showToast('⚠️ Lütfen API key girin');
+    return;
+  }
+  
+  statusDiv.innerHTML = '<div style="color:#92400e; font-size:14px;">🔄 Test ediliyor...</div>';
+  statusDiv.style.display = 'block';
+  statusDiv.style.background = '#fef3c7';
+  statusDiv.style.border = '1px solid #f59e0b';
+  
+  try {
+    const res = await fetch('https://fiyattakip-api.onrender.com/ai/test-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey })
+    });
+    
+    // Response tipini kontrol et
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Backend HTML döndürüyor (yanlış endpoint)');
+    }
+    
+    const data = await res.json();
+    if (data.success) {
+      statusDiv.innerHTML = '<div style="color:#065f46; font-size:14px;">✅ Key çalışıyor!</div>';
+      statusDiv.style.background = '#d1fae5';
+      statusDiv.style.border = '1px solid #10b981';
+      showToast('✅ API key testi başarılı!');
+    } else {
+      throw new Error(data.error || 'Key test edilemedi');
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<div style="color:#7f1d1d; font-size:14px;">❌ Hata: ${error.message}</div>`;
+    statusDiv.style.background = '#fee2e2';
+    statusDiv.style.border = '1px solid #ef4444';
+    showToast('❌ API key testi başarısız');
+  }
+}
+
+// AI key'i temizle
+function clearAiKey() {
+  if (confirm('API key silinecek. Emin misiniz?')) {
+    document.getElementById('aiApiKey').value = '';
+    localStorage.removeItem('aiSettings');
+    const statusDiv = document.getElementById('aiKeyStatus');
+    statusDiv.style.display = 'none';
+    showToast('🗑️ Key temizlendi');
+  }
+}
+
+// Key durumunu güncelle
+function updateAiKeyStatus() {
+  const statusDiv = document.getElementById('aiKeyStatus');
+  const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+  
+  if (!settings.apiKey) {
+    statusDiv.style.display = 'none';
+    return;
+  }
+  
+  // Key'i maskele
+  const maskedKey = settings.apiKey.substring(0, 6) + '...' + settings.apiKey.substring(settings.apiKey.length - 4);
+  
+  statusDiv.innerHTML = `
+    <div style="font-size:14px;">
+      <div style="color:#065f46; font-weight:bold;">✅ Kayıtlı API Key</div>
+      <div style="font-family:monospace; font-size:13px; color:#666; margin:5px 0;">${maskedKey}</div>
+      <div style="font-size:12px; color:#6b7280;">
+        Durum: ${settings.enabled ? 'Açık' : 'Kapalı'} | Sağlayıcı: ${settings.provider || 'gemini'}
+      </div>
+    </div>
+  `;
+  statusDiv.style.display = 'block';
+  statusDiv.style.background = '#d1fae5';
+  statusDiv.style.border = '1px solid #10b981';
+}
+
+// AI modal açıldığında ayarları yükle
+function initAiModal() {
+  const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+  
+  if (settings.apiKey) {
+    document.getElementById('aiApiKey').value = settings.apiKey;
+  }
+  if (settings.provider) {
+    document.getElementById('aiProvider').value = settings.provider;
+  }
+  if (settings.enabled !== undefined) {
+    document.getElementById('aiEnabled').value = settings.enabled ? 'on' : 'off';
+  }
+  
+  updateAiKeyStatus();
+}
+
+// Buton bağlantılarını ekle
+function setupAiButtons() {
+  // AI ayarları butonu
+  const aiSettingsBtn = document.getElementById('btnAiSettings');
+  if (aiSettingsBtn) {
+    aiSettingsBtn.addEventListener('click', function() {
+      document.getElementById('aiModal').classList.add('active');
+      initAiModal();
+    });
+  }
+  
+  // AI modal içindeki butonlar
+  document.getElementById('btnSaveAI')?.addEventListener('click', saveAiSettings);
+  document.getElementById('btnTestAI')?.addEventListener('click', testAiKey);
+  document.getElementById('btnClearAI')?.addEventListener('click', clearAiKey);
+  
+  // Backend durumunu göster
+  checkBackendStatus().then(status => {
+    const apiStatusEl = document.getElementById('apiStatus');
+    if (apiStatusEl) {
+      apiStatusEl.textContent = status.health ? '✅ Çalışıyor' : '❌ Kapalı';
+      apiStatusEl.className = status.health ? 'apiStatus online' : 'apiStatus offline';
+    }
+  });
+}
+
+// Sayfa yüklendiğinde çalıştır
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupAiButtons);
+} else {
+  setupAiButtons();
+}
+
+// CSS ekle
+if (!document.querySelector('#apiStatusStyle')) {
+  const style = document.createElement('style');
+  style.id = 'apiStatusStyle';
+  style.textContent = `
+    .apiStatus {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      display: inline-block;
+    }
+    .apiStatus.online {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+    .apiStatus.offline {
+      background: #fee2e2;
+      color: #7f1d1d;
+      border: 1px solid #ef4444;
+    }
+  `;
+  document.head.appendChild(style);
 }
 // ========== SİSTEM SONU ==========
