@@ -278,11 +278,21 @@
   <input id="aiApiKey" class="input inputDark" type="password" 
          placeholder="AIzaSyD... (Google AI Studio'dan ücretsiz al)" />
 </div>
-        <div class="row">
-          <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
-        </div>
+        <div class="row" style="display:flex; gap:10px;">
+  <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
+  <button id="btnTestAI" class="btnGhost" type="button">Key'i Test Et</button>
+  <button id="btnClearAI" class="btnGhost" type="button" style="color:#ef4444;">Temizle</button>
+</div>
 
-        <div class="mini muted">Test butonu bir sonraki adımda eklenecek.</div>
+<!-- API Key durumu -->
+<div id="aiKeyStatus" style="margin:15px 0; padding:12px; border-radius:8px; background:#f5f5f5; display:none;">
+  <div style="font-size:14px; color:#666;">Key durumu yükleniyor...</div>
+</div>
+
+<div class="mini muted">
+  Google AI Studio'dan ücretsiz API key alın: 
+  <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#3b82f6;">tıklayın</a>
+</div>
       </div>
     </div>
   </div>
