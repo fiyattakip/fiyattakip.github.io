@@ -978,7 +978,6 @@ function saveAISettings(){
 }
 
 async function testAiKey() {
-async function testAiKey() {
   const apiKey = $("aiApiKey")?.value || '';
   const statusDiv = document.getElementById('aiKeyStatus');
   
