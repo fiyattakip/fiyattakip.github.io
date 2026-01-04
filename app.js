@@ -394,90 +394,79 @@ async function cameraAiSearch() {
 
 // ========== FAVORİ AI YORUM ==========
 async function getAiYorum(payload) {
-  console.log("=== 🤖 GÜNCEL GEMINI AI ===");
+  console.log("🤖 DEEPSEEK AI ÇALIŞIYOR");
   
-  // 1. KEY KONTROL
+  // 1. DEEPSEEK KEY'İ AL
   const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
-  const userApiKey = aiSettings.apiKey || '';
+  const userApiKey = aiSettings.apiKey || ''; // Buraya DeepSeek key gelecek
   
-  if (!userApiKey || !userApiKey.startsWith('AIzaSy')) {
-    return `🤖 ${payload.title} için API anahtarı gerekli.`;
+  // Eğer key yoksa
+  if (!userApiKey) {
+    return `🤖 ${payload.title} için AI analizi.\n\n⚠️ DeepSeek API anahtarı gerekli.`;
   }
   
-  console.log("🔑 Key var, API deneniyor...");
-  
-  // 2. GOOGLE'IN GÜNCEL MODELLERİ (Ocak 2024)
-  const models = [
-    'gemini-1.5-flash-001',      // En güncel flash model
-    'gemini-1.5-pro-001',        // En güncel pro model  
-    'gemini-1.0-pro-001',        // Eski pro model
-    'gemini-pro'                 // En eski
-  ];
-  
-  // 3. MODELLERİ SIRAYLA DENE
-  for (const model of models) {
-    console.log(`🔄 ${model} deneniyor...`);
-    
-    try {
-      // v1 kullan
-      const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${userApiKey}`;
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Ürün: ${payload.title}. ${payload.site ? "Site: " + payload.site + "." : ""} ${payload.price ? "Fiyat: " + payload.price + "." : ""} Bu ürün hakkında 2 cümlelik Türkçe alışveriş tavsiyesi ver.`
-            }]
-          }],
-          generationConfig: {
-            maxOutputTokens: 100,
-            temperature: 0.7
-          }
-        })
-      });
-      
-      console.log(`📊 ${model} Status:`, response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-          const aiText = data.candidates[0].content.parts[0].text;
-          console.log(`✅ ${model} ÇALIŞTI!`);
-          return `🤖 ${aiText}\n\n✅ (Gemini AI ile analiz edildi)`;
-        }
-      } else {
-        const error = await response.text();
-        console.log(`❌ ${model} hatası:`, response.status);
-      }
-      
-    } catch (error) {
-      console.log(`⚠️ ${model} hatası:`, error.message);
-    }
-  }
-  
-  // 4. HİÇBİRİ ÇALIŞMAZSA BACKEND
-  console.log("🔄 Backend fallback deneniyor...");
+  // 2. DEEPSEEK API'Yİ ÇAĞIR
   try {
-    const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userApiKey}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',  // Ücretsiz model
+        messages: [
+          {
+            role: 'system',
+            content: 'Sen bir alışveriş asistanısın. Kısa, net Türkçe tavsiyeler ver.'
+          },
+          {
+            role: 'user',
+            content: `Ürün: ${payload.title}. ${payload.site ? 'Site: ' + payload.site + '.' : ''} ${payload.price ? 'Fiyat: ' + payload.price + '.' : 'Fiyat belirtilmemiş.'} Bu ürün hakkında 2-3 cümlelik alışveriş tavsiyesi ver.`
+          }
+        ],
+        max_tokens: 150,
+        temperature: 0.7
+      })
     });
     
-    if (fallback.ok) {
-      const data = await fallback.json();
-      console.log("✅ Backend başarılı");
-      return data.yorum + '\n\n⚠️ (Gemini kullanılamadı, backend ile)';
+    console.log('📊 DeepSeek Status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      const aiText = data.choices[0]?.message?.content || 'Yanıt alınamadı.';
+      
+      console.log('✅ DeepSeek Başarılı!');
+      return `🤖 ${aiText}\n\n✅ (DeepSeek AI ile analiz edildi)`;
+    } else {
+      const error = await response.json();
+      console.log('❌ DeepSeek Hatası:', error);
+      throw new Error(`DeepSeek: ${error.error?.message || 'API hatası'}`);
     }
-  } catch (e) {
-    console.error("Backend hatası:", e);
+    
+  } catch (error) {
+    console.error('💥 DeepSeek Hata:', error);
+    
+    // 3. BACKEND FALLBACK
+    try {
+      console.log('🔄 Backend deneniyor...');
+      const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (fallback.ok) {
+        const data = await fallback.json();
+        return data.yorum + '\n\n⚠️ (DeepSeek çalışmadı, backend kullanıldı)';
+      }
+    } catch (fallbackError) {
+      console.error('Backend de çalışmadı:', fallbackError);
+    }
+    
+    // 4. EN SON
+    return `🤖 ${payload.title} değerlendiriliyor...\n\n❌ AI geçici olarak kullanılamıyor.`;
   }
-  
-  // 5. EN SON
-  return `🤖 ${payload.title} listeleniyor. Fiyat/performans değerlendirilebilir.`;
 }
 
 // ========== FAVORİ İŞLEMLERİ ==========
