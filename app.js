@@ -1024,26 +1024,26 @@ async function testAiKey() {
   const apiKey = $("aiApiKey")?.value || '';
   const statusDiv = document.getElementById('aiKeyStatus');
   
-  console.log('🔑 API Key test ediliyor, key uzunluğu:', apiKey.length);
+  console.log('🔑 DeepSeek API Key test ediliyor, key uzunluğu:', apiKey.length);
   
   if (!apiKey) {
     toast('⚠️ Lütfen önce API key girin', 'error');
     return;
   }
   
-  // Key format kontrolü
-  if (!apiKey.startsWith('AIzaSy')) {
+  // DeepSeek key format kontrolü (sk-... ile başlar)
+  if (!apiKey.startsWith('sk-')) {
     statusDiv.innerHTML = `
       <div style="color:#7f1d1d; font-size:14px;">
         ❌ GEÇERSİZ KEY FORMATI
         <div style="margin-top:5px; font-size:13px;">
-          Google Gemini API key'leri "AIzaSy..." ile başlar.
+          DeepSeek API key'leri "sk-..." ile başlar.
           Mevcut key: ${apiKey.substring(0, 10)}...
         </div>
         <div style="margin-top:8px; font-size:12px;">
-          <a href="https://aistudio.google.com/apikey" target="_blank" 
+          <a href="https://platform.deepseek.com/api_keys" target="_blank" 
              style="color:#3b82f6; text-decoration:underline;">
-            🔗 Yeni key almak için tıkla
+            🔗 Yeni DeepSeek key almak için tıkla
           </a>
         </div>
       </div>
@@ -1056,58 +1056,58 @@ async function testAiKey() {
   
   statusDiv.innerHTML = `
     <div style="color:#92400e; font-size:14px;">
-      🔄 API key Gemini API'ye bağlanıyor...
+      🔄 DeepSeek API'ye bağlanıyor...
     </div>
   `;
   statusDiv.style.display = 'block';
   statusDiv.style.background = '#fef3c7';
   
   try {
-    console.log('📡 Gemini API test isteği gönderiliyor...');
+    console.log('📡 DeepSeek API test isteği gönderiliyor...');
     
-    // DİREKT GEMİNİ API TEST
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    // DEEPSEEK API TEST
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ 
-            text: "Test"
-          }]
-        }],
-        generationConfig: {
-          maxOutputTokens: 5,
-          temperature: 0.1
-        }
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'user',
+            content: "Merhaba, nasılsın?"
+          }
+        ],
+        max_tokens: 10,
+        temperature: 0.1
       })
     });
     
-    console.log('📊 Response status:', response.status);
+    console.log('📊 DeepSeek Status:', response.status);
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('❌ API error:', errorData);
+      console.error('❌ DeepSeek API error:', errorData);
       throw new Error(errorData.error?.message || `HTTP ${response.status}`);
     }
     
     const data = await response.json();
-    console.log('✅ API response alındı');
+    console.log('✅ DeepSeek response alındı');
     
-    if (data.candidates && data.candidates[0]) {
-      const aiResponse = data.candidates[0].content.parts[0].text;
-      console.log('🤖 AI yanıtı:', aiResponse);
+    if (data.choices && data.choices[0]) {
+      const aiResponse = data.choices[0]?.message?.content || '';
+      console.log('🤖 DeepSeek yanıtı:', aiResponse);
       
       statusDiv.innerHTML = `
         <div style="color:#065f46; font-size:14px;">
-          ✅ API Key ÇALIŞIYOR!
+          ✅ DEEPSEEK API Key ÇALIŞIYOR!
           <div style="margin-top:5px; font-size:13px;">
-            Model: Gemini Pro | Kota: 60 request/dakika
+            Model: DeepSeek Chat | Kota: 1M token/ay (ücretsiz)
           </div>
           <div style="margin-top:5px; font-size:12px; color:#6b7280;">
-            AI yanıtı: "${aiResponse.substring(0, 50)}..."
+            AI yanıtı: "${aiResponse}"
           </div>
         </div>
       `;
@@ -1120,25 +1120,25 @@ async function testAiKey() {
       settings.enabled = true;
       localStorage.setItem('aiSettings', JSON.stringify(settings));
       
-      toast('✅ API key testi BAŞARILI!', 'success');
+      toast('✅ DeepSeek API key testi BAŞARILI!', 'success');
       
     } else {
       console.error('❌ Beklenmeyen yanıt formatı:', data);
-      throw new Error('AI yanıt vermedi veya beklenmeyen format');
+      throw new Error('DeepSeek yanıt vermedi veya beklenmeyen format');
     }
     
   } catch (error) {
-    console.error('❌ Key test hatası:', error);
+    console.error('❌ DeepSeek Key test hatası:', error);
     
     let errorMessage = error.message;
     let suggestion = '';
     
     // Hata türüne göre öneri
-    if (errorMessage.includes('403') || errorMessage.includes('PERMISSION_DENIED')) {
-      suggestion = 'Key geçersiz veya projede Gemini API aktif değil.';
-    } else if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
-      suggestion = 'Kota doldu. 1 dakika bekleyin.';
-    } else if (errorMessage.includes('400') || errorMessage.includes('INVALID_ARGUMENT')) {
+    if (errorMessage.includes('401') || errorMessage.includes('invalid_api_key')) {
+      suggestion = 'Key geçersiz veya süresi dolmuş.';
+    } else if (errorMessage.includes('429')) {
+      suggestion = 'Kota doldu veya rate limit. 1 dakika bekleyin.';
+    } else if (errorMessage.includes('400')) {
       suggestion = 'Key formatı hatalı.';
     } else if (errorMessage.includes('Failed to fetch')) {
       suggestion = 'İnternet bağlantınızı kontrol edin.';
@@ -1148,7 +1148,7 @@ async function testAiKey() {
     
     statusDiv.innerHTML = `
       <div style="color:#7f1d1d; font-size:14px;">
-        ❌ API Key Testi BAŞARISIZ
+        ❌ DeepSeek API Key Testi BAŞARISIZ
         <div style="margin-top:5px; font-size:13px; font-weight:bold;">
           ${errorMessage}
         </div>
@@ -1156,9 +1156,9 @@ async function testAiKey() {
           ${suggestion}
         </div>
         <div style="margin-top:8px; font-size:12px;">
-          <a href="https://aistudio.google.com/apikey" target="_blank" 
+          <a href="https://platform.deepseek.com/api_keys" target="_blank" 
              style="color:#3b82f6; text-decoration:underline; display:block; margin-bottom:5px;">
-            🔄 Yeni API key al
+            🔄 Yeni DeepSeek API key al
           </a>
           <button onclick="location.reload()" 
                   style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:12px;">
@@ -1170,15 +1170,17 @@ async function testAiKey() {
     statusDiv.style.background = '#fee2e2';
     statusDiv.style.border = '1px solid #ef4444';
     
-    toast(`❌ Key testi başarısız`, 'error');
+    toast(`❌ DeepSeek key testi başarısız`, 'error');
   }
 }
 
 function clearAiKey() {
-  if (confirm('API key silinsin mi?')) {
+  if (confirm('DeepSeek API key silinsin mi?')) {
     document.getElementById('aiApiKey').value = '';
     localStorage.removeItem('aiSettings');
-    alert('🗑️ Key temizlendi');
+    document.getElementById('aiKeyStatus').style.display = 'none';
+    alert('🗑️ DeepSeek key temizlendi');
+    toast('API key temizlendi', 'info');
   }
 }
 
@@ -1235,6 +1237,9 @@ function wireUI(){
   $("btnSaveAI")?.addEventListener("click", saveAISettings);
   $("btnSaveApi")?.addEventListener("click", saveAPISettings);
   $("btnTestApi")?.addEventListener("click", checkAPIStatus);
+  // AI test butonu
+  $("btnTestAI")?.addEventListener("click", testAiKey);
+  $("btnClearAI")?.addEventListener("click", clearAiKey);
 
   // Temizleme butonları
   $("btnClearCache")?.addEventListener("click", clearAppCache);
