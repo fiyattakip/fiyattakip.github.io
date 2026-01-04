@@ -394,91 +394,145 @@ async function cameraAiSearch() {
 
 // ========== FAVORİ AI YORUM ==========
 async function getAiYorum(payload) {
-  console.log("🤖 AI isteniyor:", payload);
+  console.log("=== 🤖 AI YORUM BAŞLADI ===");
+  console.log("Ürün:", payload);
   
   // 1. KULLANICI KEY'İNİ AL
   const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
   const userApiKey = aiSettings.apiKey || '';
   
-  console.log('Kullanıcı API Key var mı?', !!userApiKey);
-  console.log('AI ayarları:', aiSettings);
+  console.log("🔍 AI Ayarları:", aiSettings);
+  console.log("🔑 Key Uzunluğu:", userApiKey.length);
+  console.log("✅ Key Formatı Doğru mu?", userApiKey.startsWith('AIzaSy'));
   
-  // 2. EĞER KEY YOKSA veya AI KAPALIYSA - BASİT YORUM
-  if (!userApiKey || aiSettings.enabled === false) {
-    console.log('Key yok veya AI kapalı, basit yorum dönecek');
+  // 2. KEY KONTROLÜ
+  if (!userApiKey || !userApiKey.startsWith('AIzaSy')) {
+    console.log("❌ Key YOK veya hatalı format");
     return `🤖 ${payload.title} ${payload.site ? payload.site + "'de" : ""} listeleniyor. ${payload.price ? `Fiyat: ${payload.price}. ` : ""}Fiyat/performans değerlendirilebilir.`;
   }
   
-  // 3. KEY VARSA - DİREKT GEMİNİ API KULLAN
-  console.log('Kullanıcı key ile Gemini API kullanılıyor...');
+  console.log("🚀 Gemini API deneniyor...");
   
   try {
+    // ÇOK BASİT TEST MESAJI
+    const testBody = {
+      contents: [{
+        parts: [{
+          text: "Sadece 'Test başarılı' yaz."
+        }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 10,
+        temperature: 0.1
+      }
+    };
+    
+    console.log("📤 Gönderilen istek:", testBody);
+    
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${userApiKey}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `Şu ürün hakkında kısa, pratik bir Türkçe alışveriş tavsiyesi ver (2-3 cümle):
-
-ÜRÜN: ${payload.title || "Ürün"}
-SİTE: ${payload.site || "Alışveriş sitesi"} 
-FİYAT: ${payload.price || "Belirtilmemiş"}
-
-Değerlendir:
-1. Bu fiyat makul mu?
-2. Hemen almalı mı beklemeli mi?
-3. Kısa ve net olsun.`
-          }]
-        }],
-        generationConfig: {
-          maxOutputTokens: 150,
-          temperature: 0.7
-        }
-      })
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(testBody)
     });
     
+    console.log("📥 Response Status:", response.status, response.statusText);
+    
+    // Response'u oku
+    const responseText = await response.text();
+    console.log("📄 Response Text (ilk 200 karakter):", responseText.substring(0, 200));
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API hatası:', response.status, errorText);
-      throw new Error(`API hatası: ${response.status}`);
+      console.error("❌ API Hatası!");
+      let errorMsg = `HTTP ${response.status}`;
+      
+      try {
+        const errorData = JSON.parse(responseText);
+        console.error("❌ API Error Data:", errorData);
+        errorMsg = errorData.error?.message || JSON.stringify(errorData);
+      } catch (e) {
+        console.error("❌ JSON parse hatası:", e);
+      }
+      
+      throw new Error(`Gemini API Hatası: ${errorMsg}`);
     }
     
-    const data = await response.json();
-    console.log('Gemini API yanıtı:', data);
+    // JSON'a çevir
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log("✅ API Başarılı! Data:", data);
+    } catch (e) {
+      console.error("❌ JSON parse hatası:", e);
+      throw new Error("API JSON döndürmedi");
+    }
     
     if (data.candidates && data.candidates[0]) {
       const aiText = data.candidates[0].content.parts[0].text;
-      return `${aiText}\n\n🔑 (Kendi API key'inizle analiz edildi)`;
-    } else {
-      throw new Error('AI yanıt oluşturamadı');
+      console.log("🎯 AI Yanıtı:", aiText);
+      
+      // ASIL SORUYU SOR
+      const realBody = {
+        contents: [{
+          parts: [{
+            text: `Ürün: ${payload.title}, Site: ${payload.site || ""}, Fiyat: ${payload.price || ""}. Bu ürün hakkında kısa bir Türkçe yorum yap.`
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 100,
+          temperature: 0.7
+        }
+      };
+      
+      const realResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${userApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(realBody)
+      });
+      
+      if (realResponse.ok) {
+        const realData = await realResponse.json();
+        if (realData.candidates && realData.candidates[0]) {
+          const realAiText = realData.candidates[0].content.parts[0].text;
+          return `🎯 ${realAiText}\n\n✅ (Gerçek AI ile analiz edildi)`;
+        }
+      }
+      
+      return `🤖 ${aiText}\n\n✅ (Test başarılı, gerçek analiz)`;
     }
     
-  } catch (error) {
-    console.error('Gemini API hatası:', error);
+    throw new Error('AI yanıt oluşturamadı');
     
-    // Hata durumunda backend fallback
+  } catch (error) {
+    console.error("💥 TÜM API HATASI:", error);
+    console.error("Hata mesajı:", error.message);
+    console.error("Stack:", error.stack);
+    
+    // FALLBACK: Backend
+    console.log("🔄 Fallback backend deneniyor...");
     try {
       const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: payload.title, 
-          price: payload.price, 
-          site: payload.site 
-        })
+        body: JSON.stringify(payload),
+        timeout: 5000
       });
+      
+      console.log("Fallback status:", fallback.status);
       
       if (fallback.ok) {
         const data = await fallback.json();
-        return data.yorum + '\n\n(Not: Gemini API hatası, fallback kullanıldı)';
+        console.log("Fallback data:", data);
+        return data.yorum + '\n\n⚠️ (Fallback kullanıldı - ' + error.message.substring(0, 50) + ')';
       }
     } catch (fallbackError) {
-      console.error('Fallback de hatası:', fallbackError);
+      console.error('Fallback de çalışmadı:', fallbackError);
     }
     
-    // Hiçbiri çalışmazsa en basit yorum
-    return `🤖 ${payload.title} için basit analiz. ${payload.price ? `Fiyat: ${payload.price}` : ''}`;
+    // EN SON
+    return `🤖 ${payload.title} analizi: ${payload.price ? `Fiyat ${payload.price}. ` : ""}Değerlendirme yapılabilir.\n\n❌ Hata: ${error.message}`;
   }
 }
 
