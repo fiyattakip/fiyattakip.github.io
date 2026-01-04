@@ -1465,8 +1465,3 @@ if (!document.querySelector('#apiStatusStyle')) {
   `;
   document.head.appendChild(style);
 }
-// Buton bağlantıları
-setTimeout(() => {
-  document.getElementById('btnTestAI')?.addEventListener('click', testAiKey);
-  document.getElementById('btnClearAI')?.addEventListener('click', clearAiKey);
-}, 1000);
