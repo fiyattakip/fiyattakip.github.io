@@ -394,45 +394,45 @@ async function cameraAiSearch() {
 
 // ========== FAVORİ AI YORUM ==========
 async function getAiYorum(payload) {
-  console.log("🤖 DEEPSEEK AI");
+  console.log("🤖 AI YORUM ÇALIŞIYOR");
   
-  // Key kontrol
-  const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
-  const userApiKey = aiSettings.apiKey || '';
-  
-  if (!userApiKey || !userApiKey.startsWith('sk-')) {
-    return `🤖 ${payload.title} için AI analizi.\n\n🔑 DeepSeek API anahtarı gerekli.`;
-  }
-  
+  // SADECE BACKEND KULLAN - TELEFON/BİLGİSAYAR FARK ETMEZ
   try {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    console.log("🔄 Backend AI isteniyor...");
+    
+    const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
       method: 'POST',
-      headers: {
+      headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userApiKey}`
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{
-          role: 'user',
-          content: `Ürün: ${payload.title}. ${payload.site ? 'Site: ' + payload.site + '.' : ''} ${payload.price ? 'Fiyat: ' + payload.price + '.' : ''} Bu ürün için 2 cümlelik Türkçe alışveriş tavsiyesi ver.`
-        }],
-        max_tokens: 150
-      })
+        title: payload.title || '',
+        price: payload.price || '',
+        site: payload.site || '',
+        timestamp: Date.now()
+      }),
+      signal: AbortSignal.timeout(15000) // 15 saniye timeout
     });
+    
+    console.log("📊 Backend Status:", response.status);
     
     if (response.ok) {
       const data = await response.json();
-      const aiText = data.choices[0]?.message?.content || 'Yanıt alınamadı.';
-      return `🤖 ${aiText}\n\n✅ (DeepSeek AI ile)`;
+      console.log("✅ Backend AI başarılı");
+      return data.yorum || `🤖 ${payload.title} analiz edildi.`;
+    } else {
+      console.log("❌ Backend hatası:", response.status);
+      // Basit fallback
+      return `🤖 ${payload.title} ${payload.site ? payload.site + "'de" : ""} listeleniyor. ${payload.price ? `Fiyat: ${payload.price}. ` : ""}Değerlendirme yapılabilir.`;
     }
     
   } catch (error) {
-    console.error('DeepSeek hatası:', error);
+    console.error("💥 AI hatası:", error);
+    
+    // ÇOK BASİT FALLBACK
+    return `🤖 ${payload.title || "Ürün"} değerlendiriliyor...\n\n⚠️ AI geçici olarak kullanılamıyor.`;
   }
-  
-  // Fallback
-  return `🤖 ${payload.title} değerlendiriliyor...`;
 }
 
 // ========== FAVORİ İŞLEMLERİ ==========
