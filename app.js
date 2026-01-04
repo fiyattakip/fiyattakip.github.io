@@ -412,15 +412,20 @@ async function getAiYorum(payload) {
   console.log("🚀 Gemini API deneniyor...");
   
   try {
-    // GÜNCEL MODELLERİ DENE
-    const models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+    // GÜNCEL MODELLER VE URL YAPISI
+    const models = [
+      { name: 'gemini-1.5-flash', version: 'v1' },
+      { name: 'gemini-1.5-pro', version: 'v1' },
+      { name: 'gemini-pro', version: 'v1beta' } // Eski versiyon
+    ];
+    
     let lastError = null;
     
     for (const model of models) {
-      console.log(`🔄 ${model} modeli deneniyor...`);
+      console.log(`🔄 ${model.name} modeli deneniyor (${model.version})...`);
       
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${userApiKey}`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -437,30 +442,30 @@ async function getAiYorum(payload) {
               temperature: 0.7
             }
           }),
-          signal: AbortSignal.timeout(8000) // 8 saniye timeout
+          signal: AbortSignal.timeout(8000)
         });
         
-        console.log(`📊 ${model} Status:`, response.status);
+        console.log(`📊 ${model.name} Status:`, response.status);
         
         if (!response.ok) {
           const errorText = await response.text();
-          console.log(`❌ ${model} hatası:`, response.status, errorText.substring(0, 100));
-          lastError = new Error(`${model}: ${response.status}`);
-          continue; // Sonraki modeli dene
+          console.log(`❌ ${model.name} hatası:`, response.status, errorText.substring(0, 100));
+          lastError = new Error(`${model.name}: ${response.status}`);
+          continue;
         }
         
         const data = await response.json();
-        console.log(`✅ ${model} Başarılı!`);
+        console.log(`✅ ${model.name} Başarılı!`);
         
         if (data.candidates && data.candidates[0]) {
           const aiText = data.candidates[0].content.parts[0].text;
-          console.log(`🎯 ${model} Yanıtı:`, aiText.substring(0, 100));
+          console.log(`🎯 ${model.name} Yanıtı:`, aiText.substring(0, 100));
           
-          return `🤖 **${payload.title}** ${payload.site ? "(" + payload.site + ")" : ""} ${payload.price ? "- " + payload.price : ""}\n\n${aiText}\n\n✅ (${model} ile analiz edildi)`;
+          return `🤖 **${payload.title}** ${payload.site ? "(" + payload.site + ")" : ""} ${payload.price ? "- " + payload.price : ""}\n\n${aiText}\n\n✅ (${model.name} ile analiz edildi)`;
         }
         
       } catch (modelError) {
-        console.log(`⚠️ ${model} model hatası:`, modelError.message);
+        console.log(`⚠️ ${model.name} model hatası:`, modelError.message);
         lastError = modelError;
       }
     }
@@ -468,14 +473,13 @@ async function getAiYorum(payload) {
     // Tüm modeller başarısız oldu
     console.log("💥 Tüm modeller başarısız:", lastError);
     
-    // FALLBACK: Backend
+    // FALLBACK: Backend (zaten çalışıyor!)
     console.log("🔄 Backend fallback deneniyor...");
     try {
       const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        timeout: 5000
+        body: JSON.stringify(payload)
       });
       
       if (fallback.ok) {
