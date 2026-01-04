@@ -398,15 +398,24 @@ async function getAiYorum(payload) {
   
   // 1. DEEPSEEK KEY'İ AL
   const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
-  const userApiKey = aiSettings.apiKey || ''; // Buraya DeepSeek key gelecek
+  const userApiKey = aiSettings.apiKey || '';
   
-  // Eğer key yoksa
-  if (!userApiKey) {
-    return `🤖 ${payload.title} için AI analizi.\n\n⚠️ DeepSeek API anahtarı gerekli.`;
+  // Eğer key yoksa veya DeepSeek key'i değilse
+  if (!userApiKey || userApiKey.length < 10) {
+    console.log("❌ DeepSeek key yok veya çok kısa");
+    return `🤖 ${payload.title} için AI analizi.\n\n🔑 DeepSeek API anahtarı gerekli. Ayarlardan ekleyin.`;
+  }
+  
+  // DeepSeek key kontrolü (sk-... ile başlamalı)
+  if (!userApiKey.startsWith('sk-') && !userApiKey.startsWith('AIzaSy')) {
+    console.log("❌ Key formatı hatalı:", userApiKey.substring(0, 10) + "...");
+    return `🤖 API key formatı hatalı.\n\nDeepSeek key'leri "sk-..." ile başlar.\n\nLütfen doğru key girin.`;
   }
   
   // 2. DEEPSEEK API'Yİ ÇAĞIR
   try {
+    console.log("🚀 DeepSeek API deneniyor...");
+    
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
@@ -414,35 +423,32 @@ async function getAiYorum(payload) {
         'Authorization': `Bearer ${userApiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',  // Ücretsiz model
+        model: 'deepseek-chat',
         messages: [
           {
-            role: 'system',
-            content: 'Sen bir alışveriş asistanısın. Kısa, net Türkçe tavsiyeler ver.'
-          },
-          {
             role: 'user',
-            content: `Ürün: ${payload.title}. ${payload.site ? 'Site: ' + payload.site + '.' : ''} ${payload.price ? 'Fiyat: ' + payload.price + '.' : 'Fiyat belirtilmemiş.'} Bu ürün hakkında 2-3 cümlelik alışveriş tavsiyesi ver.`
+            content: `Ürün: ${payload.title || ""}. ${payload.site ? 'Site: ' + payload.site + '.' : ''} ${payload.price ? 'Fiyat: ' + payload.price + '.' : ''} Bu ürün hakkında 2-3 cümlelik Türkçe alışveriş tavsiyesi ver.`
           }
         ],
         max_tokens: 150,
         temperature: 0.7
-      })
+      }),
+      signal: AbortSignal.timeout(10000) // 10 saniye timeout
     });
     
     console.log('📊 DeepSeek Status:', response.status);
     
-    if (response.ok) {
-      const data = await response.json();
-      const aiText = data.choices[0]?.message?.content || 'Yanıt alınamadı.';
-      
-      console.log('✅ DeepSeek Başarılı!');
-      return `🤖 ${aiText}\n\n✅ (DeepSeek AI ile analiz edildi)`;
-    } else {
+    if (!response.ok) {
       const error = await response.json();
       console.log('❌ DeepSeek Hatası:', error);
       throw new Error(`DeepSeek: ${error.error?.message || 'API hatası'}`);
     }
+    
+    const data = await response.json();
+    const aiText = data.choices[0]?.message?.content || 'Yanıt alınamadı.';
+    
+    console.log('✅ DeepSeek Başarılı! Yanıt:', aiText.substring(0, 50) + '...');
+    return `🤖 ${aiText}\n\n✅ (DeepSeek AI ile analiz edildi)`;
     
   } catch (error) {
     console.error('💥 DeepSeek Hata:', error);
@@ -465,7 +471,7 @@ async function getAiYorum(payload) {
     }
     
     // 4. EN SON
-    return `🤖 ${payload.title} değerlendiriliyor...\n\n❌ AI geçici olarak kullanılamıyor.`;
+    return `🤖 ${payload.title || "Ürün"} değerlendiriliyor...\n\n❌ AI geçici olarak kullanılamıyor.`;
   }
 }
 
