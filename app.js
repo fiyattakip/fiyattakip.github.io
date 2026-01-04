@@ -396,39 +396,89 @@ async function cameraAiSearch() {
 async function getAiYorum(payload) {
   console.log("🤖 AI isteniyor:", payload);
   
-  // AI ayarlarını kontrol et
+  // 1. KULLANICI KEY'İNİ AL
   const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+  const userApiKey = aiSettings.apiKey || '';
   
-  // AI kapalıysa
-  if (aiSettings.enabled === false) {
-    return 'AI özelliği kapalı. Ayarlardan açabilirsiniz.';
+  console.log('Kullanıcı API Key var mı?', !!userApiKey);
+  console.log('AI ayarları:', aiSettings);
+  
+  // 2. EĞER KEY YOKSA veya AI KAPALIYSA - BASİT YORUM
+  if (!userApiKey || aiSettings.enabled === false) {
+    console.log('Key yok veya AI kapalı, basit yorum dönecek');
+    return `🤖 ${payload.title} ${payload.site ? payload.site + "'de" : ""} listeleniyor. ${payload.price ? `Fiyat: ${payload.price}. ` : ""}Fiyat/performans değerlendirilebilir.`;
   }
   
+  // 3. KEY VARSA - DİREKT GEMİNİ API KULLAN
+  console.log('Kullanıcı key ile Gemini API kullanılıyor...');
+  
   try {
-    const response = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${userApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: payload.title,
-        price: payload.price,
-        site: payload.site,
-        apiKey: aiSettings.apiKey || ''  // 🔑 Kullanıcının key'ini gönder
+        contents: [{
+          parts: [{
+            text: `Şu ürün hakkında kısa, pratik bir Türkçe alışveriş tavsiyesi ver (2-3 cümle):
+
+ÜRÜN: ${payload.title || "Ürün"}
+SİTE: ${payload.site || "Alışveriş sitesi"} 
+FİYAT: ${payload.price || "Belirtilmemiş"}
+
+Değerlendir:
+1. Bu fiyat makul mu?
+2. Hemen almalı mı beklemeli mi?
+3. Kısa ve net olsun.`
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 150,
+          temperature: 0.7
+        }
       })
     });
     
-    const data = await response.json();
-    console.log("✅ Backend yanıtı:", data);
-    
-    // Eğer kullanıcı key'i kullanıldıysa bilgi ekle
-    if (data.keyUsed && data.source === 'gemini_user_key') {
-      return data.yorum + '\n\n🔑 (Kendi API key\'iniz kullanıldı)';
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API hatası:', response.status, errorText);
+      throw new Error(`API hatası: ${response.status}`);
     }
     
-    return data.yorum || 'Yorum alınamadı.';
+    const data = await response.json();
+    console.log('Gemini API yanıtı:', data);
+    
+    if (data.candidates && data.candidates[0]) {
+      const aiText = data.candidates[0].content.parts[0].text;
+      return `${aiText}\n\n🔑 (Kendi API key'inizle analiz edildi)`;
+    } else {
+      throw new Error('AI yanıt oluşturamadı');
+    }
     
   } catch (error) {
-    console.error("❌ AI hatası:", error);
-    return 'AI servisi şu anda kullanılamıyor.';
+    console.error('Gemini API hatası:', error);
+    
+    // Hata durumunda backend fallback
+    try {
+      const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: payload.title, 
+          price: payload.price, 
+          site: payload.site 
+        })
+      });
+      
+      if (fallback.ok) {
+        const data = await fallback.json();
+        return data.yorum + '\n\n(Not: Gemini API hatası, fallback kullanıldı)';
+      }
+    } catch (fallbackError) {
+      console.error('Fallback de hatası:', fallbackError);
+    }
+    
+    // Hiçbiri çalışmazsa en basit yorum
+    return `🤖 ${payload.title} için basit analiz. ${payload.price ? `Fiyat: ${payload.price}` : ''}`;
   }
 }
 
