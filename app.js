@@ -488,54 +488,118 @@ async function getAiYorum(payload) {
       
       const realResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${userApiKey}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(realBody)
-      });
+async function getAiYorum(payload) {
+  console.log("=== 🤖 AI YORUM BAŞLADI ===");
+  console.log("Ürün:", payload);
+  
+  // 1. KULLANICI KEY'İNİ AL
+  const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+  const userApiKey = aiSettings.apiKey || '';
+  
+  console.log("🔑 Key:", userApiKey ? "VAR (" + userApiKey.length + " karakter)" : "YOK");
+  
+  // 2. KEY KONTROLÜ
+  if (!userApiKey || !userApiKey.startsWith('AIzaSy')) {
+    console.log("❌ Key yok veya hatalı format");
+    return `🤖 ${payload.title} ${payload.site ? payload.site + "'de" : ""} listeleniyor. ${payload.price ? `Fiyat: ${payload.price}. ` : ""}Fiyat/performans değerlendirilebilir.`;
+  }
+  
+  console.log("🚀 GÜNCEL Gemini API deneniyor...");
+  
+  try {
+    // GÜNCEL MODELLER:
+    // 1. gemini-1.5-pro (önerilen)
+    // 2. gemini-1.5-flash (hızlı)
+    // 3. gemini-pro (eski)
+    
+    const models = [
+      'gemini-1.5-pro',  // Önce bunu dene
+      'gemini-1.5-flash', // Sonra bunu
+      'gemini-pro'        // En son eski model
+    ];
+    
+    let lastError = null;
+    
+    // Tüm modelleri dene
+    for (const model of models) {
+      console.log(`🔄 ${model} modeli deneniyor...`);
       
-      if (realResponse.ok) {
-        const realData = await realResponse.json();
-        if (realData.candidates && realData.candidates[0]) {
-          const realAiText = realData.candidates[0].content.parts[0].text;
-          return `🎯 ${realAiText}\n\n✅ (Gerçek AI ile analiz edildi)`;
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `Ürün: ${payload.title || ""}. Site: ${payload.site || ""}. Fiyat: ${payload.price || "Belirtilmemiş"}. Bu ürün hakkında kısa, pratik bir Türkçe alışveriş tavsiyesi ver (2-3 cümle).`
+              }]
+            }],
+            generationConfig: {
+              maxOutputTokens: 100,
+              temperature: 0.7
+            }
+          }),
+          signal: AbortSignal.timeout(10000) // 10 saniye timeout
+        });
+        
+        console.log(`📊 ${model} Status:`, response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log(`❌ ${model} hatası:`, response.status, errorText.substring(0, 100));
+          lastError = new Error(`${model}: ${response.status} - ${errorText.substring(0, 50)}`);
+          continue; // Sonraki modeli dene
         }
+        
+        const data = await response.json();
+        console.log(`✅ ${model} Başarılı!`);
+        
+        if (data.candidates && data.candidates[0]) {
+          const aiText = data.candidates[0].content.parts[0].text;
+          console.log(`🎯 ${model} Yanıtı:`, aiText.substring(0, 100));
+          
+          return `🤖 **${payload.title}** ${payload.site ? "(" + payload.site + ")" : ""} ${payload.price ? "- " + payload.price : ""}\n\n${aiText}\n\n✅ (${model} ile analiz edildi)`;
+        }
+        
+      } catch (modelError) {
+        console.log(`⚠️ ${model} model hatası:`, modelError.message);
+        lastError = modelError;
       }
-      
-      return `🤖 ${aiText}\n\n✅ (Test başarılı, gerçek analiz)`;
     }
     
-    throw new Error('AI yanıt oluşturamadı');
+    // Tüm modeller başarısız oldu
+    console.log("💥 Tüm modeller başarısız:", lastError);
+    throw new Error(`Tüm Gemini modelleri başarısız: ${lastError?.message || 'Bilinmeyen'}`);
     
   } catch (error) {
-    console.error("💥 TÜM API HATASI:", error);
-    console.error("Hata mesajı:", error.message);
-    console.error("Stack:", error.stack);
+    console.error("💥 Ana hata:", error);
     
-    // FALLBACK: Backend
-    console.log("🔄 Fallback backend deneniyor...");
+    // FALLBACK: Backend (her zaman çalışır)
+    console.log("🔄 Backend fallback deneniyor...");
     try {
       const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        timeout: 5000
+        body: JSON.stringify(payload)
       });
-      
-      console.log("Fallback status:", fallback.status);
       
       if (fallback.ok) {
         const data = await fallback.json();
-        console.log("Fallback data:", data);
-        return data.yorum + '\n\n⚠️ (Fallback kullanıldı - ' + error.message.substring(0, 50) + ')';
+        console.log("✅ Backend fallback başarılı:", data.yorum?.substring(0, 50));
+        return data.yorum + '\n\n⚠️ (Gemini API hatası, fallback kullanıldı)';
       }
     } catch (fallbackError) {
-      console.error('Fallback de çalışmadı:', fallbackError);
+      console.error('Backend de çalışmadı:', fallbackError);
     }
     
-    // EN SON
-    return `🤖 ${payload.title} analizi: ${payload.price ? `Fiyat ${payload.price}. ` : ""}Değerlendirme yapılabilir.\n\n❌ Hata: ${error.message}`;
+    // EN SON ÇARE
+    console.log("📝 En basit yorum dönüyor...");
+    return `🤖 ${payload.title} ${payload.site ? payload.site + "'de" : ""} listeleniyor. ${payload.price ? `Fiyat: ${payload.price}. ` : ""}Fiyat/performans değerlendirilebilir.`;
   }
 }
-
 // ========== FAVORİ İŞLEMLERİ ==========
 function favIdFromUrl(url){
   try{
