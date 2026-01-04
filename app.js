@@ -978,15 +978,34 @@ function saveAISettings(){
 }
 
 async function testAiKey() {
-  const apiKey = $("aiApiKey")?.value || '';
-  const statusDiv = document.getElementById('aiKeyStatus');
-  
-  console.log('🔑 API Key test ediliyor, key uzunluğu:', apiKey.length);
+  const apiKey = document.getElementById('aiApiKey')?.value || '';
   
   if (!apiKey) {
-    toast('⚠️ Lütfen önce API key girin', 'error');
+    alert('⚠️ Lütfen API key girin');
     return;
   }
+  
+  alert('🔄 Key test ediliyor...');
+  
+  try {
+    // En basit test
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents: [{parts: [{text: "Test"}]}]
+      })
+    });
+    
+    if (res.ok) {
+      alert('✅ Key çalışıyor!');
+    } else {
+      alert('❌ Key hatalı');
+    }
+  } catch (error) {
+    alert('❌ Bağlantı hatası: ' + error.message);
+  }
+}
   
   // Key format kontrolü
   if (!apiKey.startsWith('AIzaSy')) {
@@ -1133,15 +1152,9 @@ async function testAiKey() {
 
 function clearAiKey() {
   if (confirm('API key silinsin mi?')) {
-    $("aiApiKey").value = '';
+    document.getElementById('aiApiKey').value = '';
     localStorage.removeItem('aiSettings');
-    
-    const statusDiv = document.getElementById('aiKeyStatus');
-    if (statusDiv) {
-      statusDiv.style.display = 'none';
-    }
-    
-    toast('🗑️ API key temizlendi', 'info');
+    alert('🗑️ Key temizlendi');
   }
 }
 
@@ -1452,3 +1465,8 @@ if (!document.querySelector('#apiStatusStyle')) {
   `;
   document.head.appendChild(style);
 }
+// Buton bağlantıları
+setTimeout(() => {
+  document.getElementById('btnTestAI')?.addEventListener('click', testAiKey);
+  document.getElementById('btnClearAI')?.addEventListener('click', clearAiKey);
+}, 1000);
