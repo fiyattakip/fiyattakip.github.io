@@ -1079,23 +1079,111 @@ async function testAiKey() {
         // Key'i kaydet
         const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
         settings.apiKey = apiKey;
-        settings.enabled = true;
-        localStorage.setItem('aiSettings', JSON.stringify(settings));
-        
-        toast('✅ API key testi BAŞARILI! Artık AI yorumlarınız kişiselleştirilecek.', 'success');
-        
-      } else if (data.error) {
-        throw new Error(data.error.message || 'API error');
-      } else {
-        throw new Error('Beklenmeyen yanıt formatı');
-      }
+async function testAiKey() {
+  const apiKey = $("aiApiKey")?.value || '';
+  const statusDiv = document.getElementById('aiKeyStatus');
+  
+  console.log('🔑 API Key test ediliyor, key uzunluğu:', apiKey.length);
+  
+  if (!apiKey) {
+    toast('⚠️ Lütfen önce API key girin', 'error');
+    return;
+  }
+  
+  // Key format kontrolü
+  if (!apiKey.startsWith('AIzaSy')) {
+    statusDiv.innerHTML = `
+      <div style="color:#7f1d1d; font-size:14px;">
+        ❌ GEÇERSİZ KEY FORMATI
+        <div style="margin-top:5px; font-size:13px;">
+          Google Gemini API key'leri "AIzaSy..." ile başlar.
+          Mevcut key: ${apiKey.substring(0, 10)}...
+        </div>
+        <div style="margin-top:8px; font-size:12px;">
+          <a href="https://aistudio.google.com/apikey" target="_blank" 
+             style="color:#3b82f6; text-decoration:underline;">
+            🔗 Yeni key almak için tıkla
+          </a>
+        </div>
+      </div>
+    `;
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#fee2e2';
+    toast('Key formatı hatalı', 'error');
+    return;
+  }
+  
+  statusDiv.innerHTML = `
+    <div style="color:#92400e; font-size:14px;">
+      🔄 API key Gemini API'ye bağlanıyor...
+    </div>
+  `;
+  statusDiv.style.display = 'block';
+  statusDiv.style.background = '#fef3c7';
+  
+  try {
+    console.log('📡 Gemini API test isteği gönderiliyor...');
+    
+    // DİREKT GEMİNİ API TEST
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ 
+            text: "Test"
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 5,
+          temperature: 0.1
+        }
+      })
+    });
+    
+    console.log('📊 Response status:', response.status);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ API error:', errorData);
+      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ API response alındı');
+    
+    if (data.candidates && data.candidates[0]) {
+      const aiResponse = data.candidates[0].content.parts[0].text;
+      console.log('🤖 AI yanıtı:', aiResponse);
+      
+      statusDiv.innerHTML = `
+        <div style="color:#065f46; font-size:14px;">
+          ✅ API Key ÇALIŞIYOR!
+          <div style="margin-top:5px; font-size:13px;">
+            Model: Gemini Pro | Kota: 60 request/dakika
+          </div>
+          <div style="margin-top:5px; font-size:12px; color:#6b7280;">
+            AI yanıtı: "${aiResponse.substring(0, 50)}..."
+          </div>
+        </div>
+      `;
+      statusDiv.style.background = '#d1fae5';
+      statusDiv.style.border = '1px solid #10b981';
+      
+      // Key'i kaydet
+      const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
+      settings.apiKey = apiKey;
+      settings.enabled = true;
+      localStorage.setItem('aiSettings', JSON.stringify(settings));
+      
+      toast('✅ API key testi BAŞARILI!', 'success');
+      
     } else {
-      // HTTP hatası
-      if (data.error) {
-        throw new Error(`${data.error.code || 'HTTP ' + response.status}: ${data.error.message}`);
-      } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      console.error('❌ Beklenmeyen yanıt formatı:', data);
+      throw new Error('AI yanıt vermedi veya beklenmeyen format');
     }
     
   } catch (error) {
@@ -1132,19 +1220,33 @@ async function testAiKey() {
             🔄 Yeni API key al
           </a>
           <button onclick="location.reload()" 
-                  style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
+                  style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:12px;">
             🔁 Sayfayı yenile
           </button>
         </div>
       </div>
     `;
     statusDiv.style.background = '#fee2e2';
+    statusDiv.style.border = '1px solid #ef4444';
     
-    toast(`❌ Key testi başarısız: ${errorMessage.substring(0, 50)}`, 'error');
+    toast(`❌ Key testi başarısız`, 'error');
   }
 }
 
-// ========== YARDIMCI FONKSİYONLAR ==========
+function clearAiKey() {
+  if (confirm('API key silinsin mi?')) {
+    $("aiApiKey").value = '';
+    localStorage.removeItem('aiSettings');
+    
+    const statusDiv = document.getElementById('aiKeyStatus');
+    if (statusDiv) {
+      statusDiv.style.display = 'none';
+    }
+    
+    toast('🗑️ API key temizlendi', 'info');
+  }
+}
+
 async function copyToClipboard(text){
   try{
     await navigator.clipboard.writeText(text);
