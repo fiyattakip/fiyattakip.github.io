@@ -394,191 +394,56 @@ async function cameraAiSearch() {
 
 // ========== FAVORİ AI YORUM ==========
 async function getAiYorum(payload) {
-  console.log("=== 🤖 AI YORUM BAŞLADI ===");
-  console.log("Ürün:", payload);
+  console.log("🤖 AI isteniyor:", payload);
   
-  // 1. KULLANICI KEY'İNİ AL
   const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
   const userApiKey = aiSettings.apiKey || '';
   
-  console.log("🔍 AI Ayarları:", aiSettings);
-  console.log("🔑 Key Uzunluğu:", userApiKey.length);
-  console.log("✅ Key Formatı Doğru mu?", userApiKey.startsWith('AIzaSy'));
+  console.log('🔑 Kullanıcı Key (ilk 10 karakter):', userApiKey.substring(0, 10) + '...');
   
-  // 2. KEY KONTROLÜ
-  if (!userApiKey || !userApiKey.startsWith('AIzaSy')) {
-    console.log("❌ Key YOK veya hatalı format");
+  // EĞER KEY YOKSA
+  if (!userApiKey) {
+    console.log('❌ Kullanıcı key YOK, basit yorum dönecek');
     return `🤖 ${payload.title} ${payload.site ? payload.site + "'de" : ""} listeleniyor. ${payload.price ? `Fiyat: ${payload.price}. ` : ""}Fiyat/performans değerlendirilebilir.`;
   }
   
-  console.log("🚀 Gemini API deneniyor...");
+  console.log('🚀 Gemini API deneniyor...');
   
   try {
-    // ÇOK BASİT TEST MESAJI
-    const testBody = {
-      contents: [{
-        parts: [{
-          text: "Sadece 'Test başarılı' yaz."
-        }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 10,
-        temperature: 0.1
-      }
-    };
-    
-    console.log("📤 Gönderilen istek:", testBody);
-    
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${userApiKey}`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(testBody)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: "Sadece 'Test başarılı' yaz."
+          }]
+        }]
+      })
     });
     
-    console.log("📥 Response Status:", response.status, response.statusText);
-    
-    // Response'u oku
-    const responseText = await response.text();
-    console.log("📄 Response Text (ilk 200 karakter):", responseText.substring(0, 200));
+    console.log('📊 API Response Status:', response.status);
     
     if (!response.ok) {
-      console.error("❌ API Hatası!");
-      let errorMsg = `HTTP ${response.status}`;
-      
-      try {
-        const errorData = JSON.parse(responseText);
-        console.error("❌ API Error Data:", errorData);
-        errorMsg = errorData.error?.message || JSON.stringify(errorData);
-      } catch (e) {
-        console.error("❌ JSON parse hatası:", e);
-      }
-      
-      throw new Error(`Gemini API Hatası: ${errorMsg}`);
+      const errorData = await response.json();
+      console.error('❌ Gemini API Hatası:', errorData);
+      throw new Error(`API Hatası ${response.status}: ${errorData.error?.message || 'Bilinmeyen'}`);
     }
     
-    // JSON'a çevir
-    let data;
-    try {
-      data = JSON.parse(responseText);
-      console.log("✅ API Başarılı! Data:", data);
-    } catch (e) {
-      console.error("❌ JSON parse hatası:", e);
-      throw new Error("API JSON döndürmedi");
-    }
+    const data = await response.json();
+    console.log('✅ Gemini API Başarılı:', data);
     
     if (data.candidates && data.candidates[0]) {
       const aiText = data.candidates[0].content.parts[0].text;
-      console.log("🎯 AI Yanıtı:", aiText);
-      
-      // ASIL SORUYU SOR
-      const realBody = {
-        contents: [{
-          parts: [{
-            text: `Ürün: ${payload.title}, Site: ${payload.site || ""}, Fiyat: ${payload.price || ""}. Bu ürün hakkında kısa bir Türkçe yorum yap.`
-          }]
-        }],
-        generationConfig: {
-          maxOutputTokens: 100,
-          temperature: 0.7
-        }
-      };
-      
-      const realResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${userApiKey}`, {
-        method: 'POST',
-async function getAiYorum(payload) {
-  console.log("=== 🤖 AI YORUM BAŞLADI ===");
-  console.log("Ürün:", payload);
-  
-  // 1. KULLANICI KEY'İNİ AL
-  const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
-  const userApiKey = aiSettings.apiKey || '';
-  
-  console.log("🔑 Key:", userApiKey ? "VAR (" + userApiKey.length + " karakter)" : "YOK");
-  
-  // 2. KEY KONTROLÜ
-  if (!userApiKey || !userApiKey.startsWith('AIzaSy')) {
-    console.log("❌ Key yok veya hatalı format");
-    return `🤖 ${payload.title} ${payload.site ? payload.site + "'de" : ""} listeleniyor. ${payload.price ? `Fiyat: ${payload.price}. ` : ""}Fiyat/performans değerlendirilebilir.`;
-  }
-  
-  console.log("🚀 GÜNCEL Gemini API deneniyor...");
-  
-  try {
-    // GÜNCEL MODELLER:
-    // 1. gemini-1.5-pro (önerilen)
-    // 2. gemini-1.5-flash (hızlı)
-    // 3. gemini-pro (eski)
-    
-    const models = [
-      'gemini-1.5-pro',  // Önce bunu dene
-      'gemini-1.5-flash', // Sonra bunu
-      'gemini-pro'        // En son eski model
-    ];
-    
-    let lastError = null;
-    
-    // Tüm modelleri dene
-    for (const model of models) {
-      console.log(`🔄 ${model} modeli deneniyor...`);
-      
-      try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `Ürün: ${payload.title || ""}. Site: ${payload.site || ""}. Fiyat: ${payload.price || "Belirtilmemiş"}. Bu ürün hakkında kısa, pratik bir Türkçe alışveriş tavsiyesi ver (2-3 cümle).`
-              }]
-            }],
-            generationConfig: {
-              maxOutputTokens: 100,
-              temperature: 0.7
-            }
-          }),
-          signal: AbortSignal.timeout(10000) // 10 saniye timeout
-        });
-        
-        console.log(`📊 ${model} Status:`, response.status);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.log(`❌ ${model} hatası:`, response.status, errorText.substring(0, 100));
-          lastError = new Error(`${model}: ${response.status} - ${errorText.substring(0, 50)}`);
-          continue; // Sonraki modeli dene
-        }
-        
-        const data = await response.json();
-        console.log(`✅ ${model} Başarılı!`);
-        
-        if (data.candidates && data.candidates[0]) {
-          const aiText = data.candidates[0].content.parts[0].text;
-          console.log(`🎯 ${model} Yanıtı:`, aiText.substring(0, 100));
-          
-          return `🤖 **${payload.title}** ${payload.site ? "(" + payload.site + ")" : ""} ${payload.price ? "- " + payload.price : ""}\n\n${aiText}\n\n✅ (${model} ile analiz edildi)`;
-        }
-        
-      } catch (modelError) {
-        console.log(`⚠️ ${model} model hatası:`, modelError.message);
-        lastError = modelError;
-      }
+      return `🎯 DETAYLI ANALİZ:\n\n${aiText}\n\n✅ (Gerçek AI ile analiz edildi)`;
     }
     
-    // Tüm modeller başarısız oldu
-    console.log("💥 Tüm modeller başarısız:", lastError);
-    throw new Error(`Tüm Gemini modelleri başarısız: ${lastError?.message || 'Bilinmeyen'}`);
+    throw new Error('AI yanıt oluşturamadı');
     
   } catch (error) {
-    console.error("💥 Ana hata:", error);
+    console.error('💥 Tüm API hatası:', error);
     
-    // FALLBACK: Backend (her zaman çalışır)
-    console.log("🔄 Backend fallback deneniyor...");
+    // Fallback: Backend'in basit yorumu
     try {
       const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
         method: 'POST',
@@ -588,16 +453,14 @@ async function getAiYorum(payload) {
       
       if (fallback.ok) {
         const data = await fallback.json();
-        console.log("✅ Backend fallback başarılı:", data.yorum?.substring(0, 50));
-        return data.yorum + '\n\n⚠️ (Gemini API hatası, fallback kullanıldı)';
+        return data.yorum + '\n\n⚠️ (Gerçek AI kullanılamadı)';
       }
-    } catch (fallbackError) {
-      console.error('Backend de çalışmadı:', fallbackError);
+    } catch (e) {
+      console.error('Fallback de çalışmadı:', e);
     }
     
-    // EN SON ÇARE
-    console.log("📝 En basit yorum dönüyor...");
-    return `🤖 ${payload.title} ${payload.site ? payload.site + "'de" : ""} listeleniyor. ${payload.price ? `Fiyat: ${payload.price}. ` : ""}Fiyat/performans değerlendirilebilir.`;
+    // En son çare
+    return `🤖 ${payload.title} için temel değerlendirme.`;
   }
 }
 // ========== FAVORİ İŞLEMLERİ ==========
