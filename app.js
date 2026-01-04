@@ -394,33 +394,41 @@ async function cameraAiSearch() {
 
 // ========== FAVORİ AI YORUM ==========
 async function getAiYorum(payload) {
-  console.log("=== 🤖 GÜNCEL AI KODU ===");
+  console.log("=== 🤖 GÜNCEL GEMINI AI ===");
   
   // 1. KEY KONTROL
   const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
   const userApiKey = aiSettings.apiKey || '';
   
-  console.log("🔑 API Key:", userApiKey ? "VAR" : "YOK");
-  
-  // Key yoksa hemen çık
   if (!userApiKey || !userApiKey.startsWith('AIzaSy')) {
     return `🤖 ${payload.title} için API anahtarı gerekli.`;
   }
   
-  // 2. TEK MODEL - KESİN ÇALIŞAN
-  console.log("🚀 TEK MODEL DENENİYOR: gemini-1.5-flash-latest");
+  console.log("🔑 Key var, API deneniyor...");
   
-  try {
-    // GÜNCEL URL: v1 kullan, -latest ekle
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`,
-      {
+  // 2. GOOGLE'IN GÜNCEL MODELLERİ (Ocak 2024)
+  const models = [
+    'gemini-1.5-flash-001',      // En güncel flash model
+    'gemini-1.5-pro-001',        // En güncel pro model  
+    'gemini-1.0-pro-001',        // Eski pro model
+    'gemini-pro'                 // En eski
+  ];
+  
+  // 3. MODELLERİ SIRAYLA DENE
+  for (const model of models) {
+    console.log(`🔄 ${model} deneniyor...`);
+    
+    try {
+      // v1 kullan
+      const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${userApiKey}`;
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Ürün: ${payload.title}. Site: ${payload.site || ""}. Fiyat: ${payload.price || "Belirtilmemiş"}. Bu ürün için 2 cümlelik Türkçe tavsiye ver.`
+              text: `Ürün: ${payload.title}. ${payload.site ? "Site: " + payload.site + "." : ""} ${payload.price ? "Fiyat: " + payload.price + "." : ""} Bu ürün hakkında 2 cümlelik Türkçe alışveriş tavsiyesi ver.`
             }]
           }],
           generationConfig: {
@@ -428,29 +436,30 @@ async function getAiYorum(payload) {
             temperature: 0.7
           }
         })
-      }
-    );
-    
-    console.log("📊 Status:", response.status);
-    
-    if (response.status === 200) {
-      const data = await response.json();
-      console.log("✅ API BAŞARILI!");
+      });
       
-      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        const aiText = data.candidates[0].content.parts[0].text;
-        return `🤖 ${aiText}\n\n✅ (Gemini AI ile analiz edildi)`;
+      console.log(`📊 ${model} Status:`, response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+          const aiText = data.candidates[0].content.parts[0].text;
+          console.log(`✅ ${model} ÇALIŞTI!`);
+          return `🤖 ${aiText}\n\n✅ (Gemini AI ile analiz edildi)`;
+        }
+      } else {
+        const error = await response.text();
+        console.log(`❌ ${model} hatası:`, response.status);
       }
+      
+    } catch (error) {
+      console.log(`⚠️ ${model} hatası:`, error.message);
     }
-    
-    // Hata durumunda backend
-    console.log("❌ Gemini hatası, backend deneniyor...");
-    
-  } catch (error) {
-    console.error("💥 Hata:", error);
   }
   
-  // 3. BACKEND FALLBACK (ZATEN ÇALIŞIYOR)
+  // 4. HİÇBİRİ ÇALIŞMAZSA BACKEND
+  console.log("🔄 Backend fallback deneniyor...");
   try {
     const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
       method: 'POST',
@@ -460,13 +469,14 @@ async function getAiYorum(payload) {
     
     if (fallback.ok) {
       const data = await fallback.json();
-      return data.yorum + '\n\n⚠️ (Backend kullanıldı)';
+      console.log("✅ Backend başarılı");
+      return data.yorum + '\n\n⚠️ (Gemini kullanılamadı, backend ile)';
     }
   } catch (e) {
     console.error("Backend hatası:", e);
   }
   
-  // 4. EN SON
+  // 5. EN SON
   return `🤖 ${payload.title} listeleniyor. Fiyat/performans değerlendirilebilir.`;
 }
 // ========== FAVORİ İŞLEMLERİ ==========
