@@ -978,34 +978,15 @@ function saveAISettings(){
 }
 
 async function testAiKey() {
-  const apiKey = document.getElementById('aiApiKey')?.value || '';
+  const apiKey = $("aiApiKey")?.value || '';
+  const statusDiv = document.getElementById('aiKeyStatus');
+  
+  console.log('🔑 API Key test ediliyor, key uzunluğu:', apiKey.length);
   
   if (!apiKey) {
-    alert('⚠️ Lütfen API key girin');
+    toast('⚠️ Lütfen önce API key girin', 'error');
     return;
   }
-  
-  alert('🔄 Key test ediliyor...');
-  
-  try {
-    // En basit test
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        contents: [{parts: [{text: "Test"}]}]
-      })
-    });
-    
-    if (res.ok) {
-      alert('✅ Key çalışıyor!');
-    } else {
-      alert('❌ Key hatalı');
-    }
-  } catch (error) {
-    alert('❌ Bağlantı hatası: ' + error.message);
-  }
-}
   
   // Key format kontrolü
   if (!apiKey.startsWith('AIzaSy')) {
