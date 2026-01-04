@@ -479,6 +479,7 @@ async function getAiYorum(payload) {
   // 5. EN SON
   return `🤖 ${payload.title} listeleniyor. Fiyat/performans değerlendirilebilir.`;
 }
+
 // ========== FAVORİ İŞLEMLERİ ==========
 function favIdFromUrl(url){
   try{
