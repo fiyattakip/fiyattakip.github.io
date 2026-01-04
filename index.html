@@ -273,30 +273,16 @@
           </select>
         </div>
 
-      <div class="row">
-  <label class="lbl">🔑 DeepSeek API Anahtarı</label>
-  <input id="aiApiKey" class="input inputDark" type="password" 
-         placeholder="sk-xxxxxxxxxxxx (DeepSeek'ten ücretsiz al)" />
-</div>
+        <div class="row">
+          <label class="lbl">API Key</label>
+          <input id="aiApiKey" class="input inputDark" type="password" placeholder="anahtarınızı girin" />
+        </div>
 
-<div class="row" style="display:flex; gap:10px;">
-  <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
-  <button id="btnTestAI" class="btnGhost" type="button">Key'i Test Et</button>
-  <button id="btnClearAI" class="btnGhost" type="button" style="color:#ef4444;">Temizle</button>
-</div>
+        <div class="row">
+          <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
+        </div>
 
-<!-- API Key durumu -->
-<div id="aiKeyStatus" style="margin:15px 0; padding:12px; border-radius:8px; background:#f5f5f5; display:none;">
-  <div style="font-size:14px; color:#666;">Key durumu yükleniyor...</div>
-</div>
-
-<div class="mini muted">
-  <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:#3b82f6;">
-    🔗 DeepSeek'ten ücretsiz API key almak için tıklayın
-  </a>
-  <br>
-  <small style="color:#999; font-size:11px;">Key'ler "sk-" ile başlar. Aylık 1M token ücretsiz.</small>
-</div>
+        <div class="mini muted">Test butonu bir sonraki adımda eklenecek.</div>
       </div>
     </div>
   </div>
