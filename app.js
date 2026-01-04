@@ -394,28 +394,17 @@ async function cameraAiSearch() {
 
 // ========== FAVORİ AI YORUM ==========
 async function getAiYorum(payload) {
-  console.log("🤖 DEEPSEEK AI ÇALIŞIYOR");
+  console.log("🤖 DEEPSEEK AI");
   
-  // 1. DEEPSEEK KEY'İ AL
+  // Key kontrol
   const aiSettings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
   const userApiKey = aiSettings.apiKey || '';
   
-  // Eğer key yoksa veya DeepSeek key'i değilse
-  if (!userApiKey || userApiKey.length < 10) {
-    console.log("❌ DeepSeek key yok veya çok kısa");
-    return `🤖 ${payload.title} için AI analizi.\n\n🔑 DeepSeek API anahtarı gerekli. Ayarlardan ekleyin.`;
+  if (!userApiKey || !userApiKey.startsWith('sk-')) {
+    return `🤖 ${payload.title} için AI analizi.\n\n🔑 DeepSeek API anahtarı gerekli.`;
   }
   
-  // DeepSeek key kontrolü (sk-... ile başlamalı)
-  if (!userApiKey.startsWith('sk-') && !userApiKey.startsWith('AIzaSy')) {
-    console.log("❌ Key formatı hatalı:", userApiKey.substring(0, 10) + "...");
-    return `🤖 API key formatı hatalı.\n\nDeepSeek key'leri "sk-..." ile başlar.\n\nLütfen doğru key girin.`;
-  }
-  
-  // 2. DEEPSEEK API'Yİ ÇAĞIR
   try {
-    console.log("🚀 DeepSeek API deneniyor...");
-    
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
@@ -424,55 +413,26 @@ async function getAiYorum(payload) {
       },
       body: JSON.stringify({
         model: 'deepseek-chat',
-        messages: [
-          {
-            role: 'user',
-            content: `Ürün: ${payload.title || ""}. ${payload.site ? 'Site: ' + payload.site + '.' : ''} ${payload.price ? 'Fiyat: ' + payload.price + '.' : ''} Bu ürün hakkında 2-3 cümlelik Türkçe alışveriş tavsiyesi ver.`
-          }
-        ],
-        max_tokens: 150,
-        temperature: 0.7
-      }),
-      signal: AbortSignal.timeout(10000) // 10 saniye timeout
+        messages: [{
+          role: 'user',
+          content: `Ürün: ${payload.title}. ${payload.site ? 'Site: ' + payload.site + '.' : ''} ${payload.price ? 'Fiyat: ' + payload.price + '.' : ''} Bu ürün için 2 cümlelik Türkçe alışveriş tavsiyesi ver.`
+        }],
+        max_tokens: 150
+      })
     });
     
-    console.log('📊 DeepSeek Status:', response.status);
-    
-    if (!response.ok) {
-      const error = await response.json();
-      console.log('❌ DeepSeek Hatası:', error);
-      throw new Error(`DeepSeek: ${error.error?.message || 'API hatası'}`);
+    if (response.ok) {
+      const data = await response.json();
+      const aiText = data.choices[0]?.message?.content || 'Yanıt alınamadı.';
+      return `🤖 ${aiText}\n\n✅ (DeepSeek AI ile)`;
     }
-    
-    const data = await response.json();
-    const aiText = data.choices[0]?.message?.content || 'Yanıt alınamadı.';
-    
-    console.log('✅ DeepSeek Başarılı! Yanıt:', aiText.substring(0, 50) + '...');
-    return `🤖 ${aiText}\n\n✅ (DeepSeek AI ile analiz edildi)`;
     
   } catch (error) {
-    console.error('💥 DeepSeek Hata:', error);
-    
-    // 3. BACKEND FALLBACK
-    try {
-      console.log('🔄 Backend deneniyor...');
-      const fallback = await fetch('https://fiyattakip-api.onrender.com/ai/yorum', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      if (fallback.ok) {
-        const data = await fallback.json();
-        return data.yorum + '\n\n⚠️ (DeepSeek çalışmadı, backend kullanıldı)';
-      }
-    } catch (fallbackError) {
-      console.error('Backend de çalışmadı:', fallbackError);
-    }
-    
-    // 4. EN SON
-    return `🤖 ${payload.title || "Ürün"} değerlendiriliyor...\n\n❌ AI geçici olarak kullanılamıyor.`;
+    console.error('DeepSeek hatası:', error);
   }
+  
+  // Fallback
+  return `🤖 ${payload.title} değerlendiriliyor...`;
 }
 
 // ========== FAVORİ İŞLEMLERİ ==========
@@ -995,77 +955,54 @@ function loadAISettings(){
   }catch(e){}
 }
 
-function saveAISettings(){
-  const apiKey = $("aiApiKey")?.value || "";
-  const provider = $("aiProvider")?.value || "gemini";
-  const enabled = $("aiEnabled")?.value || "on";
+function saveAISettings() {
+  const apiKey = ($("aiApiKey")?.value || "").trim();
   
-  if (apiKey && !apiKey.startsWith('AIzaSy')) {
+  if (!apiKey) {
+    toast("❌ API key gerekli", "error");
+    return;
+  }
+  
+  // DeepSeek key format kontrolü (sk- ile başlar)
+  if (!apiKey.startsWith('sk-')) {
     const confirmSave = confirm(
-      'Bu bir Gemini API key gibi görünmüyor.\n\nGoogle AI Studio\'dan aldığınız API key "AIzaSy..." şeklinde başlar.\n\nYine de kaydetmek istiyor musunuz?'
+      '⚠️ Bu bir DeepSeek API key gibi görünmüyor.\n\n' +
+      'DeepSeek key\'leri "sk-..." şeklinde başlar.\n\n' +
+      'Yine de kaydetmek istiyor musunuz?'
     );
     if (!confirmSave) return;
   }
   
   const settings = {
     apiKey: apiKey,
-    provider: provider,
-    enabled: enabled === 'on',
+    provider: 'deepseek',
+    enabled: true,
     lastUpdated: new Date().toISOString()
   };
   
   localStorage.setItem("aiSettings", JSON.stringify(settings));
-  toast("AI ayarları kaydedildi", "success");
-  updateAiKeyStatus();
+  toast("✅ DeepSeek ayarları kaydedildi", "success");
   closeAIModal();
 }
 
 async function testAiKey() {
-  const apiKey = $("aiApiKey")?.value || '';
+  const apiKey = ($("aiApiKey")?.value || "").trim();
   const statusDiv = document.getElementById('aiKeyStatus');
   
-  console.log('🔑 DeepSeek API Key test ediliyor, key uzunluğu:', apiKey.length);
-  
   if (!apiKey) {
-    toast('⚠️ Lütfen önce API key girin', 'error');
-    return;
-  }
-  
-  // DeepSeek key format kontrolü (sk-... ile başlar)
-  if (!apiKey.startsWith('sk-')) {
-    statusDiv.innerHTML = `
-      <div style="color:#7f1d1d; font-size:14px;">
-        ❌ GEÇERSİZ KEY FORMATI
-        <div style="margin-top:5px; font-size:13px;">
-          DeepSeek API key'leri "sk-..." ile başlar.
-          Mevcut key: ${apiKey.substring(0, 10)}...
-        </div>
-        <div style="margin-top:8px; font-size:12px;">
-          <a href="https://platform.deepseek.com/api_keys" target="_blank" 
-             style="color:#3b82f6; text-decoration:underline;">
-            🔗 Yeni DeepSeek key almak için tıkla
-          </a>
-        </div>
-      </div>
-    `;
-    statusDiv.style.display = 'block';
-    statusDiv.style.background = '#fee2e2';
-    toast('Key formatı hatalı', 'error');
+    toast("❌ Önce API key girin", "error");
     return;
   }
   
   statusDiv.innerHTML = `
-    <div style="color:#92400e; font-size:14px;">
-      🔄 DeepSeek API'ye bağlanıyor...
+    <div style="color:#92400e; padding:10px; background:#fef3c7; border-radius:6px;">
+      🔄 DeepSeek API test ediliyor...
     </div>
   `;
   statusDiv.style.display = 'block';
-  statusDiv.style.background = '#fef3c7';
   
   try {
-    console.log('📡 DeepSeek API test isteği gönderiliyor...');
-    
-    // DEEPSEEK API TEST
+    // ÇOK basit test
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
@@ -1074,113 +1011,44 @@ async function testAiKey() {
       },
       body: JSON.stringify({
         model: 'deepseek-chat',
-        messages: [
-          {
-            role: 'user',
-            content: "Merhaba, nasılsın?"
-          }
-        ],
-        max_tokens: 10,
-        temperature: 0.1
+        messages: [{ role: 'user', content: 'Merhaba' }],
+        max_tokens: 5
       })
     });
     
-    console.log('📊 DeepSeek Status:', response.status);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('❌ DeepSeek API error:', errorData);
-      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log('✅ DeepSeek response alındı');
-    
-    if (data.choices && data.choices[0]) {
-      const aiResponse = data.choices[0]?.message?.content || '';
-      console.log('🤖 DeepSeek yanıtı:', aiResponse);
-      
+    if (response.ok) {
+      const data = await response.json();
       statusDiv.innerHTML = `
-        <div style="color:#065f46; font-size:14px;">
-          ✅ DEEPSEEK API Key ÇALIŞIYOR!
-          <div style="margin-top:5px; font-size:13px;">
-            Model: DeepSeek Chat | Kota: 1M token/ay (ücretsiz)
-          </div>
-          <div style="margin-top:5px; font-size:12px; color:#6b7280;">
-            AI yanıtı: "${aiResponse}"
-          </div>
+        <div style="color:#065f46; padding:10px; background:#d1fae5; border-radius:6px; border:1px solid #10b981;">
+          ✅ <strong>DEEPSEEK ÇALIŞIYOR!</strong><br>
+          <small>Model: deepseek-chat | Ücretsiz kota: 1M token/ay</small>
         </div>
       `;
-      statusDiv.style.background = '#d1fae5';
-      statusDiv.style.border = '1px solid #10b981';
-      
-      // Key'i kaydet
-      const settings = JSON.parse(localStorage.getItem('aiSettings') || '{}');
-      settings.apiKey = apiKey;
-      settings.enabled = true;
-      localStorage.setItem('aiSettings', JSON.stringify(settings));
-      
-      toast('✅ DeepSeek API key testi BAŞARILI!', 'success');
-      
+      toast("✅ DeepSeek bağlantısı başarılı!", "success");
     } else {
-      console.error('❌ Beklenmeyen yanıt formatı:', data);
-      throw new Error('DeepSeek yanıt vermedi veya beklenmeyen format');
+      throw new Error(`HTTP ${response.status}`);
     }
     
   } catch (error) {
-    console.error('❌ DeepSeek Key test hatası:', error);
-    
-    let errorMessage = error.message;
-    let suggestion = '';
-    
-    // Hata türüne göre öneri
-    if (errorMessage.includes('401') || errorMessage.includes('invalid_api_key')) {
-      suggestion = 'Key geçersiz veya süresi dolmuş.';
-    } else if (errorMessage.includes('429')) {
-      suggestion = 'Kota doldu veya rate limit. 1 dakika bekleyin.';
-    } else if (errorMessage.includes('400')) {
-      suggestion = 'Key formatı hatalı.';
-    } else if (errorMessage.includes('Failed to fetch')) {
-      suggestion = 'İnternet bağlantınızı kontrol edin.';
-    } else {
-      suggestion = 'Bilinmeyen hata.';
-    }
-    
     statusDiv.innerHTML = `
-      <div style="color:#7f1d1d; font-size:14px;">
-        ❌ DeepSeek API Key Testi BAŞARISIZ
-        <div style="margin-top:5px; font-size:13px; font-weight:bold;">
-          ${errorMessage}
-        </div>
-        <div style="margin-top:5px; font-size:13px;">
-          ${suggestion}
-        </div>
-        <div style="margin-top:8px; font-size:12px;">
-          <a href="https://platform.deepseek.com/api_keys" target="_blank" 
-             style="color:#3b82f6; text-decoration:underline; display:block; margin-bottom:5px;">
-            🔄 Yeni DeepSeek API key al
-          </a>
-          <button onclick="location.reload()" 
-                  style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:12px;">
-            🔁 Sayfayı yenile
-          </button>
-        </div>
+      <div style="color:#7f1d1d; padding:10px; background:#fee2e2; border-radius:6px; border:1px solid #ef4444;">
+        ❌ <strong>DEEPSEEK HATASI</strong><br>
+        <small>${error.message}</small><br>
+        <small style="color:#3b82f6; margin-top:5px; display:block;">
+          <a href="https://platform.deepseek.com/api_keys" target="_blank">🔗 Yeni key al</a>
+        </small>
       </div>
     `;
-    statusDiv.style.background = '#fee2e2';
-    statusDiv.style.border = '1px solid #ef4444';
-    
-    toast(`❌ DeepSeek key testi başarısız`, 'error');
+    toast("❌ DeepSeek bağlantısı başarısız", "error");
   }
 }
 
 function clearAiKey() {
   if (confirm('DeepSeek API key silinsin mi?')) {
-    document.getElementById('aiApiKey').value = '';
+    $("aiApiKey").value = '';
     localStorage.removeItem('aiSettings');
     document.getElementById('aiKeyStatus').style.display = 'none';
-    alert('🗑️ DeepSeek key temizlendi');
-    toast('API key temizlendi', 'info');
+    toast("🗑️ DeepSeek key temizlendi", "info");
   }
 }
 
@@ -1351,13 +1219,10 @@ window.addEventListener("DOMContentLoaded", () => {
   renderRecentSearches();
   addCameraButton();
   
-  // DEBUG: Firebase durumu
-  console.log('Firebase auth:', auth ? 'Çalışıyor' : 'HATA');
-  
-  if (firebaseConfigLooksInvalid && firebaseConfigLooksInvalid()){
-    toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.", "error");
-    console.error('Firebase config hatası!');
-  }
+ // Firebase debug
+console.log('Firebase Config:', firebaseConfig);
+console.log('Firebase App:', app ? 'OK' : 'HATA');
+
 
   // Auth state listener
   onAuthStateChanged(auth, async (user) => {
