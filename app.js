@@ -1,26 +1,4 @@
 // app.js - Fiyat Takip Uygulaması (Render API entegreli)
-
-// ========== DEBUG MODU ==========
-console.log('🚀 APP.JS YÜKLENDİ');
-console.log('Firebase config:', firebaseConfig);
-console.log('Firebase auth:', auth?.currentUser?.email || 'Kullanıcı yok');
-console.log('Firestore db:', db ? 'Bağlı' : 'HATA');
-
-// Tüm localStorage'ı göster
-console.log('📦 localStorage:');
-for (let i = 0; i < localStorage.length; i++) {
-  const key = localStorage.key(i);
-  console.log(key, ':', localStorage.getItem(key)?.substring(0, 50) + '...');
-}
-
-// ========== API KONFİGÜRASYONU ==========
-const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
-let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
-
-// ========== SAYFALAMA AYARLARI ==========
-let currentPage = 1;
-// ... diğer kodlar devam eder
-
 import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
 import {
   onAuthStateChanged,
@@ -472,43 +450,14 @@ function favIdFromUrl(url){
 const FAV_COLL = (uid)=> collection(db, "users", uid, "favorites");
 
 async function loadFavorites(uid){
-  console.log('🔥 FAVORİLER YÜKLENİYOR - UID:', uid);
-  
-  if (!uid){ 
-    console.log('❌ UID YOK');
-    favCache=[]; 
-    return favCache; 
-  }
-  
+  if (!uid){ favCache=[]; return favCache; }
   try {
-    console.log('📡 Firebase\'e bağlanılıyor...');
-    const favCollection = collection(db, "users", uid, "favorites");
-    console.log('Collection path: users/' + uid + '/favorites');
-    
-    const snap = await getDocs(favCollection);
-    console.log('✅ Firebase\'den', snap.size, 'favori geldi');
-    
-    favCache = snap.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        url: data.url || '',
-        siteName: data.siteName || data.site || '',
-        query: data.query || data.urun || '',
-        fiyat: data.fiyat || data.price || '',
-        createdAt: data.createdAt || 0,
-        ...data
-      };
-    });
-    
-    console.log('🎯 Favori cache güncellendi:', favCache.length, 'ürün');
-    
+    const snap = await getDocs(FAV_COLL(uid));
+    favCache = snap.docs.map(d=>({ id:d.id, ...d.data() }));
   } catch(e) {
-    console.error("❌ FAVORİ YÜKLEME HATASI:", e.message);
-    console.error("Hata detayı:", e);
+    console.error("Favori yükleme hatası:", e);
     favCache = [];
   }
-  
   return favCache;
 }
 
@@ -518,54 +467,23 @@ function isFav(url){
 }
 
 async function toggleFavorite(uid, fav){
-  console.log('⭐ FAVORİ İŞLEMİ:', fav);
-  
-  if (!uid) { 
-    console.log('⚠️ UID YOK - LOGIN AÇILIYOR');
-    openLogin(); 
-    return; 
-  }
+  if (!uid) { openLogin(); return; }
   
   const id = favIdFromUrl(fav.url);
-  console.log('Favori ID:', id);
-  console.log('Favori URL:', fav.url);
-  
   const ref = doc(db, "users", uid, "favorites", id);
-  console.log('Firebase ref path:', ref.path);
   
-  try {
-    if (favCache.some(f => f.id === id)){
-      // SİL
-      console.log('🗑️ Favori siliniyor...');
-      await deleteDoc(ref);
-      console.log('✅ Favori silindi');
-      toast("Favoriden çıkarıldı", 'info');
-    } else {
-      // EKLE
-      console.log('➕ Yeni favori ekleniyor...');
-      await setDoc(ref, {
-        url: fav.url || '',
-        siteKey: fav.siteKey || '',
-        siteName: fav.siteName || '',
-        query: fav.query || '',
-        fiyat: fav.fiyat || '',
-        createdAt: Date.now(),
-      }, { merge: true });
-      console.log('✅ Favori eklendi');
-      toast("Favorilere eklendi", 'success');
-    }
-    
-    // YENİLE
-    console.log('🔄 Favoriler yenileniyor...');
-    await loadFavorites(uid);
-    applyFavUI();
-    console.log('✅ İşlem tamam');
-    
-  } catch(error) {
-    console.error('❌ FAVORİ HATASI:', error.message);
-    console.error('Hata detayı:', error);
-    toast("Favori işlemi başarısız: " + error.message, 'error');
+  if (favCache.some(f=>f.id===id)){
+    await deleteDoc(ref);
+    toast("Favoriden çıkarıldı", 'info');
+  } else {
+    await setDoc(ref, {
+      ...fav,
+      createdAt: Date.now(),
+    }, { merge:true });
+    toast("Favorilere eklendi", 'success');
   }
+  await loadFavorites(uid);
+  applyFavUI();
 }
 
 function applyFavUI(){
@@ -580,28 +498,14 @@ function applyFavUI(){
 
 // ========== FAVORİLERİ GÖSTER (AI YORUM BUTONLU) ==========
 function renderFavoritesPage(uid){
-  console.log('🎨 FAVORİ SAYFASI RENDER EDİLİYOR');
-  console.log('UID:', uid);
-  console.log('favCache uzunluğu:', favCache.length);
-  console.log('favCache içeriği:', favCache);
-  
   const list = $("favList");
-  if (!list) {
-    console.log('❌ favList elementi bulunamadı!');
-    return;
-  }
-  
+  if (!list) return;
   list.innerHTML = "";
   
   if (!favCache.length){
-    console.log('⚠️ Favori cache boş');
     list.innerHTML = `<div class="emptyState">Favori yok.</div>`;
     return;
   }
-  
-  console.log('✅', favCache.length, 'favori render ediliyor...');
-  
-  // ... mevcut kod devam eder ...
   
   // Favorileri sayfalama (4'erli)
   const pageSize = 4;
