@@ -273,12 +273,13 @@
           </select>
         </div>
 
-        <div class="row">
-  <label class="lbl">API Key</label>
+      <div class="row">
+  <label class="lbl">🔑 DeepSeek API Anahtarı</label>
   <input id="aiApiKey" class="input inputDark" type="password" 
-         placeholder="AIzaSyD... (Google AI Studio'dan ücretsiz al)" />
+         placeholder="sk-xxxxxxxxxxxx (DeepSeek'ten ücretsiz al)" />
 </div>
-        <div class="row" style="display:flex; gap:10px;">
+
+<div class="row" style="display:flex; gap:10px;">
   <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
   <button id="btnTestAI" class="btnGhost" type="button">Key'i Test Et</button>
   <button id="btnClearAI" class="btnGhost" type="button" style="color:#ef4444;">Temizle</button>
@@ -290,8 +291,11 @@
 </div>
 
 <div class="mini muted">
-  Google AI Studio'dan ücretsiz API key alın: 
-  <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#3b82f6;">tıklayın</a>
+  <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:#3b82f6;">
+    🔗 DeepSeek'ten ücretsiz API key almak için tıklayın
+  </a>
+  <br>
+  <small style="color:#999; font-size:11px;">Key'ler "sk-" ile başlar. Aylık 1M token ücretsiz.</small>
 </div>
       </div>
     </div>
