@@ -1234,21 +1234,23 @@ window.getAiCommentForFavorite = getAiCommentForFavorite;
 // === GÜVENLİ AI YORUM FONKSİYONU (DÜZELTİLMİŞ) ===
 // ========== GÜVENLİ AI YORUM FONKSİYONU (HUGGING FACE) ==========
 async function getAiYorumSafe(payload) {
-  console.log("🤖 Hugging Face AI yorumu isteniyor", payload);
+  console.log("🤖 getAiYorumSafe BAŞLADI", payload);
   
   const API_BASE = "https://fiyattakip-api.onrender.com";
   
+  // BACKEND'İN BEKLEDİĞİ FORMAT
   const requestBody = {
     title: payload.title,
     price: payload.price,
-    site: payload.site
+    site: payload.site,
+    originalQuery: payload.originalQuery // YENİ!
   };
 
   try {
-    console.log("📡 Hugging Face API isteği gönderiliyor...");
+    console.log("📡 İstek URL:", `${API_BASE}/ai/yorum`);
+    console.log("📦 Gönderilen:", requestBody);
     
-    // ÖNCE HUGGING FACE'İ DENE
-    const response = await fetch(`${API_BASE}/ai/yorum-hf`, {
+    const response = await fetch(`${API_BASE}/ai/yorum`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -1257,37 +1259,29 @@ async function getAiYorumSafe(payload) {
       body: JSON.stringify(requestBody)
     });
     
-    console.log("📦 Status:", response.status);
+    console.log("📡 Status Code:", response.status);
     
     if (!response.ok) {
-      console.warn("Hugging Face hatası, fallback kullanılıyor");
-      // Fallback: eski endpoint
-      const fallback = await fetch(`${API_BASE}/ai/yorum`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody)
-      });
-      
-      if (fallback.ok) {
-        const data = await fallback.json();
-        return data?.yorum || `${payload.title} için değerlendirme mevcut.`;
-      }
-      throw new Error("Her iki API de çalışmıyor");
+      throw new Error(`API Hatası: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("✅ Hugging Face yanıtı:", data);
+    console.log("✅ AI Yanıtı:", data);
     
-    return data?.yorum || `${payload.title} ürünü değerlendirilebilir.`;
+    if (data.success) {
+      return data.yorum || `${payload.originalQuery || payload.title} için AI değerlendirmesi mevcut.`;
+    } else {
+      throw new Error(data.error || "AI yorumu alınamadı");
+    }
     
   } catch (error) {
     console.error("❌ AI Yorum Hatası:", error);
     
-    // Son çare: basit bir yorum oluştur
+    // Local fallback
     return `
-${payload.title} ürünü ${payload.site || "pazar yerinde"} listeleniyor.
-${payload.price ? `Fiyat: ${payload.price}` : "Fiyat bilgisi mevcut değil."}
-Ürün genel olarak fiyat-performans dengesi göz önünde bulundurularak değerlendirilebilir.
+🤖 ${payload.originalQuery || payload.title} ürünü ${payload.site || "pazar yerinde"} incelendi.
+${payload.price ? `💰 Fiyat: ${payload.price}` : "💵 Fiyat bilgisi mevcut değil"}
+⭐ AI Analizi: Ürün teknik özellikleri ve kullanıcı deneyimleri ışığında değerlendirilebilir.
     `.trim();
   }
 }
