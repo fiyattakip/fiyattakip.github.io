@@ -583,18 +583,20 @@ function renderFavoritesPage(uid){
     `;
     
     // AI yorum butonu
-// AI yorum butonu - KESİN ÇÖZÜM
+// AI yorum butonu - KESİN ÇÖZÜM (GÜNCELLENMİŞ)
 card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
   const button = event.target;
   const originalText = button.textContent;
   
   button.disabled = true;
-  button.textContent = 'Analiz...';
+  button.textContent = '🤖...';
+  button.style.opacity = '0.7';
   
   // Hemen feedback ver
-  toast("🤖 AI analiz yapıyor...", "info");
+  toast("🤖 Hugging Face AI analiz yapıyor...", "info");
   
   try {
+    // AI yorumu al
     const aiYorum = await getAiYorumSafe({
       title: fav.query || fav.urun || "",
       price: fav.fiyat || "Fiyat bilgisi yok",
@@ -609,7 +611,7 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
     modal.innerHTML = `
       <div class="aiModalContent">
         <div class="aiModalHeader">
-          <h3>🤖 AI Analizi</h3>
+          <h3>🤖 Hugging Face AI Analizi</h3>
           <button class="closeAiModal">✕</button>
         </div>
         <div class="aiModalBody">
@@ -620,6 +622,9 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
           </div>
           <div class="aiComment">
             ${aiYorum.replace(/\n/g, '<br>')}
+          </div>
+          <div class="aiFooterNote" style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:8px;">
+            🤖 Powered by Hugging Face AI
           </div>
         </div>
         <div class="aiModalFooter">
@@ -643,7 +648,7 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
   } catch (error) {
     console.error("AI yorum hatası:", error);
     
-    // Hata durumunda da modal göster (hata mesajı ile)
+    // Hata durumunda da modal göster
     const errorModal = document.createElement('div');
     errorModal.className = 'aiModal';
     errorModal.innerHTML = `
@@ -654,8 +659,8 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
         </div>
         <div class="aiModalBody">
           <div class="aiComment" style="background:rgba(255,71,87,0.1);border-color:rgba(255,71,87,0.3);">
-            AI yorumu alınamadı.<br>
-            Lütfen daha sonra tekrar deneyin.
+            🤖 Hugging Face AI yorumu alınamadı.<br><br>
+            <small>Hata: ${error.message || "Bilinmeyen hata"}</small>
           </div>
         </div>
         <div class="aiModalFooter">
@@ -675,6 +680,7 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
   } finally {
     button.disabled = false;
     button.textContent = originalText;
+    button.style.opacity = '1';
   }
 });
     
