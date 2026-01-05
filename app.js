@@ -584,6 +584,7 @@ function renderFavoritesPage(uid){
     
     // AI yorum butonu
 // AI yorum butonu - KESİN ÇÖZÜM (GÜNCELLENMİŞ)
+// AI buton event listener'ı - GÜNCELLENMİŞ
 card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
   const button = event.target;
   const originalText = button.textContent;
@@ -592,18 +593,21 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
   button.textContent = '🤖...';
   button.style.opacity = '0.7';
   
-  // Hemen feedback ver
-  toast("🤖 Hugging Face AI analiz yapıyor...", "info");
+  // ORİJİNAL ARAMA KELİMESİNİ AL
+  const originalQuery = fav.query || fav.title || fav.urun || "";
+  
+  toast(`🤖 "${originalQuery}" için AI analiz yapılıyor...`, "info");
   
   try {
-    // AI yorumu al
+    // BACKEND'E ORIGINAL_QUERY DE GÖNDER
     const aiYorum = await getAiYorumSafe({
-      title: fav.query || fav.urun || "",
+      title: fav.title || fav.urun || originalQuery,
       price: fav.fiyat || "Fiyat bilgisi yok",
-      site: fav.siteName || "Bilinmeyen site"
+      site: fav.siteName || "Bilinmeyen site",
+      originalQuery: originalQuery // YENİ EKLENEN!
     });
     
-    console.log("💬 AI Yorumu hazır:", aiYorum);
+    console.log("💬 Hugging Face AI yorumu:", aiYorum);
     
     // ============ MODAL AÇ ============
     const modal = document.createElement('div');
@@ -616,15 +620,40 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
         </div>
         <div class="aiModalBody">
           <div class="aiProduct">
-            <strong>${fav.query || fav.urun || ""}</strong>
+            <strong>${originalQuery}</strong>
             <small>${fav.siteName || "Bilinmeyen site"}</small>
             ${fav.fiyat ? `<div class="favPrice" style="margin-top:8px;color:#36d399;">${fav.fiyat}</div>` : ''}
           </div>
-          <div class="aiComment">
+          <div class="aiComment" style="
+            background: linear-gradient(135deg, rgba(124,92,255,0.1), rgba(54,211,153,0.1));
+            padding: 20px;
+            border-radius: 16px;
+            border-left: 4px solid #7c5cff;
+            font-size: 14px;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.9);
+          ">
             ${aiYorum.replace(/\n/g, '<br>')}
           </div>
-          <div class="aiFooterNote" style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:8px;">
-            🤖 Powered by Hugging Face AI
+          <div style="
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          ">
+            <div>
+              <span style="color:#7c5cff;">🤖</span>
+              <span> Powered by Hugging Face AI</span>
+            </div>
+            <div>
+              <span style="color:#36d399;">🔍</span>
+              <span> Arama: "${originalQuery.substring(0, 20)}${originalQuery.length > 20 ? '...' : ''}"</span>
+            </div>
           </div>
         </div>
         <div class="aiModalFooter">
@@ -633,12 +662,9 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
       </div>
     `;
     
-    // Sayfaya ekle
     document.body.appendChild(modal);
     
-    // Kapatma işlevleri
     const closeModal = () => modal.remove();
-    
     modal.querySelector('.closeAiModal').onclick = closeModal;
     modal.querySelector('.closeModalBtn').onclick = closeModal;
     modal.onclick = (e) => {
@@ -647,36 +673,7 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
     
   } catch (error) {
     console.error("AI yorum hatası:", error);
-    
-    // Hata durumunda da modal göster
-    const errorModal = document.createElement('div');
-    errorModal.className = 'aiModal';
-    errorModal.innerHTML = `
-      <div class="aiModalContent">
-        <div class="aiModalHeader">
-          <h3>❌ AI Hatası</h3>
-          <button class="closeAiModal">✕</button>
-        </div>
-        <div class="aiModalBody">
-          <div class="aiComment" style="background:rgba(255,71,87,0.1);border-color:rgba(255,71,87,0.3);">
-            🤖 Hugging Face AI yorumu alınamadı.<br><br>
-            <small>Hata: ${error.message || "Bilinmeyen hata"}</small>
-          </div>
-        </div>
-        <div class="aiModalFooter">
-          <button class="btnPrimary closeModalBtn">Tamam</button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(errorModal);
-    
-    errorModal.querySelector('.closeAiModal').onclick = () => errorModal.remove();
-    errorModal.querySelector('.closeModalBtn').onclick = () => errorModal.remove();
-    errorModal.onclick = (e) => {
-      if (e.target === errorModal) errorModal.remove();
-    };
-    
+    toast("AI servisi geçici olarak kullanılamıyor", "error");
   } finally {
     button.disabled = false;
     button.textContent = originalText;
