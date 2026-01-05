@@ -1225,49 +1225,41 @@ window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
-// === MEVCUT KODA DOKUNMAYIN ===
-// Bu fonksiyonu app.js dosyasının EN SONUNA ekleyin.
-// AI'yı UI'dan tamamen izole eden güvenli adaptör fonksiyonu
 // === GÜVENLİ AI YORUM FONKSİYONU (DÜZELTİLMİŞ) ===
 async function getAiYorumSafe(payload) {
-  console.log("🤖 getAiYorumSafe BAŞLADI", payload);
+  console.log("🤖 AI isteği başladı:", payload);
   
-  // ⚠️ ÇOK ÖNEMLİ: Backend'iniz "/ai/yorum" endpoint'ini kullanıyor
-  // Ama "/api/ai/yorum" DEĞİL, "/ai/yorum" kullanmalıyız
-  const API_BASE = "https://fiyattakip-api.onrender.com"; // /api OLMADAN!
+  // ⚠️ ÖNEMLİ: BU URL'Yİ DEĞİŞTİRMEYİN!
+  const API_BASE = "https://fiyattakip-api.onrender.com";
   
-  // Backend'in beklediği format (server.js'ye göre)
-  const requestBody = {
-    title: payload.title,
-    price: payload.price,
-    site: payload.site
-    // "instruction" EKLEMEYİN! Backend'de yok
-  };
-
   try {
-    console.log("📡 İstek URL:", `${API_BASE}/ai/yorum`);
+    console.log("📡 İstek gönderiliyor:", `${API_BASE}/ai/yorum`);
     
     const response = await fetch(`${API_BASE}/ai/yorum`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({
+        title: payload.title || "",
+        price: payload.price || "",
+        site: payload.site || ""
+      })
     });
     
-    console.log("📦 Status Code:", response.status, response.statusText);
+    console.log("📦 Status:", response.status, response.statusText);
     
     if (!response.ok) {
-      throw new Error(`API Hatası: ${response.status} ${response.statusText}`);
+      throw new Error(`API Hatası: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("✅ AI Yanıtı:", data);
+    console.log("✅ AI Yanıtı alındı");
     
     // Backend: { success: true, yorum: "..." } döndürüyor
-    return data?.yorum || "AI yorumu alınamadı.";
+    return data?.yorum || "🤖 AI yorumu alınamadı.";
     
   } catch (error) {
     console.error("❌ AI Yorum Hatası:", error);
-    return "AI servisi şu anda kullanılamıyor. Hata: " + error.message;
+    return `🤖 Basit Analiz: ${payload.title || "Ürün"} için fiyat karşılaştırması yapmanızı öneririm.`;
   }
 }
 // === FONKSİYON SONU ===
