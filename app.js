@@ -1226,40 +1226,63 @@ window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
 // === GÜVENLİ AI YORUM FONKSİYONU (DÜZELTİLMİŞ) ===
+// ========== GÜVENLİ AI YORUM FONKSİYONU (HUGGING FACE) ==========
 async function getAiYorumSafe(payload) {
-  console.log("🤖 AI isteği başladı:", payload);
+  console.log("🤖 Hugging Face AI yorumu isteniyor", payload);
   
-  // ⚠️ ÖNEMLİ: BU URL'Yİ DEĞİŞTİRMEYİN!
   const API_BASE = "https://fiyattakip-api.onrender.com";
   
+  const requestBody = {
+    title: payload.title,
+    price: payload.price,
+    site: payload.site
+  };
+
   try {
-    console.log("📡 İstek gönderiliyor:", `${API_BASE}/ai/yorum`);
+    console.log("📡 Hugging Face API isteği gönderiliyor...");
     
-    const response = await fetch(`${API_BASE}/ai/yorum`, {
+    // ÖNCE HUGGING FACE'İ DENE
+    const response = await fetch(`${API_BASE}/ai/yorum-hf`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: payload.title || "",
-        price: payload.price || "",
-        site: payload.site || ""
-      })
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(requestBody)
     });
     
-    console.log("📦 Status:", response.status, response.statusText);
+    console.log("📦 Status:", response.status);
     
     if (!response.ok) {
-      throw new Error(`API Hatası: ${response.status}`);
+      console.warn("Hugging Face hatası, fallback kullanılıyor");
+      // Fallback: eski endpoint
+      const fallback = await fetch(`${API_BASE}/ai/yorum`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (fallback.ok) {
+        const data = await fallback.json();
+        return data?.yorum || `${payload.title} için değerlendirme mevcut.`;
+      }
+      throw new Error("Her iki API de çalışmıyor");
     }
 
     const data = await response.json();
-    console.log("✅ AI Yanıtı alındı");
+    console.log("✅ Hugging Face yanıtı:", data);
     
-    // Backend: { success: true, yorum: "..." } döndürüyor
-    return data?.yorum || "🤖 AI yorumu alınamadı.";
+    return data?.yorum || `${payload.title} ürünü değerlendirilebilir.`;
     
   } catch (error) {
     console.error("❌ AI Yorum Hatası:", error);
-    return `🤖 Basit Analiz: ${payload.title || "Ürün"} için fiyat karşılaştırması yapmanızı öneririm.`;
+    
+    // Son çare: basit bir yorum oluştur
+    return `
+${payload.title} ürünü ${payload.site || "pazar yerinde"} listeleniyor.
+${payload.price ? `Fiyat: ${payload.price}` : "Fiyat bilgisi mevcut değil."}
+Ürün genel olarak fiyat-performans dengesi göz önünde bulundurularak değerlendirilebilir.
+    `.trim();
   }
 }
 // === FONKSİYON SONU ===
