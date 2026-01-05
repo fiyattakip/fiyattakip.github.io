@@ -167,13 +167,14 @@
           </div>
         </div>
 
+        <!-- BU KISMI DEĞİŞTİRDİM: AI AYARLARI YERİNE AI SİSTEM BİLGİSİ -->
         <div class="cardBox">
           <div class="rowBetween">
             <div>
-              <div class="cardTitle">AI Ayarları</div>
-              <div class="miniHint">API Key / Model seçimi</div>
+              <div class="cardTitle">🤖 AI Sistemi</div>
+              <div class="miniHint">Hugging Face AI aktif</div>
             </div>
-            <button id="btnAiSettings" class="btnPrimary" type="button">Aç</button>
+            <button class="btnPrimary" type="button" style="opacity:0.7;cursor:default;" disabled>Aktif</button>
           </div>
         </div>
 
@@ -247,45 +248,7 @@
     </div>
   </div>
 
-  <!-- AI AYARLARI MODAL -->
-  <div id="aiModal" class="modalWrap" aria-hidden="true">
-    <div class="modalBack" id="aiBackdrop"></div>
-    <div class="modalCard" role="dialog" aria-modal="true" aria-label="AI Ayarları">
-      <div class="modalTop">
-        <div class="modalTitle">AI Ayarları</div>
-        <button id="closeAi" class="iconBtn" type="button" aria-label="Kapat">✕</button>
-      </div>
-
-      <div class="modalBody">
-        <div class="row">
-          <label class="lbl">AI Durumu</label>
-          <select id="aiEnabled" class="input inputDark">
-            <option value="on">Açık</option>
-            <option value="off">Kapalı</option>
-          </select>
-        </div>
-
-        <div class="row">
-          <label class="lbl">Sağlayıcı</label>
-          <select id="aiProvider" class="input inputDark">
-            <option value="gemini">Gemini</option>
-            <option value="openai">OpenAI</option>
-          </select>
-        </div>
-
-        <div class="row">
-          <label class="lbl">API Key</label>
-          <input id="aiApiKey" class="input inputDark" type="password" placeholder="anahtarınızı girin" />
-        </div>
-
-        <div class="row">
-          <button id="btnSaveAI" class="btnPrimary" type="button">Kaydet</button>
-        </div>
-
-        <div class="mini muted">Test butonu bir sonraki adımda eklenecek.</div>
-      </div>
-    </div>
-  </div>
+  <!-- AI AYARLARI MODALINI TAMAMEN SİLDİM! -->
 
   <!-- SCRIPTS -->
   <script type="module" src="app.js"></script>
