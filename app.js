@@ -600,12 +600,9 @@ card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
   
   try {
     // BACKEND'E ORIGINAL_QUERY DE GÖNDER
-    const aiYorum = await getAiYorumSafe({
-      title: fav.title || fav.urun || originalQuery,
-      price: fav.fiyat || "Fiyat bilgisi yok",
-      site: fav.siteName || "Bilinmeyen site",
-      originalQuery: originalQuery // YENİ EKLENEN!
-    });
+const aiYorum = await getAiYorum(
+  fav.query || fav.urun || fav.title || ""
+);
     
     console.log("💬 Hugging Face AI yorumu:", aiYorum);
     
@@ -1228,58 +1225,26 @@ window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
-// === GÜVENLİ AI YORUM FONKSİYONU (DÜZELTİLMİŞ) ===
+
 // ========== GÜVENLİ AI YORUM FONKSİYONU (HUGGING FACE) ==========
-async function getAiYorumSafe(payload) {
-  console.log("🤖 getAiYorumSafe BAŞLADI", payload);
-  
-  const API_BASE = "https://fiyattakip-api.onrender.com";
-  
-  // BACKEND'İN BEKLEDİĞİ FORMAT
-  const requestBody = {
-    title: payload.title,
-    price: payload.price,
-    site: payload.site,
-    originalQuery: payload.originalQuery // YENİ!
-  };
+// AI YORUM FONKSİYONU (HF) 
 
+async function getAiYorum(originalQuery) {
   try {
-    console.log("📡 İstek URL:", `${API_BASE}/ai/yorum`);
-    console.log("📦 Gönderilen:", requestBody);
-    
-    const response = await fetch(`${API_BASE}/ai/yorum`, {
+    const res = await fetch(`${API_URL}/ai/yorum`, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+      headers: {
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({ originalQuery })
     });
-    
-    console.log("📡 Status Code:", response.status);
-    
-    if (!response.ok) {
-      throw new Error(`API Hatası: ${response.status}`);
-    }
 
-    const data = await response.json();
-    console.log("✅ AI Yanıtı:", data);
-    
-    if (data.success) {
-      return data.yorum || `${payload.originalQuery || payload.title} için AI değerlendirmesi mevcut.`;
-    } else {
-      throw new Error(data.error || "AI yorumu alınamadı");
-    }
-    
-  } catch (error) {
-    console.error("❌ AI Yorum Hatası:", error);
-    
-    // Local fallback
-    return `
-🤖 ${payload.originalQuery || payload.title} ürünü ${payload.site || "pazar yerinde"} incelendi.
-${payload.price ? `💰 Fiyat: ${payload.price}` : "💵 Fiyat bilgisi mevcut değil"}
-⭐ AI Analizi: Ürün teknik özellikleri ve kullanıcı deneyimleri ışığında değerlendirilebilir.
-    `.trim();
+    const data = await res.json();
+    return data.yorum || "🤖 AI yorum oluşturamadı.";
+  } catch (err) {
+    console.error("AI yorum hatası:", err);
+    return "🤖 AI servisi şu anda kullanılamıyor.";
   }
 }
+
 // === FONKSİYON SONU ===
