@@ -568,6 +568,7 @@ function renderFavoritesPage(uid){
     const card = document.createElement("div");
     card.className = "cardBox favoriteCard";
     card.innerHTML = `
+    
       <div class="favoriteHeader">
         <div class="favoriteInfo">
           <div class="favSite">${fav.siteName || "Favori"}</div>
@@ -585,24 +586,25 @@ function renderFavoritesPage(uid){
     // AI yorum butonu
 // AI yorum butonu - KESİN ÇÖZÜM (GÜNCELLENMİŞ)
 // AI buton event listener'ı - GÜNCELLENMİŞ
-card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
-  const button = event.target;
-  const originalText = button.textContent;
-  
-  button.disabled = true;
-  button.textContent = '🤖...';
-  button.style.opacity = '0.7';
-  
-  // ORİJİNAL ARAMA KELİMESİNİ AL
-  const originalQuery = fav.query || fav.title || fav.urun || "";
-  
-  toast(`🤖 "${originalQuery}" için AI analiz yapılıyor...`, "info");
-  
+const aiBtn = card.querySelector(".btnAiComment");
+
+aiBtn.addEventListener("click", async () => {
+  aiBtn.disabled = true;
+  const oldText = aiBtn.textContent;
+  aiBtn.textContent = "🤖...";
+
+  const query = fav.query || fav.urun || fav.title || "";
+
   try {
-    // BACKEND'E ORIGINAL_QUERY DE GÖNDER
-const aiYorum = await getAiYorum(
-  fav.query || fav.urun || fav.title || ""
-);
+    const aiYorum = await getAiYorum(query);
+    showAiModal(aiYorum, query);
+  } catch (e) {
+    toast("AI yorumu alınamadı", "error");
+  } finally {
+    aiBtn.disabled = false;
+    aiBtn.textContent = oldText;
+  }
+});
     
     console.log("💬 Hugging Face AI yorumu:", aiYorum);
     
