@@ -1,3 +1,11 @@
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
+
+  if (req.method === "POST" || req.url.includes("/ai/")) {
+    return; // AI'ya ASLA karışma
+  }
+});
+
 const CACHE = "fiyattakip-cache-v7";
 const ASSETS = [
   "./",
