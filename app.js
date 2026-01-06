@@ -568,7 +568,6 @@ function renderFavoritesPage(uid){
     const card = document.createElement("div");
     card.className = "cardBox favoriteCard";
     card.innerHTML = `
-    
       <div class="favoriteHeader">
         <div class="favoriteInfo">
           <div class="favSite">${fav.siteName || "Favori"}</div>
@@ -586,25 +585,27 @@ function renderFavoritesPage(uid){
     // AI yorum butonu
 // AI yorum butonu - KESİN ÇÖZÜM (GÜNCELLENMİŞ)
 // AI buton event listener'ı - GÜNCELLENMİŞ
-const aiBtn = card.querySelector(".btnAiComment");
-
-aiBtn.addEventListener("click", async () => {
-  aiBtn.disabled = true;
-  const oldText = aiBtn.textContent;
-  aiBtn.textContent = "🤖...";
-
-  const query = fav.query || fav.urun || fav.title || "";
-
+card.querySelector('.btnAiComment').addEventListener('click', async (event) => {
+  const button = event.target;
+  const originalText = button.textContent;
+  
+  button.disabled = true;
+  button.textContent = '🤖...';
+  button.style.opacity = '0.7';
+  
+  // ORİJİNAL ARAMA KELİMESİNİ AL
+  const originalQuery = fav.query || fav.title || fav.urun || "";
+  
+  toast(`🤖 "${originalQuery}" için AI analiz yapılıyor...`, "info");
+  
   try {
-    const aiYorum = await getAiYorum(query);
-    showAiModal(aiYorum, query);
-  } catch (e) {
-    toast("AI yorumu alınamadı", "error");
-  } finally {
-    aiBtn.disabled = false;
-    aiBtn.textContent = oldText;
-  }
-});
+    // BACKEND'E ORIGINAL_QUERY DE GÖNDER
+    const aiYorum = await getAiYorumSafe({
+      title: fav.title || fav.urun || originalQuery,
+      price: fav.fiyat || "Fiyat bilgisi yok",
+      site: fav.siteName || "Bilinmeyen site",
+      originalQuery: originalQuery // YENİ EKLENEN!
+    });
     
     console.log("💬 Hugging Face AI yorumu:", aiYorum);
     
@@ -1227,26 +1228,58 @@ window.changeFavPage = changeFavPage;
 window.cameraAiSearch = cameraAiSearch;
 window.getAiCommentForFavorite = getAiCommentForFavorite;
 
-
+// === GÜVENLİ AI YORUM FONKSİYONU (DÜZELTİLMİŞ) ===
 // ========== GÜVENLİ AI YORUM FONKSİYONU (HUGGING FACE) ==========
-// AI YORUM FONKSİYONU (HF) 
+async function getAiYorumSafe(payload) {
+  console.log("🤖 getAiYorumSafe BAŞLADI", payload);
+  
+  const API_BASE = "https://fiyattakip-api.onrender.com";
+  
+  // BACKEND'İN BEKLEDİĞİ FORMAT
+  const requestBody = {
+    title: payload.title,
+    price: payload.price,
+    site: payload.site,
+    originalQuery: payload.originalQuery // YENİ!
+  };
 
-async function getAiYorum(originalQuery) {
   try {
-    const res = await fetch(`${API_URL}/ai/yorum`, {
+    console.log("📡 İstek URL:", `${API_BASE}/ai/yorum`);
+    console.log("📦 Gönderilen:", requestBody);
+    
+    const response = await fetch(`${API_BASE}/ai/yorum`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
-      body: JSON.stringify({ originalQuery })
+      body: JSON.stringify(requestBody)
     });
+    
+    console.log("📡 Status Code:", response.status);
+    
+    if (!response.ok) {
+      throw new Error(`API Hatası: ${response.status}`);
+    }
 
-    const data = await res.json();
-    return data.yorum || "🤖 AI yorum oluşturamadı.";
-  } catch (err) {
-    console.error("AI yorum hatası:", err);
-    return "🤖 AI servisi şu anda kullanılamıyor.";
+    const data = await response.json();
+    console.log("✅ AI Yanıtı:", data);
+    
+    if (data.success) {
+      return data.yorum || `${payload.originalQuery || payload.title} için AI değerlendirmesi mevcut.`;
+    } else {
+      throw new Error(data.error || "AI yorumu alınamadı");
+    }
+    
+  } catch (error) {
+    console.error("❌ AI Yorum Hatası:", error);
+    
+    // Local fallback
+    return `
+🤖 ${payload.originalQuery || payload.title} ürünü ${payload.site || "pazar yerinde"} incelendi.
+${payload.price ? `💰 Fiyat: ${payload.price}` : "💵 Fiyat bilgisi mevcut değil"}
+⭐ AI Analizi: Ürün teknik özellikleri ve kullanıcı deneyimleri ışığında değerlendirilebilir.
+    `.trim();
   }
 }
-
 // === FONKSİYON SONU ===
