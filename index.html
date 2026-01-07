@@ -1,275 +1,258 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FiyatTakip - Akıllı Alışveriş</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="icon-192.png">
-    <meta name="theme-color" content="#7c5cff">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>FiyatTakip - Akıllı Fiyat Karşılaştırma</title>
+  <meta name="description" content="Trendyol, Hepsiburada, n11, Amazon ve daha fazlasında fiyat karşılaştırma">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
-<body>
-    <!-- TOAST -->
-    <div id="toast" class="toast hidden"></div>
 
-    <!-- HEADER -->
-    <header class="header">
-        <div class="header-inner">
-            <div class="logo">
-                <h1>💰 FiyatTakip</h1>
-                <p class="tagline">En Uygun Fiyatı Bul</p>
-            </div>
-            <div class="header-actions">
-                <button id="logoutBtn" class="btnGhost sm" title="Çıkış">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
-                <button id="compareHeaderBtn" class="btnGhost sm" title="Karşılaştırma" onclick="openCompareModal()">
-                    <i class="fas fa-balance-scale"></i>
-                    <span id="compareCount" style="margin-left:4px;">0</span>
-                </button>
-            </div>
+<body>
+  <!-- LOGIN MODAL -->
+  <div id="loginModal" class="modalWrap" aria-hidden="true">
+    <div class="modalBack" id="loginBackdrop"></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-label="Giriş">
+      <div class="modalTop">
+        <div class="modalTitle">Giriş Yap</div>
+        <button id="closeLogin" class="iconBtn" type="button" aria-label="Kapat">✕</button>
+      </div>
+
+      <div class="authTabs">
+        <button id="tabLogin" class="btnGhost sm isActive" type="button">Giriş</button>
+        <button id="tabRegister" class="btnGhost sm" type="button">Kayıt</button>
+      </div>
+
+      <div class="authTools">
+        <button id="btnClearCache" class="btnGhost sm" type="button">🧹 Temizle</button>
+      </div>
+
+      <div id="loginPane" class="authPane">
+        <label class="lbl">E-posta</label>
+        <input id="loginEmail" type="email" autocomplete="email" placeholder="ornek@mail.com" />
+        <label class="lbl">Şifre</label>
+        <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" />
+        <div class="row">
+          <button id="btnLogin" class="btnPrimary" type="button">Giriş Yap</button>
+          <button id="btnGoogleLogin" class="btnGhost" type="button">Google ile</button>
         </div>
+      </div>
+
+      <div id="registerPane" class="authPane hidden">
+        <label class="lbl">E-posta</label>
+        <input id="regEmail" type="email" autocomplete="email" placeholder="ornek@mail.com" />
+        <label class="lbl">Şifre</label>
+        <input id="regPass" type="password" autocomplete="new-password" placeholder="en az 6 karakter" />
+        <label class="lbl">Şifre (Tekrar)</label>
+        <input id="regPass2" type="password" autocomplete="new-password" placeholder="şifreyi tekrar yaz" />
+        <div class="row">
+          <button id="btnRegister" class="btnPrimary" type="button">Kayıt Ol</button>
+          <button id="btnGoogleLogin2" class="btnGhost" type="button">Google ile</button>
+        </div>
+        <div class="mini muted">Kayıt olunca otomatik giriş yapılır.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="appShell">
+    <!-- TOP HEADER -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logoDot"></div>
+        <div class="brandText">FiyatTakip</div>
+      </div>
+      <button id="btnBell" class="iconBtn" type="button" aria-label="Bildirim">🔔</button>
     </header>
 
-    <!-- ANA İÇERİK -->
-    <main class="main">
-        <!-- ANA SAYFA -->
-        <section id="page-home" class="page active">
-            <div class="search-hero">
-                <div class="search-box">
-                    <div class="search-input-group">
-                        <input type="text" id="qNormal" placeholder="iPhone, laptop, kulaklık..." autocomplete="off">
-                        <button id="btnNormal" class="btnPrimary search-btn">
-                            <i class="fas fa-search"></i> Ara
-                        </button>
-                    </div>
-                    
-                    <!-- ARAMA MODLARI -->
-                    <div class="search-modes">
-                        <button id="modeNormal" class="mode-btn active" data-mode="normal">
-                            <i class="fas fa-link"></i> Link
-                        </button>
-                        <button id="modeFiyat" class="mode-btn" data-mode="fiyat">
-                            <i class="fas fa-money-bill-wave"></i> Fiyat
-                        </button>
-                        <button id="modeAI" class="mode-btn" data-mode="ai">
-                            <i class="fas fa-robot"></i> AI
-                        </button>
-                    </div>
-                    
-                    <!-- KAMERA -->
-                    <button id="cameraBtn" class="btnCamera" onclick="cameraAiSearch()">
-                        <i class="fas fa-camera"></i> Kamera ile Ara
-                    </button>
-                </div>
-                
-                <!-- HIZLI ETİKETLER -->
-                <div class="quick-tags">
-                    <div class="quick-tags-title">Hızlı Arama:</div>
-                    <div class="tags">
-                        <button class="quickTag" data-query="iPhone 15">📱 iPhone</button>
-                        <button class="quickTag" data-query="Samsung TV">📺 TV</button>
-                        <button class="quickTag" data-query="laptop">💻 Laptop</button>
-                        <button class="quickTag" data-query="kulaklık">🎧 Kulaklık</button>
-                        <button class="quickTag" data-query="kitap">📚 Kitap</button>
-                    </div>
-                </div>
-                
-                <!-- SON ARAMALAR -->
-                <div class="recent-searches">
-                    <h3><i class="fas fa-history"></i> Son Aramalar</h3>
-                    <div id="recentList" class="recent-list"></div>
-                </div>
-            </div>
-            
-            <!-- KARŞILAŞTIRMA BANNER -->
-            <div class="compare-banner" onclick="openCompareModal()">
-                <div class="banner-content">
-                    <div class="banner-icon">⚖️</div>
-                    <div class="banner-text">
-                        <h4>Karşılaştırma Listesi</h4>
-                        <p id="compareCountText">0 ürün eklendi</p>
-                    </div>
-                    <div class="banner-arrow">›</div>
-                </div>
-            </div>
-        </section>
+    <!-- PAGES -->
+    <main class="pages">
+      <!-- HOME -->
+      <section id="page-home" class="page active">
+        <div class="searchCard">
+          <div class="searchRow">
+            <span class="sIcon">🔎</span>
+            <input id="qNormal" placeholder="Ürün ve mağaza ara…" />
+            <button id="btnMic" class="iconBtn" type="button" aria-label="Ses">🎙️</button>
+          </div>
 
-        <!-- ARAMA SONUÇLARI -->
-        <section id="page-search" class="page">
-            <div class="search-results-header">
-                <h2><i class="fas fa-search"></i> Arama Sonuçları</h2>
-                <button id="btnClearSearch" class="btnGhost sm">Temizle</button>
-            </div>
-            <div id="normalList" class="results-container"></div>
-        </section>
+          <!-- Arama Modu Toggle -->
+          <div class="modeToggle" id="modeToggle">
+            <button class="modeBtn active" id="modeNormal" type="button">🔗 Link</button>
+            <button class="modeBtn" id="modeFiyat" type="button">💰 Fiyat</button>
+            <button class="modeBtn" id="modeAI" type="button">🤖 AI</button>
+          </div>
+          <div class="modeHint" id="modeHint">Link modu: Sadece arama linkleri oluşturur</div>
 
-        <!-- GRAFİK SAYFASI -->
-        <section id="page-graph" class="page">
-            <div class="page-header">
-                <h2><i class="fas fa-chart-line"></i> Fiyat Grafiği</h2>
-            </div>
-            <div class="graph-container">
-                <canvas id="priceChart"></canvas>
-                <div class="graph-info">
-                    <p>Ürün fiyat grafiği burada görüntülenecek</p>
-                </div>
-            </div>
-        </section>
+          <button id="btnNormal" class="btnPrimary full" type="button">Ara</button>
+        </div>
 
-        <!-- FAVORİLER -->
-        <section id="page-favs" class="page">
-            <div class="favs-header">
-                <h2><i class="fas fa-heart"></i> Favorilerim</h2>
-                <button id="btnFavRefresh" class="btnGhost sm"><i class="fas fa-sync"></i></button>
-            </div>
-            <div id="favList" class="favs-container"></div>
-        </section>
+        <!-- Banner -->
+        <div class="banner">
+          <div class="bannerLeft">🌸</div>
+          <div class="bannerMid">
+            <div class="bannerTitle">Fiyat Karşılaştırma!</div>
+            <div class="bannerSub">Trendyol, Hepsiburada, n11, Amazon</div>
+          </div>
+          <div class="bannerRight">🛍️</div>
+        </div>
 
-        <!-- AYARLAR -->
-        <section id="page-settings" class="page">
-            <div class="settings-container">
-                <h2><i class="fas fa-cog"></i> Ayarlar</h2>
-                
-                <div class="settings-group">
-                    <h3><i class="fas fa-user"></i> Hesap</h3>
-                    <button id="loginBtn" class="btnGhost">Giriş Yap / Kayıt Ol</button>
-                </div>
-                
-                <div class="settings-group">
-                    <h3><i class="fas fa-palette"></i> Görünüm</h3>
-                    <div class="setting-item">
-                        <label>Koyu Mod</label>
-                        <label class="switch">
-                            <input type="checkbox" id="darkModeToggle">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="settings-group">
-                    <h3><i class="fas fa-database"></i> Veri</h3>
-                    <button id="btnClearCache" class="btnGhost">Önbelleği Temizle</button>
-                </div>
+        <!-- Hızlı Aramalar -->
+        <div class="quickSearches">
+          <h3>Hızlı Aramalar</h3>
+          <div class="quickTags">
+            <span class="quickTag" data-query="iphone 15">📱 iPhone</span>
+            <span class="quickTag" data-query="airpods">🎧 AirPods</span>
+            <span class="quickTag" data-query="nike ayakkabı">👟 Nike</span>
+            <span class="quickTag" data-query="televizyon">📺 TV</span>
+            <span class="quickTag" data-query="laptop">💻 Laptop</span>
+          </div>
+        </div>
+
+        <!-- Son Aramalar -->
+        <div class="recentSearchesCard">
+          <h3>Son Aramalar</h3>
+          <div class="recentList" id="recentList"></div>
+        </div>
+      </section>
+
+      <!-- SEARCH RESULTS -->
+      <section id="page-search" class="page">
+        <div class="pageHead">
+          <div class="pageTitle">Sonuçlar</div>
+          <button id="btnClearSearch" class="btnGhost" type="button">Temizle</button>
+        </div>
+        <div id="normalList" class="list">
+          <!-- Fiyat sonuçları buraya eklenecek -->
+        </div>
+      </section>
+
+      <!-- GRAPH -->
+      <section id="page-graph" class="page">
+        <div class="pageHead">
+          <div class="pageTitle">Grafik</div>
+          <button id="btnGraphRefresh" class="btnGhost" type="button">Yenile</button>
+        </div>
+        <div class="miniHint">Favorilerinin fiyat geçmişi burada görünecek.</div>
+        <div id="graphRoot" class="cardBox">Grafik alanı</div>
+      </section>
+
+      <!-- FAVORITES -->
+      <section id="page-favs" class="page">
+        <div class="pageHead">
+          <div class="pageTitle">Favoriler</div>
+          <button id="btnFavRefresh" class="btnGhost" type="button">Yenile</button>
+        </div>
+        <div id="favList" class="list"></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="page-settings" class="page">
+        <div class="pageHead">
+          <div class="pageTitle">Ayarlar</div>
+        </div>
+
+        <div class="cardBox">
+          <div class="rowBetween">
+            <div>
+              <div class="cardTitle">API Ayarları</div>
+              <div class="miniHint">Fiyat API URL'si</div>
             </div>
-        </section>
+            <button id="btnApiSettings" class="btnPrimary" type="button">Düzenle</button>
+          </div>
+        </div>
+
+        <!-- BU KISMI DEĞİŞTİRDİM: AI AYARLARI YERİNE AI SİSTEM BİLGİSİ -->
+        <!-- BULUN: (yaklaşık 210. satır) -->
+<div class="cardBox">
+  <div class="rowBetween">
+    <div>
+      <div class="cardTitle">🤖 AI Sistemi</div>
+      <div class="miniHint">Hugging Face AI aktif - Favorilerde AI butonuna tıkla!</div>
+    </div>
+    <button class="btnPrimary" type="button" style="background:linear-gradient(135deg, #7c5cff, #36d399);">Aktif</button>
+  </div>
+</div>
+
+
+        <div class="cardBox">
+          <div class="rowBetween">
+            <div>
+              <div class="cardTitle">Hesap</div>
+              <div class="miniHint">Çıkış yap</div>
+            </div>
+            <button id="logoutBtn" class="btnGhost" type="button">Çıkış</button>
+          </div>
+        </div>
+
+        <div class="miniHint">Cache sorunlarında: Site verilerini temizle / PWA'yı kaldır-ekle.</div>
+      </section>
     </main>
 
-    <!-- TAB BAR -->
-    <nav class="tabbar">
-        <button class="tab active" data-page="home">
-            <i class="fas fa-home"></i>
-            <span>Ana</span>
-        </button>
-        <button class="tab" data-page="graph">
-            <i class="fas fa-chart-line"></i>
-            <span>Grafik</span>
-        </button>
-        <div class="camera-tab-wrapper">
-            <button id="fabCamera" class="camera-tab">
-                <i class="fas fa-camera"></i>
-            </button>
-        </div>
-        <button class="tab" data-page="favs">
-            <i class="fas fa-heart"></i>
-            <span>Favori</span>
-        </button>
-        <button class="tab" data-page="settings">
-            <i class="fas fa-cog"></i>
-            <span>Ayarlar</span>
-        </button>
+    <!-- TABBAR -->
+    <nav class="tabbar" aria-label="Alt Menü">
+      <button class="tab active" type="button" data-page="home">
+        <span class="ico">🏠</span><span class="lbl">Ana</span>
+      </button>
+
+      <button class="tab" type="button" data-page="graph">
+        <span class="ico">📊</span><span class="lbl">Grafik</span>
+      </button>
+
+      <!-- Kamera butonu JS ile eklenecek -->
+      <div class="tabSpacer" aria-hidden="true"></div>
+
+      <button class="tab" type="button" data-page="favs">
+        <span class="ico">❤️</span><span class="lbl">Fav</span>
+      </button>
+
+      <button class="tab" type="button" data-page="settings">
+        <span class="ico">⚙️</span><span class="lbl">Ayar</span>
+      </button>
     </nav>
+  </div>
 
-    <!-- LOGIN MODAL -->
-    <div id="loginModal" class="modal">
-        <div class="modal-backdrop" onclick="closeLoginModal()"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-user"></i> Giriş Yap</h3>
-                <button class="close-btn" onclick="closeLoginModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="auth-tabs">
-                    <button class="auth-tab active" onclick="switchAuthTab('login')">Giriş</button>
-                    <button class="auth-tab" onclick="switchAuthTab('register')">Kayıt</button>
-                </div>
-                
-                <div id="loginForm">
-                    <div class="form-group">
-                        <input type="email" id="loginEmail" placeholder="E-posta">
-                    </div>
-                    <div class="form-group">
-                        <input type="password" id="loginPassword" placeholder="Şifre">
-                    </div>
-                    <button id="btnLogin" class="btnPrimary">Giriş Yap</button>
-                </div>
-                
-                <div id="registerForm" class="hidden">
-                    <div class="form-group">
-                        <input type="email" id="registerEmail" placeholder="E-posta">
-                    </div>
-                    <div class="form-group">
-                        <input type="password" id="registerPassword" placeholder="Şifre">
-                    </div>
-                    <div class="form-group">
-                        <input type="password" id="registerPassword2" placeholder="Şifre Tekrar">
-                    </div>
-                    <button id="btnRegister" class="btnPrimary">Kayıt Ol</button>
-                </div>
-                
-                <div class="auth-divider">veya</div>
-                
-                <button id="btnGoogleLogin" class="btnGoogle">
-                    <i class="fab fa-google"></i> Google ile Giriş
-                </button>
-            </div>
+  <!-- TOAST MESAJ -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- API AYARLARI MODAL -->
+  <div id="apiModal" class="modalWrap" aria-hidden="true">
+    <div class="modalBack" id="apiBackdrop"></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-label="API Ayarları">
+      <div class="modalTop">
+        <div class="modalTitle">API Ayarları</div>
+        <button id="closeApi" class="iconBtn" type="button" aria-label="Kapat">✕</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="row">
+          <label class="lbl">API URL</label>
+          <input id="apiUrl" class="input inputDark" type="text" placeholder="https://fiyattakip-api.onrender.com/api" />
         </div>
-    </div>
 
-    <!-- KARŞILAŞTIRMA MODAL -->
-    <div id="compareModal" class="modal">
-        <div class="modal-backdrop" onclick="closeCompareModal()"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-balance-scale"></i> Karşılaştırma</h3>
-                <button class="close-btn" onclick="closeCompareModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <div id="compareList"></div>
-                <div class="compare-actions">
-                    <button onclick="clearCompareList()" class="btnGhost">Temizle</button>
-                    <button onclick="runAICompare()" class="btnPrimary">🤖 AI Karşılaştır</button>
-                </div>
-            </div>
+        <div class="row">
+          <label class="lbl">API Durumu</label>
+          <div id="apiStatus" class="apiStatus offline">Bağlantı yok</div>
         </div>
-    </div>
 
-    <!-- AI YORUM MODAL -->
-    <div id="aiModal" class="modal">
-        <div class="modal-backdrop" onclick="closeAIModal()"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-robot"></i> AI Analiz</h3>
-                <button class="close-btn" onclick="closeAIModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <div id="aiContent"></div>
-            </div>
+        <div class="row">
+          <button id="btnTestApi" class="btnGhost" type="button">Test Et</button>
+          <button id="btnSaveApi" class="btnPrimary" type="button">Kaydet</button>
         </div>
-    </div>
 
-    <!-- SCRIPTS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="module" src="firebase.js"></script>
-    <script type="module" src="app.js"></script>
-    <script src="app.nav.js"></script>
-    
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
-    </script>
+        <div class="mini muted">Render.com'dan aldığın API URL'sini buraya yapıştır.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI AYARLARI MODALINI TAMAMEN SİLDİM! -->
+
+  <!-- SCRIPTS -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
