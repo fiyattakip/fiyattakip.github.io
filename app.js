@@ -1453,23 +1453,19 @@ function updateProductCompareButtons() {
   });
 }
 
-// 6. MODAL İÇİN KARŞILAŞTIRMA LİSTESİNİ GÖSTER
+// 6. MODAL İÇİN KARŞILAŞTIRMA LİSTESİNİ GÖSTER - GÜNCELLENMİŞ
 function renderComparePageModal() {
-  const container = document.getElementById('compareListModal');
-  if (!container) return;
+  // Karşılaştırma tablosunu göster
+  renderComparisonTable();
   
-  if (compareItems.length === 0) {
-    container.innerHTML = `
-      <div class="emptyCompareState">
-        <div class="emptyIcon">⚖️</div>
-        <h3>Karşılaştırma Listesi Boş</h3>
-        <p>Ürünlerdeki "⚖️ Ekle" butonuna tıklayın.</p>
-      </div>
-    `;
-    return;
-  }
+  // Manuel ekleme panelini gizle
+  const panel = document.getElementById('manualAddPanelModal');
+  if (panel) panel.classList.add('hidden');
   
-  let html = `<div class="compareGrid">`;
+  // AI sonucunu gizle
+  const aiResult = document.getElementById('aiCompareResultModal');
+  if (aiResult) aiResult.classList.add('hidden');
+}
   
   compareItems.forEach(item => {
     html += `
@@ -1528,6 +1524,23 @@ function setupCompareModalEvents() {
   // Modal kapatma
   document.getElementById('closeCompare')?.addEventListener('click', closeCompareModal);
   document.getElementById('compareBackdrop')?.addEventListener('click', closeCompareModal);
+
+  // AI sonuç panelini kapat
+  document.querySelector('.closeAiResultModal')?.addEventListener('click', closeAICompareResult);
+  
+  // Manuel ekleme butonu
+  document.getElementById('btnAddManuallyModal')?.addEventListener('click', function() {
+    const panel = document.getElementById('manualAddPanelModal');
+    if (panel) {
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) {
+        document.getElementById('manualInputModal').focus();
+      }
+    }
+  });
+
+  console.log("Modal event'leri kuruldu");
+} // <-- bu fonksiyonun sonu
   
   // Manuel ekleme butonu
   document.getElementById('btnAddManuallyModal')?.addEventListener('click', function() {
