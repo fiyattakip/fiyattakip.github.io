@@ -67,15 +67,7 @@ function addToCompare(product, query = "") {
   
   updateCompareCounter();
   renderCompareList();
-  
-  // Butonları güncelle
-  document.querySelectorAll('.btnCompare').forEach(btn => {
-    const url = btn.getAttribute('data-compare-url');
-    if (url === product.link) {
-      btn.innerHTML = '✓ Eklendi';
-      btn.disabled = true;
-    }
-  });
+  updateCompareButtonStates();
   
   alert(`"${newItem.title.substring(0,20)}..." eklendi`);
 }
@@ -129,6 +121,7 @@ function removeCompareItem(itemId) {
   localStorage.setItem('fiyattakip_compare', JSON.stringify(compareItems));
   updateCompareCounter();
   renderCompareList();
+  updateCompareButtonStates();
 }
 
 // ========== LİSTEMİ TEMİZLE ==========
@@ -140,21 +133,195 @@ function clearCompareList() {
     localStorage.setItem('fiyattakip_compare', JSON.stringify(compareItems));
     updateCompareCounter();
     renderCompareList();
+    updateCompareButtonStates();
     alert("Liste temizlendi");
   }
+}
+
+// ========== ÜRÜN KARTLARINA BUTON EKLE ==========
+function addCompareButtons() {
+  console.log("Karşılaştırma butonları ekleniyor...");
+  
+  // 1. EN UCUZ BANNER (Büyük buton)
+  document.querySelectorAll('.cheapestBanner').forEach(banner => {
+    const actions = banner.querySelector('.productActions');
+    if (!actions || actions.querySelector('.btnCompare')) return;
+    
+    const title = banner.querySelector('.productTitle')?.textContent || '';
+    const price = banner.querySelector('.productPrice')?.textContent || '';
+    const site = banner.querySelector('.siteTag')?.textContent || '';
+    
+    // Linki BUL
+    let link = '';
+    
+    // Yöntem 1: onclick attribute'dan al
+    const openBtn = banner.querySelector('.btnPrimary[onclick]');
+    if (openBtn) {
+      const onclickAttr = openBtn.getAttribute('onclick');
+      if (onclickAttr) {
+        const match = onclickAttr.match(/window\.open\('([^']+)'/);
+        if (match) link = match[1];
+      }
+    }
+    
+    if (!link) {
+      console.log("Banner için link bulunamadı");
+      return;
+    }
+    
+    console.log("Banner link bulundu:", link);
+    
+    // Buton oluştur
+    const compareBtn = document.createElement('button');
+    compareBtn.className = 'btnCompare btnGhost sm';
+    compareBtn.innerHTML = '⚖️ Karşılaştır';
+    compareBtn.setAttribute('data-compare-url', link);
+    
+    compareBtn.onclick = function(e) {
+      e.stopPropagation();
+      const product = {
+        urun: title,
+        fiyat: price,
+        site: site,
+        link: link
+      };
+      addToCompare(product, window.currentSearch || '');
+    };
+    
+    // Favori butonundan önce ekle
+    const favBtn = actions.querySelector('.btnFav');
+    if (favBtn) {
+      actions.insertBefore(compareBtn, favBtn);
+    } else {
+      actions.appendChild(compareBtn);
+    }
+  });
+  
+  // 2. DİĞER ÜRÜN KARTLARI (Küçük buton)
+  document.querySelectorAll('.productCard').forEach((card, index) => {
+    const actions = card.querySelector('.productActions');
+    if (!actions) return;
+    
+    // Buton zaten var mı?
+    if (actions.querySelector('.btnCompare')) return;
+    
+    const title = card.querySelector('.productName')?.textContent || '';
+    const price = card.querySelector('.productPrice')?.textContent || '';
+    const site = card.querySelector('.productSite')?.textContent || '';
+    
+    // Linki BUL
+    let link = '';
+    
+    // Yöntem 1: onclick attribute
+    const openBtns = card.querySelectorAll('.btnGhost[onclick]');
+    for (const btn of openBtns) {
+      const onclickAttr = btn.getAttribute('onclick');
+      if (onclickAttr && onclickAttr.includes('window.open')) {
+        const match = onclickAttr.match(/window\.open\('([^']+)'/);
+        if (match) {
+          link = match[1];
+          break;
+        }
+      }
+    }
+    
+    if (!link) {
+      console.log(`Ürün ${index} için link bulunamadı`);
+      return;
+    }
+    
+    console.log(`Ürün ${index} link bulundu:`, link);
+    
+    // Küçük karşılaştırma butonu oluştur
+    const compareBtn = document.createElement('button');
+    compareBtn.className = 'btnCompare btnGhost xs';
+    compareBtn.innerHTML = '⚖️';
+    compareBtn.title = 'Karşılaştırmaya ekle';
+    compareBtn.setAttribute('data-compare-url', link);
+    
+    compareBtn.onclick = function(e) {
+      e.stopPropagation();
+      const product = {
+        urun: title,
+        fiyat: price,
+        site: site,
+        link: link
+      };
+      addToCompare(product, window.currentSearch || '');
+    };
+    
+    // Butonu ekle
+    actions.appendChild(compareBtn);
+  });
+  
+  // 3. NORMAL ARAMA SONUÇLARI (Site kartları)
+  document.querySelectorAll('.cardBox .rowLine').forEach(card => {
+    const actions = card.querySelector('.actions');
+    if (!actions || actions.querySelector('.btnCompare')) return;
+    
+    const title = card.querySelector('.sub')?.textContent || '';
+    const site = card.querySelector('.ttl')?.textContent || '';
+    
+    // Linki data attribute'dan al
+    let link = '';
+    const copyBtn = actions.querySelector('[data-copy-url]');
+    if (copyBtn) {
+      link = copyBtn.getAttribute('data-copy-url') || '';
+    }
+    
+    if (!link) return;
+    
+    const compareBtn = document.createElement('button');
+    compareBtn.className = 'btnCompare btnGhost sm';
+    compareBtn.innerHTML = '⚖️';
+    compareBtn.title = 'Karşılaştırmaya ekle';
+    compareBtn.setAttribute('data-compare-url', link);
+    
+    compareBtn.onclick = function(e) {
+      e.stopPropagation();
+      const product = {
+        urun: title,
+        fiyat: "Fiyat bilgisi yok",
+        site: site,
+        link: link
+      };
+      addToCompare(product, title);
+    };
+    
+    actions.appendChild(compareBtn);
+  });
+  
+  // Buton durumlarını güncelle
+  updateCompareButtonStates();
+}
+
+// ========== BUTON DURUMLARINI GÜNCELLE ==========
+function updateCompareButtonStates() {
+  document.querySelectorAll('.btnCompare').forEach(btn => {
+    const url = btn.getAttribute('data-compare-url');
+    const isInCompare = compareItems.some(item => item.link === url);
+    
+    if (isInCompare) {
+      btn.innerHTML = btn.classList.contains('xs') ? '✓' : '✓ Eklendi';
+      btn.classList.add('added');
+      btn.disabled = true;
+    } else {
+      btn.innerHTML = btn.classList.contains('xs') ? '⚖️' : '⚖️ Karşılaştır';
+      btn.classList.remove('added');
+      btn.disabled = false;
+    }
+  });
 }
 
 // ========== EVENT KURULUMU ==========
 function setupEvents() {
   console.log("Event'ler kuruluyor...");
   
-  // 1. KAPATMA BUTONU - KESİN ÇALIŞACAK
+  // 1. KAPATMA BUTONU
   const closeBtn = $("closeCompareBtn");
   if (closeBtn) {
     closeBtn.onclick = closeCompareModal;
     console.log("Kapatma butonu bağlandı");
-  } else {
-    console.error("Kapatma butonu bulunamadı!");
   }
   
   // 2. BACKDROP KAPATMA
@@ -201,7 +368,6 @@ function setupEvents() {
         return;
       }
       
-      // Site adını çıkar
       let site = "Link";
       try {
         const urlObj = new URL(url);
@@ -231,7 +397,6 @@ function setupEvents() {
         return;
       }
       
-      // Arama yap
       if (window.fiyatAra) {
         window.fiyatAra(query);
       }
@@ -282,86 +447,6 @@ function setupEvents() {
   console.log("Tüm event'ler kuruldu");
 }
 
-// ========== ÜRÜN KARTLARINA BUTON EKLE ==========
-function addCompareButtons() {
-  // En ucuz banner
-  document.querySelectorAll('.cheapestBanner').forEach(banner => {
-    const actions = banner.querySelector('.productActions');
-    if (!actions || actions.querySelector('.btnCompare')) return;
-    
-    const title = banner.querySelector('.productTitle')?.textContent || '';
-    const price = banner.querySelector('.productPrice')?.textContent || '';
-    const site = banner.querySelector('.siteTag')?.textContent || '';
-    
-    // Linki bul
-    let link = '';
-    const openBtn = banner.querySelector('.btnPrimary');
-    if (openBtn && openBtn.onclick) {
-      const onclickStr = openBtn.onclick.toString();
-      const match = onclickStr.match(/window\.open\('([^']+)'/);
-      if (match) link = match[1];
-    }
-    
-    if (!link) return;
-    
-    const compareBtn = document.createElement('button');
-    compareBtn.className = 'btnCompare btnGhost sm';
-    compareBtn.innerHTML = '⚖️ Karşılaştır';
-    compareBtn.setAttribute('data-compare-url', link);
-    
-    compareBtn.onclick = function(e) {
-      e.stopPropagation();
-      const product = {
-        urun: title,
-        fiyat: price,
-        site: site,
-        link: link
-      };
-      addToCompare(product, window.currentSearch || '');
-    };
-    
-    actions.appendChild(compareBtn);
-  });
-  
-  // Diğer ürün kartları
-  document.querySelectorAll('.productCard').forEach(card => {
-    const actions = card.querySelector('.productActions');
-    if (!actions || actions.querySelector('.btnCompare')) return;
-    
-    const title = card.querySelector('.productName')?.textContent || '';
-    const price = card.querySelector('.productPrice')?.textContent || '';
-    const site = card.querySelector('.productSite')?.textContent || '';
-    
-    let link = '';
-    const openBtn = card.querySelector('.btnGhost[onclick*="window.open"]');
-    if (openBtn && openBtn.onclick) {
-      const onclickStr = openBtn.onclick.toString();
-      const match = onclickStr.match(/window\.open\('([^']+)'/);
-      if (match) link = match[1];
-    }
-    
-    if (!link) return;
-    
-    const compareBtn = document.createElement('button');
-    compareBtn.className = 'btnCompare btnGhost xs';
-    compareBtn.innerHTML = '⚖️';
-    compareBtn.setAttribute('data-compare-url', link);
-    
-    compareBtn.onclick = function(e) {
-      e.stopPropagation();
-      const product = {
-        urun: title,
-        fiyat: price,
-        site: site,
-        link: link
-      };
-      addToCompare(product, window.currentSearch || '');
-    };
-    
-    actions.appendChild(compareBtn);
-  });
-}
-
 // ========== BAŞLATMA ==========
 document.addEventListener('DOMContentLoaded', function() {
   console.log("Karşılaştırma sistemi başlatılıyor...");
@@ -375,6 +460,16 @@ document.addEventListener('DOMContentLoaded', function() {
   // Butonları ekle (her 2 saniyede bir)
   setTimeout(addCompareButtons, 1000);
   setInterval(addCompareButtons, 2000);
+  
+  // Arama yapıldığında buton ekle
+  if (window.fiyatAra) {
+    const originalFiyatAra = window.fiyatAra;
+    window.fiyatAra = function(...args) {
+      const result = originalFiyatAra.apply(this, args);
+      setTimeout(addCompareButtons, 1500);
+      return result;
+    };
+  }
   
   console.log("Karşılaştırma sistemi hazır");
 });
