@@ -1283,80 +1283,47 @@ ${payload.price ? `💰 Fiyat: ${payload.price}` : "💵 Fiyat bilgisi mevcut de
   }
 }
 
-// ==================== KARŞILAŞTIRMA SİSTEMİ ====================
-// ========== DEĞİŞKENLER ==========
+// ==================== KARŞILAŞTIRMA MODAL SİSTEMİ ====================
 let compareItems = JSON.parse(localStorage.getItem('fiyattakip_compare') || '[]');
-const COMPARE_LIMIT = 5;
 
-// ========== KARŞILAŞTIRMA VERİ YAPISI ==========
-function createCompareItem(product, query = "") {
-  return {
-    id: `compare_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    title: product.urun || product.title || "",
-    price: product.fiyat || "",
-    site: product.site || "",
-    link: product.link || "",
-    image: product.image || "",
-    query: query,
-    addedAt: Date.now()
-  };
-}
-
-// ========== BENZERLİK MOTORU ==========
-function calculateSimilarity(str1, str2) {
-  const s1 = str1.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '');
-  const s2 = str2.toLowerCase().replace(/[^a-z0-9ğüşıöç]/g, '');
-  
-  if (s1 === s2) return 100;
-  if (s1.includes(s2) || s2.includes(s1)) return 85;
-  
-  const words1 = s1.split(' ').filter(w => w.length > 2);
-  const words2 = s2.split(' ').filter(w => w.length > 2);
-  
-  let matches = 0;
-  for (const w1 of words1) {
-    for (const w2 of words2) {
-      if (w1.includes(w2) || w2.includes(w1)) {
-        matches++;
-        break;
-      }
-    }
-  }
-  
-  const score = Math.min(100, (matches / Math.max(words1.length, words2.length)) * 100);
-  return Math.round(score);
-}
-
-// ========== KARŞILAŞTIRMA İŞLEMLERİ ==========
-function saveCompareList() {
-  localStorage.setItem('fiyattakip_compare', JSON.stringify(compareItems));
-  updateCompareUI();
-}
-
+// KARŞILAŞTIRMA İŞLEMLERİ
 function addToCompare(product, query = "") {
-  if (compareItems.length >= COMPARE_LIMIT) {
-    toast(`Maksimum ${COMPARE_LIMIT} ürün karşılaştırabilirsiniz`, 'warning');
-    return false;
+  if (compareItems.length >= 5) {
+    toast("Maksimum 5 ürün karşılaştırabilirsiniz", "warning");
+    return;
   }
   
   const existing = compareItems.find(item => item.link === product.link);
   if (existing) {
-    toast('Bu ürün zaten karşılaştırma listesinde', 'info');
-    return false;
+    toast("Bu ürün zaten karşılaştırma listesinde", "info");
+    return;
   }
   
-  const compareItem = createCompareItem(product, query);
-  compareItems.push(compareItem);
-  saveCompareList();
+  const compareItem = {
+    id: 'compare_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+    title: product.urun || product.title || "",
+    price: product.fiyat || "",
+    site: product.site || "",
+    link: product.link || "",
+    query: query,
+    addedAt: Date.now()
+  };
   
-  toast(`"${compareItem.title.substring(0, 30)}..." karşılaştırmaya eklendi`, 'success');
-  return true;
+  compareItems.push(compareItem);
+  localStorage.setItem('fiyattakip_compare', JSON.stringify(compareItems));
+  updateCompareUI();
+  toast(`"${compareItem.title.substring(0, 30)}..." karşılaştırmaya eklendi`, "success");
+  
+  // Modal'ı otomatik aç
+  openCompareModal();
 }
 
 function removeFromCompare(itemId) {
   compareItems = compareItems.filter(item => item.id !== itemId);
-  saveCompareList();
-  toast('Ürün karşılaştırmadan çıkarıldı', 'info');
+  localStorage.setItem('fiyattakip_compare', JSON.stringify(compareItems));
+  updateCompareUI();
+  renderComparePageModal();
+  toast("Ürün karşılaştırmadan çıkarıldı", "info");
 }
 
 function clearCompareList() {
@@ -1364,32 +1331,17 @@ function clearCompareList() {
   
   if (confirm(`${compareItems.length} ürünü karşılaştırmadan çıkarmak istiyor musunuz?`)) {
     compareItems = [];
-    saveCompareList();
-    toast('Karşılaştırma listesi temizlendi', 'success');
+    localStorage.setItem('fiyattakip_compare', JSON.stringify(compareItems));
+    updateCompareUI();
+    renderComparePageModal();
+    toast("Karşılaştırma listesi temizlendi", "success");
   }
 }
 
-// ========== UI GÜNCELLEMELERİ ==========
+// UI GÜNCELLEME
 function updateCompareUI() {
-  const compareTab = document.querySelector('.tab[data-page="graph"]');
-  if (compareTab) {
-    const existingBadge = compareTab.querySelector('.compareCountBadge');
-    if (existingBadge) existingBadge.remove();
-    
-    if (compareItems.length > 0) {
-      const badge = document.createElement('span');
-      badge.className = 'compareCountBadge';
-      badge.textContent = compareItems.length;
-      compareTab.style.position = 'relative';
-      compareTab.appendChild(badge);
-    }
-  }
-  
+  // Ürün butonlarını güncelle
   updateProductCompareButtons();
-  
-  if (document.querySelector('#page-graph.active')) {
-    renderComparePage();
-  }
 }
 
 function updateProductCompareButtons() {
@@ -1399,13 +1351,33 @@ function updateProductCompareButtons() {
     
     btn.classList.toggle('added', isInCompare);
     btn.innerHTML = isInCompare ? '✓ Eklendi' : '⚖️ Ekle';
-    btn.title = isInCompare ? 'Karşılaştırmada' : 'Karşılaştırmaya ekle';
   });
 }
 
-// ========== KARŞILAŞTIRMA SAYFASI RENDER ==========
-function renderComparePage() {
-  const container = $('#compareList');
+// MODAL İŞLEMLERİ
+function openCompareModal() {
+  const modal = $('#compareModal');
+  if (!modal) return;
+  
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden","false");
+  document.body.classList.add("modalOpen");
+  
+  renderComparePageModal();
+  setupCompareModalEvents();
+}
+
+function closeCompareModal() {
+  const modal = $('#compareModal');
+  if (!modal) return;
+  
+  modal.classList.remove("show");
+  modal.setAttribute("aria-hidden","true");
+  document.body.classList.remove("modalOpen");
+}
+
+function renderComparePageModal() {
+  const container = $('#compareListModal');
   if (!container) return;
   
   if (compareItems.length === 0) {
@@ -1414,7 +1386,6 @@ function renderComparePage() {
         <div class="emptyIcon">⚖️</div>
         <h3>Karşılaştırma Listesi Boş</h3>
         <p>Ürünlerdeki "⚖️ Ekle" butonuna tıklayın veya yukarıdan manuel ekleyin.</p>
-        <p class="miniHint">En az 2 ürün ekleyerek karşılaştırma yapabilirsiniz.</p>
       </div>
     `;
     return;
@@ -1424,12 +1395,12 @@ function renderComparePage() {
   
   compareItems.forEach(item => {
     html += `
-      <div class="compareCard" data-id="${item.id}">
+      <div class="compareCard">
         <div class="compareCardHeader">
           <span class="compareSite">${item.site}</span>
           <button class="removeCompare" onclick="removeFromCompare('${item.id}')">✕</button>
         </div>
-        <div class="compareProductName">${item.title.substring(0, 60)}${item.title.length > 60 ? '...' : ''}</div>
+        <div class="compareProductName">${item.title.substring(0, 50)}${item.title.length > 50 ? '...' : ''}</div>
         <div class="compareProductPrice">${item.price}</div>
         <div class="compareActions">
           <button class="btnGhost xs" onclick="window.open('${item.link}', '_blank')">Ürüne Git</button>
@@ -1443,249 +1414,182 @@ function renderComparePage() {
   container.innerHTML = html;
 }
 
-// ========== MANUEL EKLEME SİSTEMİ ==========
-async function handleManualAdd() {
-  const input = $('#manualInput').value.trim();
-  if (!input) {
-    toast('Link veya ürün adı girin', 'error');
-    return;
-  }
+// MODAL EVENT'LERİ
+function setupCompareModalEvents() {
+  // Kapatma butonları
+  $('#closeCompare')?.addEventListener('click', closeCompareModal);
+  $('#compareBackdrop')?.addEventListener('click', closeCompareModal);
   
-  if (input.startsWith('http')) {
-    await fetchProductFromLink(input);
-  } else {
-    await searchAndMatchProduct(input);
-  }
-}
-
-async function fetchProductFromLink(url) {
-  toast('Link analiz ediliyor...', 'info');
-  
-  try {
-    const mockProduct = {
-      urun: `Linkten gelen ürün`,
-      fiyat: "₺???",
-      site: new URL(url).hostname.replace('www.', ''),
-      link: url,
-      image: ""
-    };
-    
-    const added = addToCompare(mockProduct, "manuel-link");
-    if (added) {
-      $('#manualInput').value = '';
-      $('#manualAddPanel').classList.add('hidden');
-    }
-  } catch (error) {
-    toast('Link işlenemedi, ürün adıyla deneyin', 'error');
-  }
-}
-
-async function searchAndMatchProduct(query) {
-  toast(`"${query}" aranıyor ve eşleştiriliyor...`, 'info');
-  
-  try {
-    const response = await fetch(`${API_URL}/fiyat-cek`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urun: query, page: 1, sort: 'asc' })
-    });
-    
-    if (!response.ok) throw new Error('Arama başarısız');
-    
-    const data = await response.json();
-    if (!data.fiyatlar || data.fiyatlar.length === 0) {
-      toast('Ürün bulunamadı', 'error');
-      return;
-    }
-    
-    const productsWithScore = data.fiyatlar.map(product => ({
-      product,
-      score: calculateSimilarity(query, product.urun)
-    }));
-    
-    productsWithScore.sort((a, b) => b.score - a.score);
-    
-    displayMatchResults(productsWithScore.slice(0, 3), query);
-    
-  } catch (error) {
-    console.error('Eşleştirme hatası:', error);
-    toast('Eşleştirme başarısız', 'error');
-  }
-}
-
-function displayMatchResults(results, originalQuery) {
-  const container = $('#matchResults');
-  if (!container) return;
-  
-  if (results.length === 0) {
-    container.innerHTML = '<div class="matchItem">Eşleşen ürün bulunamadı</div>';
-    return;
-  }
-  
-  let html = '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">En iyi eşleşmeler:</div>';
-  
-  results.forEach((item, index) => {
-    html += `
-      <div class="matchItem" data-index="${index}">
-        <div class="matchTitle">${item.product.urun}</div>
-        <div class="matchDetails">
-          <span>${item.product.site} • ${item.product.fiyat}</span>
-          <span class="matchScore">%${item.score} eşleşme</span>
-        </div>
-      </div>
-    `;
+  // Manuel ekleme butonu
+  $('#btnAddManuallyModal')?.addEventListener('click', function() {
+    $('#manualAddPanelModal').classList.toggle('hidden');
+    $('#manualInputModal').focus();
   });
   
-  container.innerHTML = html;
+  // Temizle butonu
+  $('#btnClearCompareModal')?.addEventListener('click', clearCompareList);
   
-  container.querySelectorAll('.matchItem').forEach(item => {
-    item.addEventListener('click', () => {
-      const index = parseInt(item.getAttribute('data-index'));
-      const selectedProduct = results[index].product;
-      
-      const added = addToCompare(selectedProduct, originalQuery);
-      if (added) {
-        $('#manualInput').value = '';
-        $('#matchResults').innerHTML = '';
-        $('#manualAddPanel').classList.add('hidden');
+  // AI karşılaştırma butonu
+  $('#btnAiCompareModal')?.addEventListener('click', function() {
+    aiCompareProductsModal();
+  });
+  
+  // Manuel panel kapatma
+  $('.closeManualPanelModal')?.addEventListener('click', function() {
+    $('#manualAddPanelModal').classList.add('hidden');
+    $('#matchResultsModal').innerHTML = '';
+  });
+  
+  // Linkten getir butonu
+  $('#btnFetchFromLinkModal')?.addEventListener('click', function() {
+    const input = $('#manualInputModal').value.trim();
+    if (input) {
+      toast("Link analiz ediliyor...", "info");
+      try {
+        const mockProduct = {
+          urun: "Linkten gelen ürün",
+          fiyat: "₺???",
+          site: new URL(input).hostname.replace('www.', ''),
+          link: input
+        };
+        addToCompare(mockProduct, "manuel-link");
+        $('#manualInputModal').value = '';
+        $('#manualAddPanelModal').classList.add('hidden');
+      } catch (e) {
+        toast("Geçersiz link formatı", "error");
       }
-    });
+    }
+  });
+  
+  // Bul ve eşleştir butonu
+  $('#btnSearchAndMatchModal')?.addEventListener('click', function() {
+    const input = $('#manualInputModal').value.trim();
+    if (input) {
+      toast(`"${input}" aranıyor...`, "info");
+      fiyatAra(input);
+      $('#manualInputModal').value = '';
+      $('#manualAddPanelModal').classList.add('hidden');
+      closeCompareModal();
+    }
+  });
+  
+  // AI sonuç kapatma
+  $('.closeAiResultModal')?.addEventListener('click', function() {
+    $('#aiCompareResultModal').classList.add('hidden');
   });
 }
 
-// ========== AI İLE KARŞILAŞTIRMA ==========
-async function aiCompareProducts() {
+// AI KARŞILAŞTIRMA
+async function aiCompareProductsModal() {
   if (compareItems.length < 2) {
-    toast('En az 2 ürün karşılaştırmaya ekleyin', 'warning');
+    toast("En az 2 ürün karşılaştırmaya ekleyin", "warning");
     return;
   }
   
-  if (compareItems.length > 3) {
-    toast('AI karşılaştırma için en fazla 3 ürün seçebilirsiniz', 'info');
-    compareItems = compareItems.slice(0, 3);
-    saveCompareList();
-  }
-  
-  toast('🤖 AI karşılaştırma yapılıyor...', 'info');
+  toast("🤖 AI karşılaştırma yapılıyor...", "info");
   
   try {
     const prompt = `
-    Aşağıdaki ${compareItems.length} ürünü detaylı şekilde karşılaştır:
+    Aşağıdaki ${compareItems.length} ürünü karşılaştır:
+    ${compareItems.map((item, i) => `ÜRÜN ${i+1}: ${item.title} (${item.site} - ${item.price})`).join('\n')}
     
-    ${compareItems.map((item, i) => `
-    ÜRÜN ${i+1}: ${item.title}
-    - Site: ${item.site}
-    - Fiyat: ${item.price}
-    `).join('\n')}
-    
-    Lütfen şu başlıklarda karşılaştır:
-    1. Fiyat-Performans Analizi
-    2. Kalite ve Marka Değerlendirmesi
-    3. En İyi Kullanım Senaryoları
-    4. Önerilen Ürün ve Nedeni
-    
-    Kısa, net ve Türkçe yanıt ver.
+    Fiyat-performans, kalite ve öneri açısından değerlendir.
+    Kısa ve Türkçe yanıt ver.
     `;
     
     const aiResponse = await getAiYorumSafe({
       title: `${compareItems.length} Ürün Karşılaştırması`,
-      price: `${compareItems.map(item => item.price).join(' vs ')}`,
-      site: 'Karşılaştırma Sistemi',
+      price: compareItems.map(item => item.price).join(' vs '),
+      site: 'Karşılaştırma',
       originalQuery: prompt
     });
     
-    displayAiCompareResult(aiResponse);
+    $('#aiCompareContentModal').innerHTML = aiResponse.replace(/\n/g, '<br>');
+    $('#aiCompareResultModal').classList.remove('hidden');
     
   } catch (error) {
-    console.error('AI karşılaştırma hatası:', error);
-    toast('AI karşılaştırma başarısız', 'error');
+    toast("AI karşılaştırma başarısız", "error");
   }
 }
 
-function displayAiCompareResult(content) {
-  const container = $('#aiCompareResult');
-  const contentBox = $('#aiCompareContent');
+// ÜRÜN KARTLARINA BUTON EKLEME
+function addCompareButtonsToExistingProducts() {
+  // En ucuz ürün banner'ına buton ekle
+  document.querySelectorAll('.cheapestBanner .productActions').forEach(actions => {
+    if (!actions.querySelector('.btnCompare')) {
+      const link = actions.closest('[data-fav-url]')?.getAttribute('data-fav-url');
+      const title = actions.closest('.cheapestBanner')?.querySelector('.productTitle')?.textContent || '';
+      const price = actions.closest('.cheapestBanner')?.querySelector('.productPrice')?.textContent || '';
+      const site = actions.closest('.cheapestBanner')?.querySelector('.siteTag')?.textContent || '';
+      
+      if (link) {
+        const compareBtn = document.createElement('button');
+        compareBtn.className = 'btnCompare';
+        compareBtn.innerHTML = '⚖️ Ekle';
+        compareBtn.setAttribute('data-compare-url', link);
+        compareBtn.onclick = () => {
+          const product = { urun: title, fiyat: price, site: site, link: link };
+          addToCompare(product, currentSearch);
+        };
+        
+        const favBtn = actions.querySelector('.btnFav');
+        if (favBtn) {
+          actions.insertBefore(compareBtn, favBtn);
+        } else {
+          actions.appendChild(compareBtn);
+        }
+      }
+    }
+  });
   
-  if (!container || !contentBox) return;
+  // Diğer ürün kartlarına buton ekle
+  document.querySelectorAll('.productCard .productActions').forEach(actions => {
+    if (!actions.querySelector('.btnCompare')) {
+      const link = actions.closest('[data-fav-url]')?.getAttribute('data-fav-url');
+      const title = actions.closest('.productCard')?.querySelector('.productName')?.textContent || '';
+      const price = actions.closest('.productCard')?.querySelector('.productPrice')?.textContent || '';
+      const site = actions.closest('.productCard')?.querySelector('.productSite')?.textContent || '';
+      
+      if (link) {
+        const compareBtn = document.createElement('button');
+        compareBtn.className = 'btnGhost xs btnCompare';
+        compareBtn.innerHTML = '⚖️';
+        compareBtn.setAttribute('data-compare-url', link);
+        compareBtn.onclick = () => {
+          const product = { urun: title, fiyat: price, site: site, link: link };
+          addToCompare(product, currentSearch);
+        };
+        
+        const favBtn = actions.querySelector('.btnFav');
+        if (favBtn) {
+          actions.insertBefore(compareBtn, favBtn);
+        } else {
+          actions.appendChild(compareBtn);
+        }
+      }
+    }
+  });
   
-  contentBox.innerHTML = content.replace(/\n/g, '<br>');
-  container.classList.remove('hidden');
-  
-  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  updateProductCompareButtons();
 }
 
-// ========== EVENT LISTENER'LARI KUR ==========
-function setupCompareEvents() {
-  $('#btnAddManually')?.addEventListener('click', () => {
-    $('#manualAddPanel').classList.toggle('hidden');
-    $('#manualInput').focus();
-  });
-  
-  $('.closeManualPanel')?.addEventListener('click', () => {
-    $('#manualAddPanel').classList.add('hidden');
-    $('#matchResults').innerHTML = '';
-  });
-  
-  $('#btnClearCompare')?.addEventListener('click', clearCompareList);
-  $('#btnAiCompare')?.addEventListener('click', aiCompareProducts);
-  
-  $('.closeAiResult')?.addEventListener('click', () => {
-    $('#aiCompareResult').classList.add('hidden');
-  });
-  
-  $('#btnFetchFromLink')?.addEventListener('click', () => {
-    const input = $('#manualInput').value.trim();
-    if (input) handleManualAdd();
-  });
-  
-  $('#btnSearchAndMatch')?.addEventListener('click', () => {
-    const input = $('#manualInput').value.trim();
-    if (input) handleManualAdd();
-  });
-  
-  $('#manualInput')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleManualAdd();
-  });
-}
-
-// ========== ÜRÜN KARTLARINA KARŞILAŞTIRMA BUTONU EKLE ==========
-// Bu fonksiyonu mevcut renderFiyatSonuclari fonksiyonunu çağırmadan önce ekle
-function addCompareButtonToProductHTML(product, isCheapest = false) {
-  const btnClass = isCheapest ? 'btnCompare' : 'btnGhost xs btnCompare';
-  return `
-    <button class="${btnClass}" 
-            onclick="addToCompare(${JSON.stringify(product).replace(/"/g, '&quot;')}, '${currentSearch}')"
-            data-compare-url="${product.link}">
-      ${isCheapest ? '⚖️ Ekle' : '⚖️'}
-    </button>
-  `;
-}
-
-// ========== UYGULAMA BAŞLANGICI ==========
-function initCompareSystem() {
-  setupCompareEvents();
-  updateCompareUI();
-  
-  // Mevcut ürün render fonksiyonunu güncelle
-  patchProductRenderFunctions();
-}
-
-// Mevcut render fonksiyonlarını güncellemek için
-function patchProductRenderFunctions() {
-  // Bu kısım mevcut renderFiyatSonuclari fonksiyonunu değiştirecek
-  // Ancak şimdilik sadece butonları ekleyelim
-  console.log('Karşılaştırma sistemi hazır');
-}
-
-// ========== GLOBAL FONKSİYONLAR ==========
+// GLOBAL FONKSİYONLAR
 window.addToCompare = addToCompare;
 window.removeFromCompare = removeFromCompare;
 window.clearCompareList = clearCompareList;
-window.aiCompareProducts = aiCompareProducts;
-window.handleManualAdd = handleManualAdd;
+window.openCompareModal = openCompareModal;
+window.closeCompareModal = closeCompareModal;
 
-// ========== UYGULAMA BAŞLANGICINDA ÇALIŞTIR ==========
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(initCompareSystem, 500);
-});
-// === FONKSİYON SONU ===
+// SAYFA YÜKLENDİĞİNDE BUTONLARI EKLE
+setTimeout(() => {
+  updateCompareUI();
+  addCompareButtonsToExistingProducts();
+}, 1000);
+
+// ARAMA YAPILDIĞINDA BUTONLARI TEKRAR EKLE
+const originalFiyatAra = window.fiyatAra;
+window.fiyatAra = function(...args) {
+  const result = originalFiyatAra.apply(this, args);
+  setTimeout(addCompareButtonsToExistingProducts, 500);
+  return result;
+};
