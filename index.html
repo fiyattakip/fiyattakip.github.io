@@ -132,7 +132,15 @@
         </div>
       </section>
 
-      <!-- BU SAYFAYI SİLDİM: KARŞILAŞTIRMA SAYFASI ARTIK MODAL'DA -->
+      <!-- GRAFİK SAYFASI -->
+      <section id="page-graph" class="page">
+        <div class="pageHead">
+          <div class="pageTitle">📊 Grafik</div>
+          <button id="btnGraphRefresh" class="btnGhost" type="button">Yenile</button>
+        </div>
+        <div class="miniHint">Favorilerinin fiyat geçmişi burada görünecek.</div>
+        <div id="graphRoot" class="cardBox">Grafik alanı</div>
+      </section>
 
       <!-- FAVORITES -->
       <section id="page-favs" class="page">
@@ -183,13 +191,17 @@
       </section>
     </main>
 
-    <!-- TABBAR - KARŞILAŞTIRMA SEKMESİ YOK -->
+    <!-- TABBAR - 4 SEKMELİ -->
     <nav class="tabbar" aria-label="Alt Menü">
       <button class="tab active" type="button" data-page="home">
         <span class="ico">🏠</span><span class="lbl">Ana</span>
       </button>
 
-      <!-- KAMERA BUTONU ORTADA -->
+      <button class="tab" type="button" data-page="graph">
+        <span class="ico">📊</span><span class="lbl">Grafik</span>
+      </button>
+
+      <!-- ORTADA KAMERA BUTONU -->
       <div class="tabSpacer" aria-hidden="true"></div>
 
       <button class="tab" type="button" data-page="favs">
@@ -235,7 +247,7 @@
     </div>
   </div>
 
-  <!-- KARŞILAŞTIRMA MODALI - YENİ -->
+  <!-- KARŞILAŞTIRMA MODALI -->
   <div id="compareModal" class="modalWrap" aria-hidden="true">
     <div class="modalBack" id="compareBackdrop"></div>
     <div class="modalCard" role="dialog" aria-modal="true" aria-label="Karşılaştırma" style="max-width:95%;max-height:90vh;width:500px;">
