@@ -1,5 +1,5 @@
-// app.js - Fiyat Takip Uygulaması
-import { auth, googleProvider, db, firebaseConfigLooksInvalid } from "./firebase.js";
+// app.js - Fiyat Takip Uygulaması (Render API entegreli)
+import { auth, googleProvider, firebaseConfigLooksInvalid } from "./firebase.js";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -8,536 +8,1161 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-  collection, getDocs, doc, setDoc, deleteDoc
+  getFirestore, collection, getDocs, doc, setDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// ========== KONSTANTLAR ==========
-const SITES = [
-  { key: "trendyol", name: "Trendyol", build: q => `https://www.trendyol.com/sr?q=${encodeURIComponent(q)}` },
-  { key: "hepsiburada", name: "Hepsiburada", build: q => `https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}` },
-  { key: "n11", name: "N11", build: q => `https://www.n11.com/arama?q=${encodeURIComponent(q)}` },
-  { key: "amazontr", name: "Amazon TR", build: q => `https://www.amazon.com.tr/s?k=${encodeURIComponent(q)}` },
-  { key: "pazarama", name: "Pazarama", build: q => `https://www.pazarama.com/arama?q=${encodeURIComponent(q)}` },
-  { key: "ciceksepeti", name: "ÇiçekSepeti", build: q => `https://www.ciceksepeti.com/arama?query=${encodeURIComponent(q)}` },
-  { key: "idefix", name: "idefix", build: q => `https://www.idefix.com/arama/?q=${encodeURIComponent(q)}` },
-];
+const db = getFirestore();
+const $ = (id) => document.getElementById(id);
 
-const API_URL = "https://fiyattakip-api.onrender.com";
-const PAGE_SIZE = 4;
-const MAX_COMPARE_ITEMS = 5;
-const MAX_RECENT_SEARCHES = 5;
+// ========== API KONFİGÜRASYONU ==========
+const DEFAULT_API_URL = "https://fiyattakip-api.onrender.com";
+let API_URL = localStorage.getItem('fiyattakip_api_url') || DEFAULT_API_URL;
 
-// ========== GLOBAL STATE ==========
-class AppState {
-  constructor() {
-    this.currentUser = null;
-    this.favorites = [];
-    this.compareItems = JSON.parse(localStorage.getItem('fiyattakip_compare') || '[]');
-    this.currentPage = 1;
-    this.currentSort = 'asc';
-    this.currentSearch = '';
-    this.totalPages = 1;
-    this.allProducts = [];
-    this.searchMode = localStorage.getItem('searchMode') || 'link';
-    this.theme = localStorage.getItem('theme') || 'auto';
-  }
+// ========== SAYFALAMA AYARLARI ==========
+let currentPage = 1;
+let currentSort = 'asc';
+let currentSearch = '';
+let totalPages = 1;
+let allProducts = [];
 
-  saveCompareItems() {
-    localStorage.setItem('fiyattakip_compare', JSON.stringify(this.compareItems));
-    this.updateCompareCount();
-  }
+// ========== FAVORİLER ==========
+let favCache = [];
 
-  clearCompareItems() {
-    this.compareItems = [];
-    this.saveCompareItems();
-  }
+// ========== KARŞILAŞTIRMA SİSTEMİ ==========
+let compareItems = JSON.parse(localStorage.getItem('fiyattakip_compare') || '[]');
 
-  addToCompare(product, query = "") {
-    if (this.compareItems.length >= MAX_COMPARE_ITEMS) {
-      this.showToast("Maksimum 5 ürün karşılaştırabilirsiniz", "error");
-      return false;
-    }
+// ========== TOAST MESAJ ==========
+function toast(msg, type = 'info'){
+  const t = $("toast");
+  if (!t) { console.log(msg); return; }
+  t.textContent = msg;
+  t.className = `toast ${type}`;
+  t.classList.remove("hidden");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.add("hidden"), 2200);
+}
 
-    const existing = this.compareItems.find(item => item.link === product.link);
-    if (existing) {
-      this.removeFromCompare(existing.id);
-      return false;
-    }
+// ========== SAYFA GEÇİŞLERİ ==========
+function showPage(key){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
 
-    const compareItem = {
-      id: 'compare_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-      title: product.urun || product.title || product.query || "",
-      price: product.fiyat || "Fiyat bilgisi yok",
-      site: product.site || "",
-      link: product.link || "",
-      query: query,
-      addedAt: Date.now()
+  const page = document.querySelector(`#page-${CSS.escape(key)}`);
+  if (page) page.classList.add("active");
+
+  const tab = document.querySelector(`.tab[data-page="${CSS.escape(key)}"]`);
+  if (tab) tab.classList.add("active");
+
+  // Sayfa özel işlemler
+  if (key === 'favs') renderFavoritesPage(window.currentUser?.uid);
+  if (key === 'home') renderRecentSearches();
+  if (key === 'graph') loadSampleChart();
+}
+
+// ========== ARAMA MODU AYARLARI ==========
+function setSearchMode(mode){
+  localStorage.setItem("searchMode", mode);
+  $("modeNormal")?.classList.toggle("active", mode==="normal");
+  $("modeFiyat")?.classList.toggle("active", mode==="fiyat");
+  $("modeAI")?.classList.toggle("active", mode==="ai");
+  const hint = $("modeHint");
+  if (hint){
+    const hints = {
+      "normal": "Link modu: Sadece arama linkleri oluşturur",
+      "fiyat": "Fiyat modu: Gerçek fiyatları çeker (Render API)",
+      "ai": "AI modu: AI ile optimize edilmiş arama"
     };
-
-    this.compareItems.push(compareItem);
-    this.saveCompareItems();
-    return true;
-  }
-
-  removeFromCompare(itemId) {
-    this.compareItems = this.compareItems.filter(item => item.id !== itemId);
-    this.saveCompareItems();
-  }
-
-  updateCompareCount() {
-    const countEl = document.getElementById('compareCount');
-    if (countEl) {
-      countEl.textContent = `${this.compareItems.length} ürün`;
-    }
-  }
-
-  showToast(msg, type = 'info') {
-    const t = document.getElementById("toast");
-    if (!t) { console.log(msg); return; }
-    t.textContent = msg;
-    t.className = `toast ${type}`;
-    t.classList.remove("hidden");
-    clearTimeout(this.toastTimeout);
-    this.toastTimeout = setTimeout(() => t.classList.add("hidden"), 2200);
-  }
-
-  saveRecentSearch(query) {
-    let recent = JSON.parse(localStorage.getItem('fiyattakip_recent') || '[]');
-    recent = recent.filter(q => q !== query);
-    recent.unshift(query);
-    recent = recent.slice(0, MAX_RECENT_SEARCHES);
-    localStorage.setItem('fiyattakip_recent', JSON.stringify(recent));
-    this.renderRecentSearches();
-  }
-
-  renderRecentSearches() {
-    const container = document.getElementById("recentList");
-    if (!container) return;
-    
-    const recent = JSON.parse(localStorage.getItem('fiyattakip_recent') || '[]');
-    
-    if (recent.length === 0) {
-      container.innerHTML = '<p class="recent-empty">Henüz arama yapılmadı</p>';
-      return;
-    }
-    
-    let html = '';
-    recent.forEach(query => {
-      html += `
-        <div class="recent-item" onclick="app.handleRecentSearch('${query.replace(/'/g, "\\'")}')">
-          <span><i class="fas fa-search"></i> ${query}</span>
-          <button class="recent-remove" onclick="event.stopPropagation(); app.removeRecentSearch('${query.replace(/'/g, "\\'")}')">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      `;
-    });
-    
-    container.innerHTML = html;
-  }
-
-  handleRecentSearch(query) {
-    const input = document.getElementById('searchInput');
-    if (input) input.value = query;
-    this.performSearch(query);
-  }
-
-  removeRecentSearch(query) {
-    let recent = JSON.parse(localStorage.getItem('fiyattakip_recent') || '[]');
-    recent = recent.filter(q => q !== query);
-    localStorage.setItem('fiyattakip_recent', JSON.stringify(recent));
-    this.renderRecentSearches();
-  }
-
-  setTheme(newTheme) {
-    this.theme = newTheme;
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  }
-
-  initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'auto';
-    this.setTheme(savedTheme);
-    
-    // Toggle switch
-    const darkModeToggle = document.getElementById('darkMode');
-    if (darkModeToggle) {
-      darkModeToggle.checked = savedTheme === 'dark';
-      darkModeToggle.addEventListener('change', (e) => {
-        this.setTheme(e.target.checked ? 'dark' : 'light');
-      });
-    }
+    hint.textContent = hints[mode] || "";
   }
 }
 
-const app = new AppState();
+function getSearchMode(){
+  return localStorage.getItem("searchMode") || "normal";
+}
 
-// ========== SEARCH FUNCTIONS ==========
-async function performSearch(query) {
-  if (!query || query.trim() === '') {
-    app.showToast('Lütfen bir şey yazın', 'error');
+// ========== FIYAT ARAMA (Render API) ==========
+async function fiyatAra(query, page = 1, sort = 'asc') {
+  if (!query.trim()) {
+    toast("Lütfen bir şey yazın", "error");
     return;
   }
 
-  const mode = app.searchMode;
-  app.saveRecentSearch(query);
-  
-  if (mode === 'price' || mode === 'ai') {
-    await fetchPrices(query);
-  } else {
-    // Link mode
-    showSearchResults(query);
-  }
-}
-
-async function fetchPrices(query) {
-  const container = document.getElementById('searchResults');
-  if (!container) return;
-  
+  showPage("search");
+  const container = $("normalList");
   container.innerHTML = `
     <div class="loading">
+      <div class="spinner"></div>
       <p>Fiyatlar çekiliyor...</p>
     </div>
   `;
-  
+
+  // Son aramaya kaydet
+  saveRecentSearch(query);
+
   try {
-    app.showToast('Fiyatlar çekiliyor...', 'info');
+    toast("Fiyatlar çekiliyor...", "info");
     
-    // Burada API çağrısı yapılacak
-    // Örnek veri kullanıyoruz
-    setTimeout(() => {
-      const sampleData = {
-        fiyatlar: [
-          { urun: `${query} - Pro Model`, fiyat: '12.999 TL', site: 'Trendyol', link: 'https://trendyol.com/urun' },
-          { urun: `${query} - Standard`, fiyat: '10.499 TL', site: 'Hepsiburada', link: 'https://hepsiburada.com/urun' },
-          { urun: `${query} - Lite`, fiyat: '8.999 TL', site: 'n11', link: 'https://n11.com/urun' },
-          { urun: `${query} - Premium`, fiyat: '15.499 TL', site: 'Amazon', link: 'https://amazon.com.tr/urun' },
-        ]
-      };
+    const response = await fetch(`${API_URL}/fiyat-cek`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ 
+        urun: query,
+        page: page,
+        sort: sort
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`API hatası: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.success) {
+      // Global değişkenlere kaydet
+      currentPage = data.sayfa || 1;
+      currentSort = data.siralama || 'asc';
+      currentSearch = query;
+      totalPages = data.toplamSayfa || 1;
+      allProducts = data.fiyatlar || [];
       
-      renderPriceResults(sampleData);
-    }, 1000);
+      renderFiyatSonuclari(data);
+      updatePaginationControls();
+      updateSortControls();
+      updateCompareButtons();
+      
+      toast(`${data.toplamUrun || 0} ürün bulundu (Sayfa ${currentPage}/${totalPages})`, "success");
+    } else {
+      throw new Error(data.error || "Fiyat çekilemedi");
+    }
     
   } catch (error) {
-    console.error('Fiyat çekme hatası:', error);
-    app.showToast('Fiyatlar çekilemedi', 'error');
+    console.error("Fiyat arama hatası:", error);
     container.innerHTML = `
-      <div class="error-state">
-        <p>Fiyatlar çekilemedi. Link moduna geçiliyor...</p>
-        <button class="btnPrimary" onclick="showSearchResults('${query.replace(/'/g, "\\'")}')">Link Modunda Göster</button>
+      <div class="errorState">
+        <div class="errorIcon">😕</div>
+        <h3>Fiyat çekilemedi</h3>
+        <p>${error.message}</p>
+        <button onclick="showPage('home')" class="btnPrimary">Ana Sayfaya Dön</button>
       </div>
     `;
   }
 }
 
-function renderPriceResults(data) {
-  const container = document.getElementById('searchResults');
+// ========== FIYAT SONUÇLARINI GÖSTER (4'erli) ==========
+function renderFiyatSonuclari(data) {
+  const container = $("normalList");
   if (!container) return;
   
   if (!data.fiyatlar || data.fiyatlar.length === 0) {
     container.innerHTML = `
-      <div class="empty-state">
-        <p>Ürün bulunamadı</p>
+      <div class="emptyState">
+        <div class="emptyIcon">😕</div>
+        <h3>Ürün bulunamadı</h3>
+        <p>"${data.query}" için sonuç bulunamadı</p>
+        <button onclick="showPage('home')" class="btnPrimary">Yeni Arama</button>
       </div>
     `;
     return;
   }
-  
+
   let html = '';
   
-  // En ucuz banner
-  const cheapest = data.fiyatlar[0];
+  // Sıralama bilgisi
   html += `
-    <div class="cheapest-banner">
-      <div class="banner-header">
-        <span class="cheapest-badge">🥇 EN UCUZ</span>
-        <span class="site-badge">${cheapest.site}</span>
-      </div>
-      <div class="product-info">
-        <h4>${cheapest.urun}</h4>
-        <div class="product-price">${cheapest.fiyat}</div>
-        <div class="product-actions">
-          <button class="btnPrimary sm" onclick="window.open('${cheapest.link}', '_blank')">Ürüne Git</button>
-          <button class="btnGhost sm" onclick="copyToClipboard('${cheapest.link}')">⧉ Kopyala</button>
-          <button class="btnGhost sm btn-compare" 
-                  data-title="${cheapest.urun}"
-                  data-price="${cheapest.fiyat}"
-                  data-site="${cheapest.site}"
-                  data-link="${cheapest.link}">⚖️ Karşılaştır</button>
-        </div>
-      </div>
+    <div class="sortInfo">
+      <span>Sıralama: ${currentSort === 'asc' ? '🏷️ En Düşük Fiyat' : '🏷️ En Yüksek Fiyat'}</span>
+      <span>Sayfa: ${currentPage}/${totalPages}</span>
     </div>
   `;
   
-  // Diğer ürünler
-  html += '<div class="other-products">';
-  data.fiyatlar.slice(1).forEach(product => {
+  // En ucuz ürün banner'ı (ilk ürün)
+  if (data.fiyatlar.length > 0) {
+    const cheapest = data.fiyatlar[0];
+    const isInCompare = compareItems.some(item => item.link === cheapest.link);
+    
     html += `
-      <div class="product-card">
-        <div class="product-header">
-          <span class="product-site">${product.site}</span>
-          <button class="btn-compare xs"
-                  data-title="${product.urun}"
-                  data-price="${product.fiyat}"
-                  data-site="${product.site}"
-                  data-link="${product.link}">⚖️</button>
+      <div class="cheapestBanner">
+        <div class="bannerHeader">
+          <span class="badge">🥇 EN UCUZ</span>
+          <span class="siteTag">${cheapest.site}</span>
         </div>
-        <div class="product-title">${product.urun}</div>
-        <div class="product-price">${product.fiyat}</div>
-        <div class="product-actions">
-          <button class="btnGhost xs" onclick="window.open('${product.link}', '_blank')">Aç</button>
-          <button class="btnGhost xs" onclick="copyToClipboard('${product.link}')">⧉</button>
+        <div class="productInfo">
+          <div class="productTitle">${cheapest.urun}</div>
+          <div class="productPrice">${cheapest.fiyat}</div>
+          <div class="productActions">
+            <button class="btnPrimary sm" onclick="window.open('${cheapest.link}', '_blank')">Ürüne Git</button>
+            <button class="btnGhost sm" onclick="copyToClipboard('${cheapest.link}')">⧉ Kopyala</button>
+            <button class="btnGhost sm btn-compare ${isInCompare ? 'active' : ''}" 
+                    onclick="addToCompare({
+                      urun: '${cheapest.urun.replace(/'/g, "\\'")}',
+                      fiyat: '${cheapest.fiyat}',
+                      site: '${cheapest.site}',
+                      link: '${cheapest.link}'
+                    })"
+                    data-link="${cheapest.link}">
+              ${isInCompare ? '✓' : '⚖️'} Ekle
+            </button>
+            <button class="btnFav isFav" data-fav-url="${cheapest.link}" 
+                    data-site-key="${cheapest.site.toLowerCase()}" 
+                    data-site-name="${cheapest.site}" 
+                    data-query="${data.query}">❤️</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Diğer ürünler (max 3 tane - toplam 4 ürün)
+  html += '<div class="productList">';
+  
+  data.fiyatlar.forEach((product, index) => {
+    if (index === 0) return; // En ucuz zaten gösterildi
+    if (index >= 4) return; // Sadece 4 ürün göster
+    
+    const isInCompare = compareItems.some(item => item.link === product.link);
+    
+    html += `
+      <div class="productCard">
+        <div class="productRow">
+          <div class="productSite">${product.site}</div>
+          <div class="productName">${product.urun}</div>
+          <div class="productPriceRow">
+            <span class="productPrice">${product.fiyat}</span>
+            <div class="productActions">
+              <button class="btnGhost xs" onclick="window.open('${product.link}', '_blank')">Aç</button>
+              <button class="btnGhost xs" onclick="copyToClipboard('${product.link}')">⧉</button>
+              <button class="btnGhost xs btn-compare ${isInCompare ? 'active' : ''}"
+                      onclick="addToCompare({
+                        urun: '${product.urun.replace(/'/g, "\\'")}',
+                        fiyat: '${product.fiyat}',
+                        site: '${product.site}',
+                        link: '${product.link}'
+                      })"
+                      data-link="${product.link}">
+                ${isInCompare ? '✓' : '⚖️'}
+              </button>
+              <button class="btnGhost xs btnFav" 
+                      data-fav-url="${product.link}" 
+                      data-site-key="${product.site.toLowerCase()}" 
+                      data-site-name="${product.site}" 
+                      data-query="${data.query}">🤍</button>
+            </div>
+          </div>
         </div>
       </div>
     `;
   });
-  html += '</div>';
   
+  html += '</div>';
   container.innerHTML = html;
-  setupCompareButtons();
+  
+  applyFavUI();
 }
 
-function showSearchResults(query) {
-  const container = document.getElementById('searchResults');
+// ========== SAYFALAMA KONTROLLERİ ==========
+function updatePaginationControls() {
+  const container = $("normalList");
+  if (!container || totalPages <= 1) return;
+  
+  let paginationHTML = `
+    <div class="pagination">
+      <button class="pageBtn ${currentPage === 1 ? 'disabled' : ''}" 
+              onclick="changePage(${currentPage - 1})" 
+              ${currentPage === 1 ? 'disabled' : ''}>
+        ⬅️ Önceki
+      </button>
+      
+      <span class="pageInfo">Sayfa ${currentPage} / ${totalPages}</span>
+      
+      <button class="pageBtn ${currentPage >= totalPages ? 'disabled' : ''}" 
+              onclick="changePage(${currentPage + 1})" 
+              ${currentPage >= totalPages ? 'disabled' : ''}>
+        Sonraki ➡️
+      </button>
+    </div>
+  `;
+  
+  // Container'ın sonuna ekle
+  const existingPagination = container.querySelector('.pagination');
+  if (existingPagination) {
+    existingPagination.remove();
+  }
+  
+  container.insertAdjacentHTML('beforeend', paginationHTML);
+}
+
+// ========== SIRALAMA KONTROLLERİ ==========
+function updateSortControls() {
+  const container = $("normalList");
   if (!container) return;
   
-  let html = '<div class="site-list">';
+  let sortHTML = `
+    <div class="sortControls">
+      <button class="sortBtn ${currentSort === 'asc' ? 'active' : ''}" 
+              onclick="changeSort('asc')">
+        ⬆️ En Düşük Fiyat
+      </button>
+      <button class="sortBtn ${currentSort === 'desc' ? 'active' : ''}" 
+              onclick="changeSort('desc')">
+        ⬇️ En Yüksek Fiyat
+      </button>
+    </div>
+  `;
   
-  SITES.forEach(site => {
-    const url = site.build(query);
-    html += `
-      <div class="site-card">
-        <div class="site-info">
-          <h4>${site.name}</h4>
-          <p>${query}</p>
-        </div>
-        <div class="site-actions">
-          <button class="btnPrimary sm" onclick="window.open('${url}', '_blank')">Aç</button>
-          <button class="btnGhost sm" onclick="copyToClipboard('${url}')">⧉ Kopyala</button>
-          <button class="btnGhost sm btn-compare"
-                  data-title="${query}"
-                  data-site="${site.name}"
-                  data-link="${url}">⚖️</button>
-        </div>
-      </div>
-    `;
-  });
+  // Container'ın başına ekle
+  const existingSort = container.querySelector('.sortControls');
+  if (existingSort) {
+    existingSort.remove();
+  }
   
-  html += '</div>';
-  container.innerHTML = html;
-  setupCompareButtons();
+  container.insertAdjacentHTML('afterbegin', sortHTML);
 }
 
-// ========== FAVORITES ==========
-async function loadFavorites() {
-  if (!app.currentUser) {
-    app.favorites = [];
+// ========== SAYFA DEĞİŞTİRME ==========
+function changePage(newPage) {
+  if (newPage < 1 || newPage > totalPages) return;
+  fiyatAra(currentSearch, newPage, currentSort);
+}
+
+// ========== SIRALAMA DEĞİŞTİRME ==========
+function changeSort(newSort) {
+  if (newSort === currentSort) return;
+  fiyatAra(currentSearch, 1, newSort);
+}
+
+// ========== KAMERA AI ARAMA ==========
+async function cameraAiSearch() {
+  try {
+    // Kamera erişimi
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    
+    // Kamera modalı oluştur
+    const modal = document.createElement('div');
+    modal.className = 'cameraModal';
+    modal.innerHTML = `
+      <div class="cameraContainer">
+        <div class="cameraHeader">
+          <h3>📸 Ürün Fotoğrafı Çek</h3>
+          <button class="closeCamera">✕</button>
+        </div>
+        <video id="cameraVideo" autoplay playsinline></video>
+        <div class="cameraControls">
+          <button class="btnPrimary" id="captureBtn">📷 Çek</button>
+          <button class="btnGhost" id="cancelBtn">İptal</button>
+        </div>
+        <canvas id="cameraCanvas" style="display:none;"></canvas>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const video = modal.querySelector('#cameraVideo');
+    video.srcObject = stream;
+    
+    // Event listeners
+    modal.querySelector('.closeCamera').onclick = 
+    modal.querySelector('#cancelBtn').onclick = () => {
+      stream.getTracks().forEach(track => track.stop());
+      modal.remove();
+    };
+    
+    modal.querySelector('#captureBtn').onclick = async () => {
+      const canvas = modal.querySelector('#cameraCanvas');
+      const context = canvas.getContext('2d');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+      
+      // Base64'e çevir
+      const imageData = canvas.toDataURL('image/jpeg');
+      
+      // Stream'i durdur
+      stream.getTracks().forEach(track => track.stop());
+      modal.remove();
+      
+      // AI ile görsel analiz
+      toast("Görsel AI ile analiz ediliyor...", "info");
+      
+      try {
+        const response = await fetch(`${API_URL}/kamera-ai`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            image: imageData.split(',')[1],
+            mime: 'image/jpeg'
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            fiyatAra(data.urunTahmini || data.tespitEdilen || 'telefon');
+          }
+        }
+      } catch (error) {
+        console.error("Kamera AI hatası:", error);
+        toast("AI analiz başarısız, normal arama yapılıyor", "warning");
+        fiyatAra('telefon');
+      }
+    };
+    
+  } catch (error) {
+    console.error("Kamera hatası:", error);
+    toast("Kamera erişimi reddedildi", "error");
+  }
+}
+
+// ========== FAVORİ AI YORUM ==========
+async function getAiCommentForFavorite(favorite) {
+  try {
+    toast("🤖 AI analiz yapıyor...", "info");
+    
+    const response = await fetch(`${API_URL}/ai-yorum`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Gemini-Key": (loadAISettings().key || ""),
+      },
+      body: JSON.stringify({
+        urun: favorite.query || favorite.urun,
+        fiyatlar: [{
+          site: favorite.siteName || favorite.site,
+          fiyat: favorite.fiyat || "Fiyat bilgisi yok"
+        }]
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      // AI yorum modalı göster
+      const modal = document.createElement('div');
+      modal.className = 'aiModal';
+      modal.innerHTML = `
+        <div class="aiModalContent">
+          <div class="aiModalHeader">
+            <h3>🤖 AI Analizi</h3>
+            <button class="closeAiModal">✕</button>
+          </div>
+          <div class="aiModalBody">
+            <div class="aiProduct">
+              <strong>${favorite.query || favorite.urun}</strong>
+              <small>${favorite.siteName || favorite.site}</small>
+            </div>
+            <div class="aiComment">
+              ${data.aiYorum || data.yorum || "AI yorum yapamadı."}
+            </div>
+            ${data.detay ? `
+              <div class="aiDetails">
+                <div><strong>En Ucuz:</strong> ${data.detay.enUcuzFiyat || 'N/A'}</div>
+                <div><strong>En Pahalı:</strong> ${data.detay.enPahaliFiyat || 'N/A'}</div>
+                <div><strong>Ortalama:</strong> ${data.detay.ortalamaFiyat || 'N/A'}</div>
+              </div>
+            ` : ''}
+          </div>
+          <div class="aiModalFooter">
+            <button class="btnPrimary" onclick="this.closest('.aiModal').remove()">Tamam</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      modal.querySelector('.closeAiModal').onclick = () => modal.remove();
+      modal.querySelector('.aiModal').onclick = (e) => {
+        if (e.target === modal) modal.remove();
+      };
+      
+    } else {
+      toast("AI yorum alınamadı", "error");
+    }
+    
+  } catch (error) {
+    console.error("AI yorum hatası:", error);
+    toast("AI servisi şu anda kullanılamıyor", "error");
+  }
+}
+
+// ========== FAVORİ İŞLEMLERİ ==========
+function favIdFromUrl(url){
+  try{
+    const u = new URL(url);
+    const key = (u.hostname + u.pathname + u.search).toLowerCase();
+    let h=0; for (let i=0;i<key.length;i++){ h=((h<<5)-h)+key.charCodeAt(i); h|=0; }
+    return "fav_" + Math.abs(h);
+  }catch{
+    return "fav_" + Math.random().toString(36).slice(2);
+  }
+}
+
+const FAV_COLL = (uid)=> collection(db, "users", uid, "favorites");
+
+async function loadFavorites(uid){
+  if (!uid){ favCache=[]; return favCache; }
+  try {
+    const snap = await getDocs(FAV_COLL(uid));
+    favCache = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+  } catch(e) {
+    console.error("Favori yükleme hatası:", e);
+    favCache = [];
+  }
+  return favCache;
+}
+
+function isFav(url){
+  const id = favIdFromUrl(url);
+  return favCache.some(f=>f.id===id);
+}
+
+async function toggleFavorite(uid, fav){
+  if (!uid) { openLogin(); return; }
+  
+  const id = favIdFromUrl(fav.url);
+  const ref = doc(db, "users", uid, "favorites", id);
+  
+  if (favCache.some(f=>f.id===id)){
+    await deleteDoc(ref);
+    toast("Favoriden çıkarıldı", 'info');
+  } else {
+    await setDoc(ref, {
+      ...fav,
+      createdAt: Date.now(),
+    }, { merge:true });
+    toast("Favorilere eklendi", 'success');
+  }
+  await loadFavorites(uid);
+  applyFavUI();
+}
+
+function applyFavUI(){
+  document.querySelectorAll("[data-fav-url]").forEach(btn=>{
+    const url = btn.getAttribute("data-fav-url") || "";
+    const fav = isFav(url);
+    btn.classList.toggle("isFav", fav);
+    btn.innerHTML = fav ? "❤️" : "🤍";
+    btn.title = fav ? "Favoride" : "Favoriye ekle";
+  });
+}
+
+// ========== FAVORİLERİ GÖSTER (AI YORUM BUTONLU) ==========
+function renderFavoritesPage(uid){
+  const list = $("favList");
+  if (!list) return;
+  list.innerHTML = "";
+  
+  if (!favCache.length){
+    list.innerHTML = `<div class="emptyState">Favori yok.</div>`;
     return;
   }
   
-  try {
-    const favsRef = collection(db, "users", app.currentUser.uid, "favorites");
-    const snapshot = await getDocs(favsRef);
-    app.favorites = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    renderFavorites();
-  } catch (error) {
-    console.error('Favoriler yüklenemedi:', error);
-    app.favorites = [];
+  // Favorileri sayfalama (4'erli)
+  const pageSize = 4;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const pagedFavs = favCache.slice(startIndex, endIndex);
+  const favTotalPages = Math.ceil(favCache.length / pageSize);
+  
+  // Sayfalama kontrolleri
+  let paginationHTML = '';
+  if (favTotalPages > 1) {
+    paginationHTML = `
+      <div class="favPagination">
+        <button class="pageBtn ${currentPage === 1 ? 'disabled' : ''}" 
+                onclick="changeFavPage(${currentPage - 1})" 
+                ${currentPage === 1 ? 'disabled' : ''}>
+          ⬅️
+        </button>
+        <span class="pageInfo">${currentPage}/${favTotalPages}</span>
+        <button class="pageBtn ${currentPage >= favTotalPages ? 'disabled' : ''}" 
+                onclick="changeFavPage(${currentPage + 1})" 
+                ${currentPage >= favTotalPages ? 'disabled' : ''}>
+          ➡️
+        </button>
+      </div>
+    `;
+  }
+  
+  list.innerHTML = paginationHTML;
+  
+  for (const fav of pagedFavs){
+    const card = document.createElement("div");
+    card.className = "cardBox favoriteCard";
+    const isInCompare = compareItems.some(item => item.link === fav.url);
+    
+    card.innerHTML = `
+      <div class="favoriteHeader">
+        <div class="favoriteInfo">
+          <div class="favSite">${fav.siteName || "Favori"}</div>
+          <div class="favQuery">${fav.query || fav.urun || ""}</div>
+          ${fav.fiyat ? `<div class="favPrice">${fav.fiyat}</div>` : ''}
+        </div>
+        <div class="favoriteActions">
+          <button class="btnGhost sm" onclick="window.open('${fav.url||""}', '_blank')">Aç</button>
+          <button class="btnGhost sm btn-compare ${isInCompare ? 'active' : ''}"
+                  onclick="addToCompare({
+                    urun: '${(fav.query || fav.urun || "").replace(/'/g, "\\'")}',
+                    fiyat: '${fav.fiyat || ""}',
+                    site: '${fav.siteName || fav.site || ""}',
+                    link: '${fav.url || ""}'
+                  })"
+                  data-link="${fav.url || ""}">
+            ${isInCompare ? '✓' : '⚖️'}
+          </button>
+          <button class="btnGhost sm btnFav isFav" data-fav-url="${fav.url||""}">❤️</button>
+        </div>
+      </div>
+    `;
+    
+    // Favori çıkar butonu
+    card.querySelector('.btnFav').addEventListener('click', async () => {
+      await toggleFavorite(uid, { 
+        url: fav.url, 
+        siteKey: fav.siteKey, 
+        siteName: fav.siteName, 
+        query: fav.query 
+      });
+      renderFavoritesPage(uid);
+    });
+    
+    list.appendChild(card);
+  }
+  
+  // Alt sayfalama
+  if (favTotalPages > 1) {
+    list.insertAdjacentHTML('beforeend', paginationHTML);
+  }
+  
+  applyFavUI();
+}
+
+// ========== FAVORİ SAYFA DEĞİŞTİRME ==========
+function changeFavPage(newPage) {
+  if (newPage < 1) return;
+  const pageSize = 4;
+  const totalPages = Math.ceil(favCache.length / pageSize);
+  if (newPage > totalPages) return;
+  
+  currentPage = newPage;
+  renderFavoritesPage(window.currentUser?.uid);
+}
+
+// ========== ORTADA KAMERA BUTONU EKLE ==========
+function addCameraButton() {
+  const tabbar = document.querySelector('.tabbar');
+  if (!tabbar) return;
+  
+  const tabs = tabbar.querySelectorAll('.tab');
+  if (tabs.length < 4) return;
+  
+  // Ortada kamera butonu ekle
+  const cameraBtn = document.createElement('button');
+  cameraBtn.className = 'cameraTab';
+  cameraBtn.innerHTML = `
+    <span class="ico">📸</span>
+    <span class="lbl">Kamera</span>
+  `;
+  cameraBtn.onclick = cameraAiSearch;
+  
+  const spacer = tabbar.querySelector('.tabSpacer');
+  if (spacer) {
+    spacer.replaceWith(cameraBtn);
+  } else {
+    const newSpacer = document.createElement('div');
+    newSpacer.className = 'tabSpacer';
+    tabbar.insertBefore(cameraBtn, tabs[2]);
   }
 }
 
-function renderFavorites() {
-  const container = document.getElementById('favoritesList');
+// ========== SON ARAMALAR ==========
+function saveRecentSearch(query) {
+  let recent = JSON.parse(localStorage.getItem('fiyattakip_recent') || '[]');
+  recent = recent.filter(q => q !== query);
+  recent.unshift(query);
+  recent = recent.slice(0, 5);
+  localStorage.setItem('fiyattakip_recent', JSON.stringify(recent));
+  renderRecentSearches();
+}
+
+function renderRecentSearches() {
+  const container = $("recentList");
   if (!container) return;
   
-  if (app.favorites.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p>Henüz favori ürününüz yok</p>
-      </div>
-    `;
+  const recent = JSON.parse(localStorage.getItem('fiyattakip_recent') || '[]');
+  
+  if (recent.length === 0) {
+    container.innerHTML = '<p class="muted">Henüz arama yapılmadı</p>';
     return;
   }
   
   let html = '';
-  app.favorites.forEach(fav => {
+  recent.forEach(query => {
     html += `
-      <div class="favorite-card">
-        <div class="favorite-info">
-          <div class="fav-site">${fav.siteName || fav.site || 'Site'}</div>
-          <div class="fav-title">${fav.query || fav.title || 'Ürün'}</div>
-          ${fav.price ? `<div class="fav-price">${fav.price}</div>` : ''}
-        </div>
-        <div class="favorite-actions">
-          <button class="btnGhost sm" onclick="window.open('${fav.url || ''}', '_blank')">Aç</button>
-          <button class="btnGhost sm btn-compare"
-                  data-title="${fav.query || fav.title || 'Ürün'}"
-                  data-price="${fav.price || ''}"
-                  data-site="${fav.siteName || fav.site || ''}"
-                  data-link="${fav.url || ''}">⚖️</button>
-          <button class="btnGhost sm" onclick="removeFavorite('${fav.id}')">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
+      <div class="recentItem" onclick="handleRecentSearch('${query.replace(/'/g, "\\'")}')">
+        <span>🔍</span>
+        <span>${query}</span>
+        <button class="recentRemove" onclick="event.stopPropagation(); removeRecentSearch('${query.replace(/'/g, "\\'")}')">✕</button>
       </div>
     `;
   });
   
   container.innerHTML = html;
-  setupCompareButtons();
 }
 
-async function removeFavorite(favId) {
-  if (!app.currentUser) return;
+function handleRecentSearch(query) {
+  document.getElementById('qNormal').value = query;
+  const mode = getSearchMode();
   
-  try {
-    const favRef = doc(db, "users", app.currentUser.uid, "favorites", favId);
-    await deleteDoc(favRef);
-    await loadFavorites();
-    app.showToast('Favoriden çıkarıldı', 'success');
-  } catch (error) {
-    console.error('Favori silme hatası:', error);
-    app.showToast('Favori silinemedi', 'error');
+  if (mode === 'fiyat') {
+    fiyatAra(query);
+  } else {
+    showPage('search');
+    renderSiteList($('normalList'), query);
   }
 }
 
-// ========== AUTH FUNCTIONS ==========
-function openLoginModal() {
-  document.getElementById('loginModal').classList.add('show');
+function removeRecentSearch(query) {
+  let recent = JSON.parse(localStorage.getItem('fiyattakip_recent') || '[]');
+  recent = recent.filter(q => q !== query);
+  localStorage.setItem('fiyattakip_recent', JSON.stringify(recent));
+  renderRecentSearches();
 }
 
-function closeLoginModal() {
-  document.getElementById('loginModal').classList.remove('show');
-}
+// ========== NORMAL ARAMA (Link-only) ==========
+const SITES = [
+  { key:"trendyol", name:"Trendyol", build:q=>`https://www.trendyol.com/sr?q=${encodeURIComponent(q)}` },
+  { key:"hepsiburada", name:"Hepsiburada", build:q=>`https://www.hepsiburada.com/ara?q=${encodeURIComponent(q)}` },
+  { key:"n11", name:"N11", build:q=>`https://www.n11.com/arama?q=${encodeURIComponent(q)}` },
+  { key:"amazontr", name:"Amazon TR", build:q=>`https://www.amazon.com.tr/s?k=${encodeURIComponent(q)}` },
+  { key:"pazarama", name:"Pazarama", build:q=>`https://www.pazarama.com/arama?q=${encodeURIComponent(q)}` },
+  { key:"ciceksepeti", name:"ÇiçekSepeti", build:q=>`https://www.ciceksepeti.com/arama?query=${encodeURIComponent(q)}` },
+  { key:"idefix", name:"idefix", build:q=>`https://www.idefix.com/arama/?q=${encodeURIComponent(q)}` },
+];
 
-async function handleEmailLogin(isRegister) {
-  const email = isRegister ? 
-    document.getElementById('registerEmail').value :
-    document.getElementById('loginEmail').value;
-  
-  const password = isRegister ? 
-    document.getElementById('registerPassword').value :
-    document.getElementById('loginPassword').value;
-  
-  if (!email || !password) {
-    app.showToast('E-posta ve şifre girin', 'error');
+function renderSiteList(container, query){
+  if (!container) return;
+  const q = String(query||"").trim();
+  if (!q){
+    container.innerHTML = `<div class="cardBox"><b>Bir şey yaz.</b></div>`;
     return;
   }
-  
-  if (isRegister) {
-    const password2 = document.getElementById('registerPassword2').value;
-    if (password !== password2) {
-      app.showToast('Şifreler uyuşmuyor', 'error');
-      return;
-    }
+
+  container.innerHTML = "";
+  for (const s of SITES){
+    const url = s.build(q);
+    const isInCompare = compareItems.some(item => item.link === url);
     
-    if (password.length < 6) {
-      app.showToast('Şifre en az 6 karakter olmalı', 'error');
-      return;
-    }
+    const card = document.createElement("div");
+    card.className = "cardBox";
+    card.innerHTML = `
+      <div class="rowLine">
+        <div>
+          <div class="ttl">${s.name}</div>
+          <div class="sub">${q}</div>
+        </div>
+        <div class="actions">
+          <button class="btnPrimary sm btnOpen" type="button">Aç</button>
+          <button class="btnGhost sm btnCopy" type="button" data-copy-url="${url}" title="Linki kopyala">⧉</button>
+          <button class="btnGhost sm btn-compare ${isInCompare ? 'active' : ''}"
+                  onclick="addToCompare({
+                    urun: '${q.replace(/'/g, "\\'")}',
+                    site: '${s.name}',
+                    link: '${url}'
+                  })"
+                  data-link="${url}">
+            ${isInCompare ? '✓' : '⚖️'}
+          </button>
+          <button class="btnGhost sm btnFav" type="button" data-fav-url="${url}" data-site-key="${s.key}" data-site-name="${s.name}" data-query="${q}">🤍</button>
+        </div>
+      </div>
+    `;
+    
+    card.querySelector(".btnOpen")?.addEventListener("click", ()=> {
+      window.open(url, "_blank", "noopener");
+    });
+    
+    card.querySelector(".btnCopy")?.addEventListener("click", async ()=> {
+      await copyToClipboard(url);
+    });
+    
+    card.querySelector(".btnFav")?.addEventListener("click", async ()=>{
+      if (!window.currentUser) return openLogin();
+      await toggleFavorite(window.currentUser.uid, { 
+        url, 
+        siteKey: s.key, 
+        siteName: s.name, 
+        query: q 
+      });
+    });
+    
+    container.appendChild(card);
   }
   
-  try {
-    if (isRegister) {
-      await createUserWithEmailAndPassword(auth, email, password);
-      app.showToast('Kayıt başarılı!', 'success');
-      // Giriş formuna geç
-      switchAuthTab('login');
+  applyFavUI();
+}
+
+// ========== AUTH İŞLEMLERİ ==========
+window.currentUser = null;
+
+function setAuthPane(mode){
+  const loginPane = $("loginPane");
+  const registerPane = $("registerPane");
+  const tL = $("tabLogin");
+  const tR = $("tabRegister");
+  if (!loginPane || !registerPane) return;
+  const isReg = mode === "register";
+  loginPane.classList.toggle("hidden", isReg);
+  registerPane.classList.toggle("hidden", !isReg);
+  tL?.classList.toggle("isActive", !isReg);
+  tR?.classList.toggle("isActive", isReg);
+}
+
+function openLogin(){
+  setAuthPane('login');
+  const m = $("loginModal");
+  if (!m) return;
+  m.classList.add("show");
+  m.setAttribute("aria-hidden","false");
+  document.body.classList.add("modalOpen");
+}
+
+function closeLogin(){
+  const m = $("loginModal");
+  if (!m) return;
+  m.classList.remove("show");
+  m.setAttribute("aria-hidden","true");
+  document.body.classList.remove("modalOpen");
+}
+
+async function doEmailLogin(isRegister){
+  const btnL = $("btnLogin");
+  const btnR = $("btnRegister");
+  if (btnL) btnL.disabled = true;
+  if (btnR) btnR.disabled = true;
+
+  const email = (isRegister ? ($("regEmail")?.value || "") : ($("loginEmail")?.value || "")).trim();
+  const pass  = (isRegister ? ($("regPass")?.value || "") : ($("loginPass")?.value || ""));
+  const pass2 = (isRegister ? ($("regPass2")?.value || "") : "");
+
+  if (!email || !pass){
+    if (btnL) btnL.disabled = false;
+    if (btnR) btnR.disabled = false;
+    return toast("E-posta ve şifre gir.", "error");
+  }
+  
+  if (isRegister){
+    if (pass.length < 6){
+      if (btnL) btnL.disabled = false;
+      if (btnR) btnR.disabled = false;
+      return toast("Şifre en az 6 karakter olmalı.", "error");
+    }
+    if (!pass2 || pass !== pass2){
+      if (btnL) btnL.disabled = false;
+      if (btnR) btnR.disabled = false;
+      return toast("Şifreler uyuşmuyor.", "error");
+    }
+  }
+
+  toast(isRegister ? "Kayıt deneniyor..." : "Giriş deneniyor...", "info");
+
+  try{
+    if (isRegister){
+      await createUserWithEmailAndPassword(auth, email, pass);
+      toast("Kayıt tamam. Giriş yapıldı.", "success");
+      setAuthPane("login");
     } else {
-      await signInWithEmailAndPassword(auth, email, password);
-      app.showToast('Giriş başarılı!', 'success');
-      closeLoginModal();
+      await signInWithEmailAndPassword(auth, email, pass);
+      toast("Giriş başarılı.", "success");
+    }
+  }catch(e){
+    console.error(e);
+    const code = String(e?.code || "");
+    const msg = String(e?.message || e || "");
+    if (code.includes("auth/email-already-in-use")) return toast("Bu e-posta zaten kayıtlı. Giriş yap.", "error");
+    if (code.includes("auth/weak-password")) return toast("Şifre çok zayıf (en az 6 karakter).", "error");
+    if (code.includes("auth/invalid-email")) return toast("E-posta formatı hatalı.", "error");
+    toast("Hata: " + msg.replace(/^Firebase:\s*/,""), "error");
+  }finally{
+    if (btnL) btnL.disabled = false;
+    if (btnR) btnR.disabled = false;
+  }
+}
+
+async function doGoogleLogin(){
+  try{
+    await signInWithPopup(auth, googleProvider);
+  }catch(e){
+    try{
+      await signInWithRedirect(auth, googleProvider);
+    }catch(e2){
+      const msg = String(e2?.message || e?.message || e2 || e || "");
+      if (msg.includes("auth/unauthorized-domain")){
+        toast("Google giriş için domain yetkisi yok. Firebase > Authentication > Settings > Authorized domains içine siteni ekle (örn: fiyattakip.github.io).", "error");
+        return;
+      }
+      toast("Google giriş hatası: " + msg.replace(/^Firebase:\s*/,""), "error");
+    }
+  }
+}
+
+// ========== MODAL İŞLEMLERİ ==========
+function openAIModal(){
+  const m = $("aiModal");
+  if(!m) return;
+  m.classList.add("show");
+  m.setAttribute("aria-hidden","false");
+  loadAISettings();
+}
+
+function closeAIModal(){
+  const m = $("aiModal");
+  if(!m) return;
+  m.classList.remove("show");
+  m.setAttribute("aria-hidden","true");
+}
+
+function openAPIModal(){
+  const m = $("apiModal");
+  if(!m) return;
+  m.classList.add("show");
+  m.setAttribute("aria-hidden","false");
+  $("apiUrl").value = API_URL;
+  checkAPIStatus();
+}
+
+function closeAPIModal(){
+  const m = $("apiModal");
+  if(!m) return;
+  m.classList.remove("show");
+  m.setAttribute("aria-hidden","true");
+}
+
+async function checkAPIStatus() {
+  const statusElement = $("apiStatus");
+  if (!statusElement) return;
+  
+  try {
+    statusElement.textContent = "Bağlanıyor...";
+    statusElement.className = "apiStatus checking";
+    
+    const response = await fetch(API_URL.replace('/api/fiyat-cek', '/health'), {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      statusElement.textContent = "Çalışıyor";
+      statusElement.className = "apiStatus online";
+    } else {
+      statusElement.textContent = "Hata";
+      statusElement.className = "apiStatus error";
     }
   } catch (error) {
-    console.error('Auth error:', error);
-    
-    const errorMessages = {
-      'auth/email-already-in-use': 'Bu e-posta zaten kullanımda',
-      'auth/invalid-email': 'Geçersiz e-posta',
-      'auth/weak-password': 'Şifre çok zayıf',
-      'auth/wrong-password': 'Hatalı şifre',
-      'auth/user-not-found': 'Kullanıcı bulunamadı'
-    };
-    
-    app.showToast(errorMessages[error.code] || 'Bir hata oluştu', 'error');
+    statusElement.textContent = "Bağlantı yok";
+    statusElement.className = "apiStatus offline";
   }
 }
 
-async function handleGoogleLogin() {
-  try {
-    await signInWithPopup(auth, googleProvider);
-    app.showToast('Google ile giriş başarılı!', 'success');
-    closeLoginModal();
-  } catch (error) {
-    console.error('Google login error:', error);
-    app.showToast('Google ile giriş başarısız', 'error');
+function saveAPISettings() {
+  const url = $("apiUrl")?.value?.trim() || DEFAULT_API_URL;
+  API_URL = url;
+  localStorage.setItem('fiyattakip_api_url', url);
+  toast("API URL kaydedildi", "success");
+  closeAPIModal();
+}
+
+// ========== AI AYARLARI ==========
+function loadAISettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem("aiSettings")||"{}");
+    $("aiEnabled") && ($("aiEnabled").value = s.enabled || "on");
+    $("aiProvider") && ($("aiProvider").value = s.provider || "gemini");
+    $("aiApiKey") && ($("aiApiKey").value = s.key || "");
+  }catch(e){}
+}
+
+function saveAISettings(){
+  const s={
+    enabled: $("aiEnabled")?.value || "on",
+    provider: $("aiProvider")?.value || "gemini",
+    key: $("aiApiKey")?.value || ""
+  };
+  localStorage.setItem("aiSettings", JSON.stringify(s));
+  toast("AI ayarları kaydedildi", "success");
+  closeAIModal();
+}
+
+// ========== YARDIMCI FONKSİYONLAR ==========
+async function copyToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    toast("Kopyalandı", 'success');
+  }catch(e){
+    const ta=document.createElement("textarea");
+    ta.value=text;
+    ta.style.position="fixed"; ta.style.left="-9999px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{ document.execCommand("copy"); toast("Kopyalandı", 'success'); }catch(_){}
+    document.body.removeChild(ta);
   }
 }
 
-async function handleLogout() {
-  try {
-    await signOut(auth);
-    app.showToast('Çıkış yapıldı', 'info');
-  } catch (error) {
-    console.error('Logout error:', error);
+async function clearAppCache(){
+  try{
+    if (window.caches && caches.keys){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    try{ localStorage.clear(); }catch(e){}
+    try{ sessionStorage.clear(); }catch(e){}
+    if (indexedDB && indexedDB.databases){
+      const dbs = await indexedDB.databases();
+      await Promise.all((dbs||[]).map(db=>{
+        if (!db || !db.name) return Promise.resolve();
+        return new Promise(res=>{
+          const req = indexedDB.deleteDatabase(db.name);
+          req.onsuccess=req.onerror=req.onblocked=()=>res();
+        });
+      }));
+    }
+    toast("Önbellek temizlendi. Yenileniyor...", 'info');
+  }catch(e){
+    console.error(e);
+    toast("Temizleme hatası", 'error');
   }
+  setTimeout(()=>location.reload(true), 600);
 }
 
-// ========== COMPARE FUNCTIONS ==========
-function setupCompareButtons() {
+// ========== KARŞILAŞTIRMA SİSTEMİ FONKSİYONLARI ==========
+
+// Karşılaştırmaya ürün ekle
+function addToCompare(product) {
+  if (compareItems.length >= 5) {
+    toast("Maksimum 5 ürün karşılaştırabilirsiniz", "warning");
+    return false;
+  }
+  
+  const existing = compareItems.find(item => item.link === product.link);
+  if (existing) {
+    removeFromCompare(existing.id);
+    return false;
+  }
+  
+  const compareItem = {
+    id: 'compare_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+    title: product.urun || product.title || product.query || "",
+    price: product.fiyat || "Fiyat bilgisi yok",
+    site: product.site || "",
+    link: product.link || "",
+    addedAt: Date.now()
+  };
+  
+  compareItems.push(compareItem);
+  saveCompareItems();
+  
+  const added = !existing;
+  if (added) {
+    toast(`"${compareItem.title.substring(0, 30)}..." karşılaştırmaya eklendi`, "success");
+  } else {
+    toast(`"${compareItem.title.substring(0, 30)}..." karşılaştırmadan çıkarıldı`, "info");
+  }
+  
+  return added;
+}
+
+// Karşılaştırmadan ürün çıkar
+function removeFromCompare(itemId) {
+  compareItems = compareItems.filter(item => item.id !== itemId);
+  saveCompareItems();
+}
+
+// Karşılaştırma verilerini kaydet
+function saveCompareItems() {
+  localStorage.setItem('fiyattakip_compare', JSON.stringify(compareItems));
+  updateCompareUI();
+}
+
+// Karşılaştırma UI'ını güncelle
+function updateCompareUI() {
+  // Header'daki sayı
+  const headerCount = document.getElementById('compareCount');
+  if (headerCount) {
+    headerCount.textContent = compareItems.length;
+  }
+  
+  // Banner'daki metin
+  const bannerText = document.getElementById('compareCountText');
+  if (bannerText) {
+    bannerText.textContent = `${compareItems.length} ürün eklendi`;
+  }
+  
+  // Tüm karşılaştırma butonlarını güncelle
+  updateCompareButtons();
+}
+
+// Karşılaştırma butonlarını güncelle
+function updateCompareButtons() {
   document.querySelectorAll('.btn-compare').forEach(btn => {
-    const title = btn.getAttribute('data-title');
-    const price = btn.getAttribute('data-price');
-    const site = btn.getAttribute('data-site');
     const link = btn.getAttribute('data-link');
+    if (!link) return;
     
-    const product = { title, price, site, link };
-    
-    // Check if already in compare
-    const isInCompare = app.compareItems.some(item => item.link === link);
+    const isInCompare = compareItems.some(item => item.link === link);
     btn.classList.toggle('active', isInCompare);
-    btn.innerHTML = isInCompare ? '✓' : (btn.classList.contains('xs') ? '⚖️' : '⚖️ Karşılaştır');
     
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const added = app.addToCompare(product, app.currentSearch);
-      if (added) {
-        app.showToast(`${title.substring(0, 30)}... karşılaştırmaya eklendi`, 'success');
-        btn.classList.add('active');
-        btn.innerHTML = '✓';
-      } else {
-        btn.classList.remove('active');
-        btn.innerHTML = btn.classList.contains('xs') ? '⚖️' : '⚖️ Karşılaştır';
-      }
-    };
+    if (btn.classList.contains('xs')) {
+      btn.innerHTML = isInCompare ? '✓' : '⚖️';
+    } else if (btn.classList.contains('sm')) {
+      btn.innerHTML = isInCompare ? '✓ Çıkar' : '⚖️ Ekle';
+    } else {
+      btn.innerHTML = isInCompare ? '✓ Eklendi' : '⚖️ Ekle';
+    }
   });
 }
 
+// Karşılaştırma modalını aç
 function openCompareModal() {
+  const modal = document.getElementById('compareModal');
+  if (!modal) return;
+  
+  modal.classList.add('show');
+  document.body.classList.add('modal-open');
+  
   renderCompareList();
-  document.getElementById('compareModal').classList.add('show');
 }
 
+// Karşılaştırma modalını kapat
 function closeCompareModal() {
-  document.getElementById('compareModal').classList.remove('show');
+  const modal = document.getElementById('compareModal');
+  if (!modal) return;
+  
+  modal.classList.remove('show');
+  document.body.classList.remove('modal-open');
 }
 
+// Karşılaştırma listesini render et
 function renderCompareList() {
   const container = document.getElementById('compareList');
   if (!container) return;
   
-  if (app.compareItems.length === 0) {
+  if (compareItems.length === 0) {
     container.innerHTML = `
-      <div class="empty-state">
-        <p>Karşılaştırma listesi boş</p>
-        <p class="small">Ürünlerdeki ⚖️ butonuna tıklayın</p>
+      <div class="empty-compare">
+        <i class="fas fa-balance-scale"></i>
+        <h4>Karşılaştırma Listesi Boş</h4>
+        <p>Ürünlerdeki "⚖️ Ekle" butonuna tıklayın</p>
       </div>
     `;
     return;
   }
   
   let html = '';
-  app.compareItems.forEach(item => {
+  compareItems.forEach(item => {
     html += `
       <div class="compare-item">
         <div class="compare-info">
@@ -545,10 +1170,9 @@ function renderCompareList() {
           <div class="compare-site">${item.site}</div>
           <div class="compare-price">${item.price}</div>
         </div>
-        <div class="compare-actions">
-          <button class="btnGhost xs" onclick="window.open('${item.link}', '_blank')">Aç</button>
-          <button class="btnGhost xs" onclick="app.removeFromCompare('${item.id}'); renderCompareList();">✕</button>
-        </div>
+        <button class="compare-remove" onclick="removeFromCompare('${item.id}')" title="Çıkar">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
     `;
   });
@@ -556,159 +1180,248 @@ function renderCompareList() {
   container.innerHTML = html;
 }
 
+// Karşılaştırma listesini temizle
+function clearCompareList() {
+  if (compareItems.length === 0) return;
+  
+  if (confirm(`${compareItems.length} ürünü karşılaştırmadan çıkarmak istiyor musunuz?`)) {
+    compareItems = [];
+    saveCompareItems();
+    renderCompareList();
+    toast("Karşılaştırma listesi temizlendi", "success");
+  }
+}
+
+// AI ile karşılaştırma yap
 async function runAICompare() {
-  if (app.compareItems.length < 2) {
-    app.showToast('En az 2 ürün gerekli', 'error');
+  if (compareItems.length < 2) {
+    toast("En az 2 ürün gerekli", "warning");
     return;
   }
   
-  app.showToast('AI karşılaştırma yapılıyor...', 'info');
+  toast("🤖 AI karşılaştırma yapılıyor...", "info");
   
   try {
+    const prompt = `
+    Aşağıdaki ${compareItems.length} ürünü karşılaştır:
+    
+    ${compareItems.map((item, i) => `
+    ÜRÜN ${i+1}: ${item.title}
+    - Site: ${item.site}
+    - Fiyat: ${item.price}
+    `).join('\n')}
+    
+    Fiyat-performans, kalite ve öneri açısından değerlendir.
+    Kısa ve Türkçe yanıt ver.
+    `;
+
     const response = await fetch(`${API_URL}/ai/yorum`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        originalQuery: `${app.compareItems.length} ürün karşılaştırması`,
+        originalQuery: prompt,
         site: 'Çoklu Karşılaştırma',
-        price: app.compareItems.map(item => item.price).join(', ')
+        price: compareItems.map(item => item.price).join(' vs '),
+        title: `${compareItems.length} Ürün Karşılaştırması`
       })
     });
     
+    if (!response.ok) throw new Error('API hatası');
+    
     const data = await response.json();
     
-    document.getElementById('aiContent').innerHTML = `
-      <h4>🤖 AI Karşılaştırma Analizi</h4>
-      <p>${data.yorum.replace(/\n/g, '<br>')}</p>
-      <p class="ai-source"><small>Kaynak: ${data.source}</small></p>
-    `;
+    // AI sonucunu göster
+    const aiContent = document.getElementById('aiContent');
+    if (aiContent) {
+      aiContent.innerHTML = `
+        <h4>🤖 AI Karşılaştırma Raporu</h4>
+        <div style="margin-top:1rem;line-height:1.6;">
+          ${data.yorum ? data.yorum.replace(/\n/g, '<br>') : 'AI analiz yapılamadı.'}
+        </div>
+        <div style="margin-top:1rem;font-size:0.875rem;color:var(--text-muted);">
+          <i class="fas fa-robot"></i> Powered by AI
+        </div>
+      `;
+    }
     
-    document.getElementById('aiModal').classList.add('show');
+    // AI modalını aç
+    const aiModal = document.getElementById('aiModal');
+    if (aiModal) {
+      aiModal.classList.add('show');
+      document.body.classList.add('modal-open');
+    }
+    
+    toast("AI karşılaştırma tamamlandı", "success");
     
   } catch (error) {
-    console.error('AI compare error:', error);
-    app.showToast('AI karşılaştırma başarısız', 'error');
+    console.error("AI karşılaştırma hatası:", error);
+    toast("AI karşılaştırma başarısız", "error");
   }
 }
 
+// AI modalını kapat
 function closeAIModal() {
-  document.getElementById('aiModal').classList.remove('show');
-}
-
-// ========== HELPER FUNCTIONS ==========
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    app.showToast('Kopyalandı!', 'success');
-  } catch (error) {
-    // Fallback
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textArea);
-    app.showToast('Kopyalandı!', 'success');
-  }
-}
-
-// ========== UI INITIALIZATION ==========
-function initializeUI() {
-  // Search button
-  document.getElementById('searchBtn').addEventListener('click', () => {
-    const query = document.getElementById('searchInput').value.trim();
-    performSearch(query);
-  });
+  const modal = document.getElementById('aiModal');
+  if (!modal) return;
   
-  // Search input enter key
-  document.getElementById('searchInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      const query = e.target.value.trim();
-      performSearch(query);
+  modal.classList.remove('show');
+  document.body.classList.remove('modal-open');
+}
+
+// ========== UYGULAMA BAŞLATMA ==========
+function wireUI(){
+  // Modal butonları
+  $("btnAiSettings")?.addEventListener("click", openAIModal);
+  $("btnApiSettings")?.addEventListener("click", openAPIModal);
+  $("closeAi")?.addEventListener("click", closeAIModal);
+  $("closeApi")?.addEventListener("click", closeAPIModal);
+  $("aiBackdrop")?.addEventListener("click", closeAIModal);
+  $("apiBackdrop")?.addEventListener("click", closeAPIModal);
+  $("btnSaveAI")?.addEventListener("click", saveAISettings);
+  $("btnSaveApi")?.addEventListener("click", saveAPISettings);
+  $("btnTestApi")?.addEventListener("click", checkAPIStatus);
+
+  // Temizleme butonları
+  $("btnClearCache")?.addEventListener("click", clearAppCache);
+  $("btnClearSearch")?.addEventListener("click", () => {
+    $("normalList").innerHTML = "";
+    toast("Arama temizlendi", "info");
+  });
+
+  // Login/Register
+  $("tabLogin")?.addEventListener("click", ()=>setAuthPane("login"));
+  $("tabRegister")?.addEventListener("click", ()=>setAuthPane("register"));
+  $("btnLogin")?.addEventListener("click", ()=>doEmailLogin(false));
+  $("btnRegister")?.addEventListener("click", ()=>doEmailLogin(true));
+  $("btnGoogleLogin")?.addEventListener("click", ()=>doGoogleLogin());
+  $("btnGoogleLogin2")?.addEventListener("click", ()=>doGoogleLogin());
+
+  // Arama modu
+  $("modeNormal")?.addEventListener("click", ()=> setSearchMode("normal"));
+  $("modeFiyat")?.addEventListener("click", ()=> setSearchMode("fiyat"));
+  $("modeAI")?.addEventListener("click", ()=> setSearchMode("ai"));
+  setSearchMode(getSearchMode());
+
+  // Ana arama butonu
+  $("btnNormal")?.addEventListener("click", async ()=>{
+    const query = ($("qNormal")?.value || "").trim();
+    if (!query) return toast("Ürün adı girin", "error");
+    
+    const mode = getSearchMode();
+    
+    if (mode === "fiyat") {
+      await fiyatAra(query);
+    } else if (mode === "ai") {
+      toast("AI ile optimize ediliyor...", "info");
+      await fiyatAra(query);
+    } else {
+      showPage("search");
+      renderSiteList($("normalList"), query);
     }
   });
-  
-  // Quick tags
-  document.querySelectorAll('.quick-tag').forEach(tag => {
-    tag.addEventListener('click', () => {
-      const query = tag.getAttribute('data-query');
-      document.getElementById('searchInput').value = query;
-      performSearch(query);
+
+  // Hızlı arama etiketleri
+  document.querySelectorAll(".quickTag").forEach(tag => {
+    tag.addEventListener("click", () => {
+      const query = tag.dataset.query;
+      $("qNormal").value = query;
+      const mode = getSearchMode();
+      
+      if (mode === "fiyat") {
+        fiyatAra(query);
+      } else {
+        showPage("search");
+        renderSiteList($("normalList"), query);
+      }
     });
   });
-  
-  // Search modes
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      app.searchMode = btn.getAttribute('data-mode');
-      localStorage.setItem('searchMode', app.searchMode);
-    });
+
+  // Enter tuşu ile arama
+  $("qNormal")?.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      $("btnNormal").click();
+    }
   });
-  
-  // Camera button
-  document.getElementById('cameraBtn').addEventListener('click', cameraSearch);
-  document.getElementById('fabCamera').addEventListener('click', cameraSearch);
-  
-  // Auth tabs
-  document.querySelectorAll('.auth-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const tabName = tab.getAttribute('data-tab');
-      switchAuthTab(tabName);
-    });
+
+  // Copy butonları
+  document.addEventListener("click", async (e) => {
+    const btn = e.target?.closest?.("[data-copy-url]");
+    if (!btn) return;
+    const url = btn.getAttribute("data-copy-url") || "";
+    if (url) await copyToClipboard(url);
   });
-  
-  // Auth buttons
-  document.getElementById('submitLogin').addEventListener('click', () => handleEmailLogin(false));
-  document.getElementById('submitRegister').addEventListener('click', () => handleEmailLogin(true));
-  document.getElementById('googleLogin').addEventListener('click', handleGoogleLogin);
-  document.getElementById('loginBtn').addEventListener('click', openLoginModal);
-  document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-  
-  // Clear results
-  document.getElementById('clearResults').addEventListener('click', () => {
-    document.getElementById('searchResults').innerHTML = '';
+
+  // Tab butonları
+  document.querySelectorAll(".tab[data-page]").forEach(btn => {
+    btn.addEventListener("click", () => showPage(btn.dataset.page));
   });
-  
-  // Refresh favorites
-  document.getElementById('refreshFavs').addEventListener('click', loadFavorites);
-  
-  // Clear cache
-  document.getElementById('clearCache').addEventListener('click', () => {
-    localStorage.clear();
-    app.showToast('Önbellek temizlendi', 'success');
-    location.reload();
+
+  // Logout
+  $("logoutBtn")?.addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+      toast("Çıkış yapıldı", "info");
+    } catch (error) {
+      console.error("Çıkış hatası:", error);
+    }
   });
-  
-  // Initialize theme
-  app.initTheme();
-  
-  // Initialize compare count
-  app.updateCompareCount();
-  
-  // Load recent searches
-  app.renderRecentSearches();
+
+  // Favori yenileme
+  $("btnFavRefresh")?.addEventListener("click", async () => {
+    if (!window.currentUser) return openLogin();
+    await loadFavorites(window.currentUser.uid);
+    renderFavoritesPage(window.currentUser.uid);
+    toast("Favoriler yenilendi", "info");
+  });
+
+  // Karşılaştırma butonu
+  $("compareHeaderBtn")?.addEventListener("click", openCompareModal);
 }
 
-function switchAuthTab(tabName) {
-  document.querySelectorAll('.auth-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.getAttribute('data-tab') === tabName);
-  });
+// ========== AUTH DURUMU ==========
+function setAuthedUI(isAuthed){
+  if (!isAuthed) {
+    openLogin();
+  } else {
+    closeLogin();
+  }
+}
+
+// ========== UYGULAMA BAŞLANGICI ==========
+window.addEventListener("DOMContentLoaded", () => {
+  wireUI();
+  renderRecentSearches();
+  addCameraButton();
   
-  document.getElementById('loginForm').classList.toggle('hidden', tabName !== 'login');
-  document.getElementById('registerForm').classList.toggle('hidden', tabName !== 'register');
-}
+  // Karşılaştırma UI'ını başlat
+  updateCompareUI();
+  
+  if (firebaseConfigLooksInvalid()){
+    toast("Firebase config eksik/yanlış. firebase.js içindeki değerleri kontrol et.", "error");
+  }
 
-async function cameraSearch() {
-  app.showToast('Kamera özelliği yakında eklenecek', 'info');
-  // Kamera implementasyonu buraya gelecek
-}
+  onAuthStateChanged(auth, async (user) => {
+    window.currentUser = user || null;
+    setAuthedUI(!!user);
+    if (user){
+      try{
+        await loadFavorites(user.uid);
+        renderFavoritesPage(user.uid);
+        applyFavUI();
+      }catch(e){ console.error(e); }
+    }
+  });
+});
 
-// ========== CHART FUNCTIONS ==========
+// ========== GRAFİK FONKSİYONU ==========
 function loadSampleChart() {
   const ctx = document.getElementById('priceChart');
   if (!ctx) return;
+  
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js yüklenmedi');
+    return;
+  }
   
   new Chart(ctx.getContext('2d'), {
     type: 'line',
@@ -744,48 +1457,74 @@ function loadSampleChart() {
   });
 }
 
-// ========== AUTH STATE LISTENER ==========
-onAuthStateChanged(auth, (user) => {
-  app.currentUser = user;
-  
-  if (user) {
-    console.log('Kullanıcı giriş yaptı:', user.email);
-    loadFavorites();
-  } else {
-    console.log('Kullanıcı çıkış yaptı');
-    app.favorites = [];
-    renderFavorites();
-  }
-});
+// ========== GLOBAL FONKSIYONLAR ==========
+window.doNormalSearch = (query) => {
+  showPage("search");
+  renderSiteList($("normalList"), query);
+};
 
-// ========== APP INITIALIZATION ==========
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('FiyatTakip uygulaması başlatılıyor...');
-  
-  if (firebaseConfigLooksInvalid()) {
-    app.showToast('Firebase konfigürasyonu kontrol edin', 'error');
-  }
-  
-  initializeUI();
-  
-  // Load sample chart if on graph page
-  if (window.location.hash === '#graph' || document.querySelector('#page-graph.active')) {
-    setTimeout(loadSampleChart, 1000);
-  }
-  
-  console.log('Uygulama hazır!');
-});
+window.showPage = showPage;
+window.fiyatAra = fiyatAra;
+window.copyToClipboard = copyToClipboard;
+window.handleRecentSearch = handleRecentSearch;
+window.removeRecentSearch = removeRecentSearch;
+window.changePage = changePage;
+window.changeSort = changeSort;
+window.changeFavPage = changeFavPage;
+window.cameraAiSearch = cameraAiSearch;
+window.getAiCommentForFavorite = getAiCommentForFavorite;
 
-// ========== GLOBAL EXPORTS ==========
-window.app = app;
-window.performSearch = performSearch;
+// Karşılaştırma fonksiyonları
+window.addToCompare = addToCompare;
+window.removeFromCompare = removeFromCompare;
 window.openCompareModal = openCompareModal;
 window.closeCompareModal = closeCompareModal;
-window.closeAIModal = closeAIModal;
+window.clearCompareList = clearCompareList;
 window.runAICompare = runAICompare;
-window.clearCompareList = () => {
-  app.clearCompareItems();
-  renderCompareList();
-};
+window.closeAIModal = closeAIModal;
 window.loadSampleChart = loadSampleChart;
-window.copyToClipboard = copyToClipboard;
+
+// ========== GÜVENLİ AI YORUM FONKSİYONU ==========
+async function getAiYorumSafe(payload) {
+  console.log("🤖 AI isteniyor:", payload);
+  
+  try {
+    const response = await fetch(`${API_URL}/ai/yorum`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        title: payload.title,
+        price: payload.price,
+        site: payload.site,
+        originalQuery: payload.originalQuery || payload.title
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API Hatası: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ AI Yanıtı:", data);
+    
+    if (data.success) {
+      return data.yorum || `${payload.originalQuery || payload.title} için AI değerlendirmesi mevcut.`;
+    } else {
+      throw new Error(data.error || "AI yorumu alınamadı");
+    }
+    
+  } catch (error) {
+    console.error("❌ AI Yorum Hatası:", error);
+    
+    return `
+🤖 ${payload.originalQuery || payload.title} ürünü ${payload.site || "pazar yerinde"} incelendi.
+${payload.price ? `💰 Fiyat: ${payload.price}` : "💵 Fiyat bilgisi mevcut değil"}
+⭐ AI Analizi: Ürün teknik özellikleri ve kullanıcı deneyimleri ışığında değerlendirilebilir.
+    `.trim();
+  }
+}
+
+window.getAiYorumSafe = getAiYorumSafe;
