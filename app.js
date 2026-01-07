@@ -1725,6 +1725,90 @@ async function runAIComparison() {
           block: 'nearest' 
         });
       }, 300);
+// ========== AI KARŞILAŞTIRMA FONKSİYONU ==========
+async function runAIComparison() {
+  if (compareItems.length < 2) {
+    toast("AI karşılaştırma için en az 2 ürün gerekli", "error");
+    return;
+  }
+  
+  toast("🤖 AI karşılaştırma yapılıyor...", "info");
+  
+  try {
+    const response = await fetch(`${API_URL}/ai/compare`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        products: compareItems,
+        timestamp: new Date().toISOString()
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      // AI sonuçlarını göster
+      document.getElementById('aiCompareContentModal').innerHTML = `
+        <div style="
+          background: linear-gradient(135deg, rgba(124,92,255,0.15), rgba(54,211,153,0.15));
+          padding: 20px;
+          border-radius: 16px;
+          border: 1px solid rgba(124,92,255,0.3);
+          margin-bottom: 16px;
+        ">
+          <h4 style="margin-top:0; color:#fff; font-size:18px;">
+            🤖 AI Karşılaştırma Analizi
+          </h4>
+          <div style="color:rgba(255,255,255,0.9); line-height:1.6; font-size:14px;">
+            ${data.analysis || data.yorum || "AI, ürünleri fiyat, kalite ve değer açısından karşılaştırdı."}
+          </div>
+        </div>
+        
+        ${data.recommendation ? `
+          <div style="
+            background: rgba(54,211,153,0.1);
+            padding: 16px;
+            border-radius: 12px;
+            border-left: 4px solid #36d399;
+            margin-top: 12px;
+          ">
+            <div style="font-weight:700; color:#36d399; margin-bottom:8px;">🏆 AI Önerisi</div>
+            <div style="color:rgba(255,255,255,0.9);">${data.recommendation}</div>
+          </div>
+        ` : ''}
+        
+        <div style="
+          margin-top: 20px;
+          padding: 12px;
+          background: rgba(255,255,255,0.05);
+          border-radius: 12px;
+          font-size: 12px;
+          color: rgba(255,255,255,0.6);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        ">
+          <div>
+            <span style="color:#7c5cff;">🤖</span>
+            <span> Powered by Hugging Face AI</span>
+          </div>
+          <div>
+            <span style="color:#36d399;">⏱️</span>
+            <span> ${new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}</span>
+          </div>
+        </div>
+      `;
+      
+      // AI sonuç panelini göster
+      document.getElementById('aiCompareResultModal').classList.remove('hidden');
+      
+      // Scroll to AI result
+      setTimeout(() => {
+        document.getElementById('aiCompareResultModal')?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'nearest' 
+        });
+      }, 300);
       
       toast("AI karşılaştırma tamamlandı ✓", "success");
       
@@ -1759,3 +1843,170 @@ function closeAICompareResult() {
   const aiResult = document.getElementById('aiCompareResultModal');
   if (aiResult) aiResult.classList.add('hidden');
 }
+      
+// ========== KARŞILAŞTIRMA TABLOSU FONKSİYONU ==========
+function renderComparisonTable() {
+  const container = document.getElementById('compareListModal');
+  if (!container) return;
+  
+  if (compareItems.length === 0) {
+    container.innerHTML = `
+      <div class="emptyCompareState">
+        <div class="emptyIcon">⚖️</div>
+        <h3>Karşılaştırma Listesi Boş</h3>
+        <p>Ürünlerdeki "⚖️ Ekle" butonuna tıklayın.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Fiyatları parse et
+  const itemsWithPrices = compareItems.map(item => {
+    const priceText = item.price || "";
+    // ₺4.699,99 -> 4699.99
+    const priceNum = parseFloat(
+      priceText
+        .replace(/[^\d.,]/g, '')
+        .replace('.', '')
+        .replace(',', '.')
+    );
+    return { 
+      ...item, 
+      priceNum: isNaN(priceNum) ? 0 : priceNum,
+      displayPrice: priceText || "Fiyat bilgisi yok"
+    };
+  });
+
+  // Fiyatları filtrele (sadece sayısal olanlar)
+  const validPrices = itemsWithPrices
+    .map(p => p.priceNum)
+    .filter(p => p > 0);
+  
+  const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
+  const maxPrice = validPrices.length > 0 ? Math.max(...validPrices) : 0;
+  
+  let html = `
+    <div class="compareStats">
+      <div class="statCard" style="border-left: 4px solid #7c5cff;">
+        <div class="statLabel">Karşılaştırılan</div>
+        <div class="statValue" style="color: #7c5cff;">${compareItems.length}</div>
+        <div class="miniHint">ürün</div>
+      </div>
+      
+      <div class="statCard" style="border-left: 4px solid #36d399;">
+        <div class="statLabel">En Düşük</div>
+        <div class="statValue" style="color: #36d399;">${minPrice > 0 ? '₺' + minPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</div>
+        <div class="miniHint">fiyat</div>
+      </div>
+      
+      <div class="statCard" style="border-left: 4px solid #ff4757;">
+        <div class="statLabel">En Yüksek</div>
+        <div class="statValue" style="color: #ff4757;">${maxPrice > 0 ? '₺' + maxPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</div>
+        <div class="miniHint">fiyat</div>
+      </div>
+    </div>
+    
+    <div class="compareTable">
+      <div class="compareHeaders">
+        <div style="font-weight:900;">Özellik</div>
+        ${compareItems.map(item => `<div style="font-weight:700;">${item.site}</div>`).join('')}
+      </div>
+      
+      <!-- ÜRÜN ADI SATIRI -->
+      <div class="compareRow">
+        <div style="font-weight:700; color: rgba(255,255,255,0.9);">Ürün Adı</div>
+        ${compareItems.map(item => `
+          <div style="
+            font-weight: 600;
+            font-size: 13px;
+            line-height: 1.4;
+            color: rgba(255,255,255,0.9);
+          ">
+            ${item.title.substring(0, 40)}${item.title.length > 40 ? '...' : ''}
+          </div>
+        `).join('')}
+      </div>
+      
+      <!-- FİYAT SATIRI -->
+      <div class="compareRow">
+        <div style="font-weight:700; color: rgba(255,255,255,0.9);">Fiyat</div>
+        ${itemsWithPrices.map(item => {
+          let priceClass = '';
+          if (item.priceNum === minPrice && item.priceNum > 0) {
+            priceClass = 'price-low';
+          } else if (item.priceNum === maxPrice && item.priceNum > 0) {
+            priceClass = 'price-high';
+          } else if (item.priceNum > 0) {
+            priceClass = 'price-medium';
+          }
+          
+          return `<div class="${priceClass}" style="font-weight: 800; font-size: 15px;">${item.displayPrice}</div>`;
+        }).join('')}
+      </div>
+      
+      <!-- SİTE SATIRI -->
+      <div class="compareRow">
+        <div style="font-weight:700; color: rgba(255,255,255,0.9);">Site</div>
+        ${compareItems.map(item => `
+          <div style="
+            background: rgba(255,255,255,0.08);
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.9);
+            display: inline-block;
+          ">
+            ${item.site}
+          </div>
+        `).join('')}
+      </div>
+      
+      <!-- EYLEMLER SATIRI -->
+      <div class="compareRow">
+        <div style="font-weight:700; color: rgba(255,255,255,0.9);">Eylemler</div>
+        ${compareItems.map(item => `
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="btnGhost xs" onclick="window.open('${item.link}', '_blank')" title="Ürüne git">Aç</button>
+            <button class="btnGhost xs" onclick="copyToClipboard('${item.link}')" title="Linki kopyala">⧉</button>
+            <button class="btnGhost xs" onclick="removeFromCompare('${item.id}')" title="Listeden çıkar" style="color: #ff4757;">✕</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    
+    <div style="
+      margin-top: 24px;
+      padding: 16px;
+      background: rgba(124, 92, 255, 0.1);
+      border-radius: 16px;
+      border: 1px solid rgba(124, 92, 255, 0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    ">
+      <div>
+        <div style="font-weight: 700; color: white;">${compareItems.length} ürün karşılaştırılıyor</div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px;">
+          ${minPrice > 0 ? `En ucuz: ₺${minPrice.toLocaleString('tr-TR')} (${compareItems.find(item => {
+            const price = parseFloat(item.price?.replace(/[^\d.,]/g, '').replace('.', '').replace(',', '.'));
+            return price === minPrice;
+          })?.site || ''})` : ''}
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 10px;">
+        <button class="btnGhost" onclick="clearCompareList()" style="border-color: #ff4757; color: #ff4757;">
+          🗑️ Temizle
+        </button>
+        <button class="btnPrimary" onclick="runAIComparison()" 
+                ${compareItems.length < 2 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+          🤖 AI Karşılaştır
+        </button>
+      </div>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
