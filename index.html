@@ -250,58 +250,58 @@
     </div>
   </div>
 
-  <!-- KARŞILAŞTIRMA MODALI -->
-  <div id="compareModal" class="compareModal" aria-hidden="true">
-    <div class="compareBackdrop" id="compareBackdrop"></div>
-    <div class="compareModalContent">
-      <div class="compareModalHeader">
-        <div class="compareModalTitle">
-          <span>⚖️</span>
-          <span>Ürün Karşılaştırma</span>
-          <span class="compareCounterModal">
-            <span id="compareCountModal">0</span> ürün
+  <!-- KARŞILAŞTIRMA MODALI - BASİT VE ÇALIŞAN -->
+  <div id="compareModal" class="modalWrap" aria-hidden="true">
+    <div class="modalBack" id="compareBackdrop"></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-label="Karşılaştırma" style="max-width:500px;width:95%;">
+      <div class="modalTop">
+        <div class="modalTitle">
+          <span>⚖️ Karşılaştırma</span>
+          <span style="font-size:14px;color:#36d399;margin-left:8px;">
+            (<span id="compareCountModal">0</span>)
           </span>
         </div>
-        <button id="closeCompareModal" class="closeCompare" type="button" aria-label="Kapat">✕</button>
+        <button class="iconBtn" id="closeCompareBtn">✕</button>
       </div>
 
-      <div class="compareModalBody">
-        <!-- Kontroller -->
-        <div class="compareControls">
-          <button id="btnAddManually" class="btnGhost sm">➕ Manuel Ekle</button>
-          <button id="btnClearCompare" class="btnGhost sm">🗑️ Temizle</button>
-          <button id="btnAiCompare" class="btnPrimary sm">🤖 AI Karşılaştır</button>
+      <div class="modalBody">
+        <!-- Butonlar -->
+        <div style="display:flex;gap:8px;margin-bottom:15px;">
+          <button class="btnGhost sm" id="addManualBtn">➕ Ekle</button>
+          <button class="btnGhost sm" id="clearCompareBtn">🗑️ Temizle</button>
+          <button class="btnPrimary sm" id="aiCompareBtn">🤖 AI</button>
         </div>
-
-        <!-- Manuel ekleme paneli -->
-        <div id="manualAddPanel" class="manualAddPanel hidden">
-          <div class="manualAddHeader">
-            <h4>🔗 Link veya Ürün Adı ile Ekle</h4>
-            <button class="iconBtn" id="closeManualPanel">✕</button>
+        
+        <!-- Manuel Ekleme -->
+        <div class="cardBox" id="manualPanel" style="display:none;margin-bottom:15px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-weight:bold;">🔗 Link veya Ürün Adı</div>
+            <button class="iconBtn" id="closeManualBtn">✕</button>
           </div>
-          <input type="text" id="manualInput" placeholder="Örn: https://www.trendyol.com/... veya 'iPhone 13'" class="fullInput">
-          <div class="manualButtons">
-            <button id="btnFetchFromLink" class="btnGhost">🔗 Linkten Getir</button>
-            <button id="btnSearchAndMatch" class="btnPrimary">🔍 Bul ve Eşleştir</button>
-          </div>
-        </div>
-
-        <!-- Karşılaştırma listesi -->
-        <div id="compareList" class="compareList">
-          <div class="emptyCompareState">
-            <div class="emptyIcon">⚖️</div>
-            <h3>Karşılaştırma Listesi Boş</h3>
-            <p>Ürünlerdeki "⚖️ Karşılaştır" butonuna tıklayın veya yukarıdan manuel ekleyin.</p>
+          <input type="text" id="manualInput" placeholder="Link veya ürün adı..." 
+                 style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;margin-bottom:10px;">
+          <div style="display:flex;gap:8px;">
+            <button class="btnGhost" id="fetchLinkBtn">🔗 Linkten Getir</button>
+            <button class="btnPrimary" id="searchMatchBtn">🔍 Bul ve Eşleştir</button>
           </div>
         </div>
 
-        <!-- AI karşılaştırma sonucu -->
-        <div id="aiCompareResult" class="aiCompareResult hidden">
-          <div class="aiCompareHeader">
-            <h4>🤖 AI Karşılaştırma Raporu</h4>
-            <button class="iconBtn" id="closeAiResult">✕</button>
+        <!-- Karşılaştırma Listesi -->
+        <div id="compareListContainer">
+          <div style="text-align:center;padding:40px 20px;color:rgba(255,255,255,0.7);">
+            <div style="font-size:48px;margin-bottom:15px;opacity:0.5;">⚖️</div>
+            <h3 style="color:white;margin-bottom:10px;">Karşılaştırma Listesi Boş</h3>
+            <p>Ürünlerdeki "⚖️ Karşılaştır" butonuna tıklayın.</p>
           </div>
-          <div id="aiCompareContent" class="aiCompareContent"></div>
+        </div>
+
+        <!-- AI Sonuç -->
+        <div class="cardBox" id="aiResultPanel" style="display:none;margin-top:15px;background:rgba(124,92,255,0.1);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-weight:bold;color:white;">🤖 AI Karşılaştırma</div>
+            <button class="iconBtn" id="closeAiBtn">✕</button>
+          </div>
+          <div id="aiContent"></div>
         </div>
       </div>
     </div>
