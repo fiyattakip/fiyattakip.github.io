@@ -1,4 +1,4 @@
-// compare.js - Tam Karşılaştırma Sistemi (DÜZELTİLMİŞ)
+// compare.js - Tam Karşılaştırma Sistemi (DÜZELTİLMİŞ - TÜM HATALAR GİDERİLDİ)
 console.log("✅ Karşılaştırma sistemi yükleniyor...");
 
 const $ = (id) => document.getElementById(id);
@@ -12,28 +12,27 @@ function showToast(msg, type = 'info') {
   // Ana uygulamadaki toast fonksiyonunu kullan
   if (window.toast && typeof window.toast === 'function') {
     window.toast(msg, type);
-    return;
+  } else {
+    // Fallback toast
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast ${type}`;
+    toastEl.textContent = msg;
+    toastEl.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'error' ? '#ff4757' : type === 'success' ? '#36d399' : '#7c5cff'};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      z-index: 9999;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    `;
+    
+    document.body.appendChild(toastEl);
+    setTimeout(() => toastEl.remove(), 3000);
   }
-  
-  // Fallback toast
-  const toastEl = document.createElement('div');
-  toastEl.className = `toast ${type}`;
-  toastEl.textContent = msg;
-  toastEl.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: ${type === 'error' ? '#ff4757' : type === 'success' ? '#36d399' : '#7c5cff'};
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    z-index: 9999;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  `;
-  
-  document.body.appendChild(toastEl);
-  setTimeout(() => toastEl.remove(), 3000);
 }
 
 // ========== KARŞILAŞTIRMA SAYACI GÜNCELLE ==========
@@ -66,6 +65,7 @@ function openCompareModal() {
 }
 
 function closeCompareModal() {
+  console.log("Modal kapatılıyor...");
   const modal = $("compareModal");
   if (!modal) return;
   
@@ -139,9 +139,9 @@ function clearCompareList() {
 
 // ========== LİSTEYİ GÖSTER ==========
 function renderCompareList() {
-  const container = $("compareListModal");
+  const container = $("compareList");
   if (!container) {
-    console.error("compareListModal bulunamadı!");
+    console.error("compareList bulunamadı!");
     return;
   }
 
@@ -264,11 +264,11 @@ function renderCompareList() {
     </div>
     
     <!-- Kontrol Panel -->
-    <div class="compareControls" style="margin-top:20px;padding:16px;background:rgba(124,92,255,0.1);border-radius:16px;border:1px solid rgba(124,92,255,0.3);display:flex;justify-content:space-between;align-items:center;">
+    <div style="margin-top:20px;padding:16px;background:rgba(124,92,255,0.1);border-radius:16px;border:1px solid rgba(124,92,255,0.3);display:flex;justify-content:space-between;align-items:center;">
       <div>
         <strong style="color:white;">${compareItems.length} ürün karşılaştırılıyor</strong>
         ${minPrice > 0 ? `
-          <div class="priceHint" style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;">
+          <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;">
             En ucuz: ₺${minPrice.toLocaleString('tr-TR')} 
             (${compareItems.find(item => {
               const price = parseFloat(item.price?.replace(/[^\d.,]/g, '').replace('.', '').replace(',', '.'));
@@ -278,7 +278,7 @@ function renderCompareList() {
         ` : ''}
       </div>
       
-      <div class="controlButtons" style="display:flex;gap:10px;">
+      <div style="display:flex;gap:10px;">
         <button class="btnGhost" onclick="clearCompareList()" style="border-color:#ff4757;color:#ff4757;">
           🗑️ Temizle
         </button>
@@ -312,9 +312,7 @@ function updateCompareButtons() {
 
 // ========== ÜRÜN KARTLARINA BUTON EKLE ==========
 function addCompareButtonsToProducts() {
-  console.log("Ürün kartlarına buton ekleniyor...");
-  
-  // 1. EN UCUZ ÜRÜN BANNER'ı
+  // 1. EN UCUZ ÜRÜN BANNER'ı (Fiyat arama sonuçları)
   document.querySelectorAll('.cheapestBanner').forEach(banner => {
     const actions = banner.querySelector('.productActions');
     if (!actions) return;
@@ -326,15 +324,21 @@ function addCompareButtonsToProducts() {
     const title = banner.querySelector('.productTitle')?.textContent || '';
     const price = banner.querySelector('.productPrice')?.textContent || '';
     const site = banner.querySelector('.siteTag')?.textContent || '';
-    const link = banner.querySelector('.btnPrimary')?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] || '';
     
-    if (!link) {
-      // Alternatif: butonun onclick event'inden al
-      const openBtn = banner.querySelector('.btnPrimary');
-      if (openBtn && openBtn.onclick) {
+    // Linki bul
+    let link = '';
+    const openBtn = banner.querySelector('.btnPrimary');
+    if (openBtn && openBtn.onclick) {
+      try {
         const onclickStr = openBtn.onclick.toString();
         const match = onclickStr.match(/window\.open\('([^']+)'/);
         if (match) link = match[1];
+      } catch (e) {
+        // onclick string değilse, data attribute'dan al
+        if (openBtn.getAttribute('onclick')) {
+          const match = openBtn.getAttribute('onclick').match(/window\.open\('([^']+)'/);
+          if (match) link = match[1];
+        }
       }
     }
     
@@ -382,10 +386,17 @@ function addCompareButtonsToProducts() {
     let link = '';
     const openBtn = card.querySelector('.btnGhost[onclick*="window.open"]');
     if (openBtn) {
-      const onclickStr = openBtn.onclick?.toString();
-      if (onclickStr) {
-        const match = onclickStr.match(/window\.open\('([^']+)'/);
-        if (match) link = match[1];
+      try {
+        if (openBtn.onclick) {
+          const onclickStr = openBtn.onclick.toString();
+          const match = onclickStr.match(/window\.open\('([^']+)'/);
+          if (match) link = match[1];
+        } else if (openBtn.getAttribute('onclick')) {
+          const match = openBtn.getAttribute('onclick').match(/window\.open\('([^']+)'/);
+          if (match) link = match[1];
+        }
+      } catch (e) {
+        console.log("Link bulma hatası:", e);
       }
     }
     
@@ -447,7 +458,7 @@ function addCompareButtonsToProducts() {
         site: site,
         link: link
       };
-      addToCompare(product, window.currentSearch || '');
+      addToCompare(product, title);
     };
     
     const favBtn = actions.querySelector('.btnFav');
@@ -471,13 +482,18 @@ function addCompareButtonsToProducts() {
     
     // Linki bul
     let link = '';
-    const openBtn = card.querySelector('.btnGhost[onclick*="window.open"]');
+    const openBtn = actions.querySelector('.btnGhost');
     if (openBtn) {
-      const onclickStr = openBtn.onclick?.toString();
-      if (onclickStr) {
-        const match = onclickStr.match(/window\.open\('([^']+)'/);
-        if (match) link = match[1];
-      }
+      try {
+        if (openBtn.onclick) {
+          const onclickStr = openBtn.onclick.toString();
+          const match = onclickStr.match(/window\.open\('([^']+)'/);
+          if (match) link = match[1];
+        } else if (openBtn.getAttribute('onclick')) {
+          const match = openBtn.getAttribute('onclick').match(/window\.open\('([^']+)'/);
+          if (match) link = match[1];
+        }
+      } catch (e) {}
     }
     
     if (!link) return;
@@ -512,26 +528,32 @@ function addCompareButtonsToProducts() {
 
 // ========== MANUEL EKLEME ==========
 function setupManualAdd() {
-  const manualPanel = $('#manualAddPanelModal');
-  const showBtn = $('#btnAddManuallyModal');
-  const closeBtn = document.querySelector('.closeManualPanelModal');
-  const fetchBtn = $('#btnFetchFromLinkModal');
-  const searchBtn = $('#btnSearchAndMatchModal');
-  const input = $('#manualInputModal');
+  const manualPanel = $('#manualAddPanel');
+  const showBtn = $('#btnAddManually');
+  const closeBtn = $('#closeManualPanel');
+  const fetchBtn = $('#btnFetchFromLink');
+  const searchBtn = $('#btnSearchAndMatch');
+  const input = $('#manualInput');
   
-  if (!showBtn || !manualPanel) return;
+  console.log("Manuel ekleme kuruluyor...");
+  console.log("showBtn:", showBtn);
+  console.log("manualPanel:", manualPanel);
   
-  // Manuel ekleme panelini göster/gizle
-  showBtn.addEventListener('click', () => {
-    manualPanel.classList.toggle('hidden');
-    if (!manualPanel.classList.contains('hidden') && input) {
-      input.focus();
-    }
-  });
+  if (showBtn && manualPanel) {
+    // Manuel ekleme panelini göster/gizle
+    showBtn.addEventListener('click', () => {
+      console.log("Manuel ekle butonuna tıklandı");
+      manualPanel.classList.toggle('hidden');
+      if (!manualPanel.classList.contains('hidden') && input) {
+        input.focus();
+      }
+    });
+  }
   
   // Panel kapatma
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {
+      console.log("Manuel panel kapatılıyor");
       manualPanel.classList.add('hidden');
     });
   }
@@ -539,6 +561,7 @@ function setupManualAdd() {
   // Linkten getir
   if (fetchBtn) {
     fetchBtn.addEventListener('click', () => {
+      console.log("Linkten getir butonuna tıklandı");
       if (!input || !input.value.trim()) {
         showToast("Link girin", "error");
         return;
@@ -552,7 +575,10 @@ function setupManualAdd() {
       try {
         const urlObj = new URL(url);
         site = urlObj.hostname.replace('www.', '').split('.')[0];
-      } catch (e) {}
+        site = site.charAt(0).toUpperCase() + site.slice(1);
+      } catch (e) {
+        console.log("URL parse hatası:", e);
+      }
       
       const mockProduct = {
         urun: "Linkten gelen ürün",
@@ -570,6 +596,7 @@ function setupManualAdd() {
   // Bul ve eşleştir
   if (searchBtn) {
     searchBtn.addEventListener('click', () => {
+      console.log("Bul ve eşleştir butonuna tıklandı");
       if (!input || !input.value.trim()) {
         showToast("Ürün adı girin", "error");
         return;
@@ -594,6 +621,7 @@ function setupManualAdd() {
 
 // ========== AI KARŞILAŞTIRMA ==========
 async function runAIComparison() {
+  console.log("AI karşılaştırma başlatılıyor...");
   if (compareItems.length < 2) {
     showToast("AI karşılaştırma için en az 2 ürün gerekli", "error");
     return;
@@ -616,8 +644,8 @@ async function runAIComparison() {
       const data = await response.json();
       
       // AI sonuçlarını göster
-      const aiResult = $('#aiCompareResultModal');
-      const aiContent = $('#aiCompareContentModal');
+      const aiResult = $('#aiCompareResult');
+      const aiContent = $('#aiCompareContent');
       
       if (aiContent) {
         aiContent.innerHTML = `
@@ -668,8 +696,8 @@ async function runAIComparison() {
     console.error("AI karşılaştırma hatası:", error);
     
     // Fallback
-    const aiResult = $('#aiCompareResultModal');
-    const aiContent = $('#aiCompareContentModal');
+    const aiResult = $('#aiCompareResult');
+    const aiContent = $('#aiCompareContent');
     
     if (aiContent) {
       aiContent.innerHTML = `
@@ -700,20 +728,44 @@ function setupCompareEvents() {
   console.log("Karşılaştırma event'leri kuruluyor...");
   
   // Modal kapatma
-  $('#closeCompare')?.addEventListener('click', closeCompareModal);
-  $('#compareBackdrop')?.addEventListener('click', closeCompareModal);
+  const closeBtn = $('#closeCompareModal');
+  const backdrop = $('#compareBackdrop');
+  
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeCompareModal);
+    console.log("Kapatma butonu bağlandı");
+  } else {
+    console.error("Kapatma butonu bulunamadı!");
+  }
+  
+  if (backdrop) {
+    backdrop.addEventListener('click', closeCompareModal);
+    console.log("Backdrop bağlandı");
+  }
   
   // Temizle butonu
-  $('#btnClearCompareModal')?.addEventListener('click', clearCompareList);
+  const clearBtn = $('#btnClearCompare');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', clearCompareList);
+    console.log("Temizle butonu bağlandı");
+  }
   
   // AI karşılaştırma butonu
-  $('#btnAiCompareModal')?.addEventListener('click', runAIComparison);
+  const aiBtn = $('#btnAiCompare');
+  if (aiBtn) {
+    aiBtn.addEventListener('click', runAIComparison);
+    console.log("AI karşılaştırma butonu bağlandı");
+  }
   
   // AI sonuç panelini kapat
-  document.querySelector('.closeAiResultModal')?.addEventListener('click', function() {
-    const aiResult = $('#aiCompareResultModal');
-    if (aiResult) aiResult.classList.add('hidden');
-  });
+  const closeAiBtn = $('#closeAiResult');
+  if (closeAiBtn) {
+    closeAiBtn.addEventListener('click', function() {
+      const aiResult = $('#aiCompareResult');
+      if (aiResult) aiResult.classList.add('hidden');
+    });
+    console.log("AI sonuç kapatma butonu bağlandı");
+  }
   
   // Manuel ekleme sistemi
   setupManualAdd();
@@ -730,8 +782,8 @@ function startCompareButtonObserver() {
   setInterval(addCompareButtonsToProducts, 2000);
   
   // Arama yapıldığında buton ekle
-  const originalFiyatAra = window.fiyatAra;
-  if (originalFiyatAra) {
+  if (window.fiyatAra) {
+    const originalFiyatAra = window.fiyatAra;
     window.fiyatAra = function(...args) {
       const result = originalFiyatAra.apply(this, args);
       setTimeout(addCompareButtonsToProducts, 1500);
@@ -740,8 +792,8 @@ function startCompareButtonObserver() {
   }
   
   // Sayfa değiştiğinde buton ekle
-  const originalShowPage = window.showPage;
-  if (originalShowPage) {
+  if (window.showPage) {
+    const originalShowPage = window.showPage;
     window.showPage = function(...args) {
       const result = originalShowPage.apply(this, args);
       setTimeout(addCompareButtonsToProducts, 500);
@@ -755,7 +807,9 @@ document.addEventListener('DOMContentLoaded', function() {
   console.log("✅ Karşılaştırma sistemi başlatılıyor...");
   
   // Event'leri kur
-  setupCompareEvents();
+  setTimeout(() => {
+    setupCompareEvents();
+  }, 500);
   
   // Otomatik buton eklemeyi başlat
   startCompareButtonObserver();
