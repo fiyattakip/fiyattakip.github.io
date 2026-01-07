@@ -164,6 +164,17 @@ body{
 .bannerTitle{ font-weight: 1000; }
 .bannerSub{ color: rgba(255,255,255,.72); font-size: 12px; margin-top: 2px; }
 
+.compareCounter {
+  font-size: 11px;
+  color: #36d399;
+  font-weight: 700;
+  margin-top: 4px;
+  background: rgba(54, 211, 153, 0.1);
+  padding: 4px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
 /* ========== HIZLI ARAMALAR ========== */
 .quickSearches {
   margin: 20px 0 10px;
@@ -1118,106 +1129,177 @@ body{
   font-size: 14px !important;
 }
 
-/* MODAL STİLLERİ */
-.fullInput {
+/* ========== KARŞILAŞTIRMA MODALI ========== */
+.compareModal {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke);
-  background: var(--bg2);
-  color: var(--text);
-  margin: 10px 0;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.compareModal.show {
+  display: flex;
+}
+
+.compareBackdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.compareModalContent {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid rgba(124, 92, 255, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 10001;
+}
+
+.compareModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.compareModalTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  color: white;
+  font-weight: 900;
+}
+
+.compareCounterModal {
   font-size: 14px;
+  color: #36d399;
+  background: rgba(54, 211, 153, 0.1);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.closeCompare {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.closeCompare:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.compareModalBody {
+  padding: 20px;
+}
+
+/* Kontroller */
+.compareControls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+/* Manuel ekleme paneli */
+.manualAddPanel {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .manualAddHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.manualAddHeader h4 {
+  margin: 0;
+  font-size: 16px;
+  color: white;
+}
+
+.fullInput {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.fullInput:focus {
+  outline: none;
+  border-color: var(--primary);
 }
 
 .manualButtons {
   display: flex;
   gap: 10px;
-  margin-top: 10px;
 }
 
-.compareGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 12px;
-  margin-top: 15px;
-}
-
-.compareCard {
-  background: var(--bg2);
-  border: 1px solid var(--stroke);
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.compareCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.compareSite {
-  font-size: 11px;
-  color: var(--muted);
-  background: rgba(255,255,255,0.05);
-  padding: 3px 8px;
-  border-radius: 12px;
-}
-
-.removeCompare {
-  background: none;
-  border: none;
-  color: var(--error);
-  font-size: 16px;
-  cursor: pointer;
-  padding: 2px;
-}
-
-.compareProductName {
-  font-weight: 700;
-  font-size: 14px;
-  margin-bottom: 6px;
-  line-height: 1.3;
-}
-
-.compareProductPrice {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--success);
-  margin-bottom: 8px;
-}
-
-.compareActions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
+/* Karşılaştırma listesi */
+.compareList {
+  min-height: 200px;
 }
 
 .emptyCompareState {
   text-align: center;
-  padding: 40px 20px;
-  color: var(--muted);
+  padding: 60px 20px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .emptyCompareState .emptyIcon {
-  font-size: 48px;
-  margin-bottom: 15px;
+  font-size: 64px;
+  margin-bottom: 20px;
   opacity: 0.5;
 }
 
-.hidden {
-  display: none !important;
+.emptyCompareState h3 {
+  color: white;
+  margin-bottom: 10px;
+  font-size: 20px;
 }
 
-/* ========== KARŞILAŞTIRMA TABLOSU STİLLERİ ========== */
+.emptyCompareState p {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Karşılaştırma tablosu */
 .compareTable {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
@@ -1254,6 +1336,18 @@ body{
 
 .compareRow:nth-child(even) {
   background: rgba(255, 255, 255, 0.02);
+}
+
+.rowLabel {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.rowCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Fiyat renkleri */
@@ -1312,6 +1406,47 @@ body{
   margin-bottom: 4px;
 }
 
+/* Site badge */
+.siteBadge {
+  background: rgba(124, 92, 255, 0.2);
+  color: #7c5cff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* AI karşılaştırma sonucu */
+.aiCompareResult {
+  background: linear-gradient(135deg, rgba(124, 92, 255, 0.15), rgba(54, 211, 153, 0.15));
+  border-radius: 16px;
+  border: 1px solid rgba(124, 92, 255, 0.3);
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.aiCompareHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.aiCompareHeader h4 {
+  margin: 0;
+  color: white;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aiCompareContent {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  font-size: 14px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .compareHeaders,
@@ -1321,8 +1456,17 @@ body{
     padding: 12px;
   }
   
-  .compareTable {
-    overflow-x: auto;
+  .compareModalContent {
+    max-width: 95%;
+    max-height: 90vh;
+  }
+  
+  .compareControls {
+    flex-direction: column;
+  }
+  
+  .compareControls button {
+    width: 100%;
   }
 }
 
@@ -1340,5 +1484,9 @@ body{
   
   .statCard .statValue {
     font-size: 20px;
+  }
+  
+  .compareModalTitle {
+    font-size: 18px;
   }
 }
