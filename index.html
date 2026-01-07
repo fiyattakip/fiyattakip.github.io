@@ -98,6 +98,9 @@
           <div class="bannerMid">
             <div class="bannerTitle">Fiyat Karşılaştırma!</div>
             <div class="bannerSub">Trendyol, Hepsiburada, n11, Amazon</div>
+            <div class="compareCounter">
+              <span id="compareCount">0</span> ürün karşılaştırılıyor
+            </div>
           </div>
           <div class="bannerRight">🛍️</div>
         </div>
@@ -248,22 +251,30 @@
   </div>
 
   <!-- KARŞILAŞTIRMA MODALI -->
-  <div id="compareModal" class="modalWrap" aria-hidden="true">
-    <div class="modalBack" id="compareBackdrop"></div>
-    <div class="modalCard" role="dialog" aria-modal="true" aria-label="Karşılaştırma" style="max-width:95%;max-height:90vh;width:500px;">
-      <div class="modalTop">
-        <div class="modalTitle">⚖️ Ürün Karşılaştırma</div>
-        <button id="closeCompare" class="iconBtn" type="button" aria-label="Kapat">✕</button>
+  <div id="compareModal" class="compareModal" aria-hidden="true">
+    <div class="compareBackdrop" id="compareBackdrop"></div>
+    <div class="compareModalContent">
+      <div class="compareModalHeader">
+        <div class="compareModalTitle">
+          <span>⚖️</span>
+          <span>Ürün Karşılaştırma</span>
+          <span class="compareCounterModal">
+            <span id="compareCountModal">0</span> ürün
+          </span>
+        </div>
+        <button id="closeCompare" class="closeCompare" type="button" aria-label="Kapat">✕</button>
       </div>
 
-      <div class="modalBody" style="overflow-y:auto;max-height:70vh;padding:20px;">
-        <div class="pageActions">
+      <div class="compareModalBody">
+        <!-- Kontroller -->
+        <div class="compareControls">
           <button id="btnAddManuallyModal" class="btnGhost sm">➕ Manuel Ekle</button>
           <button id="btnClearCompareModal" class="btnGhost sm">🗑️ Temizle</button>
           <button id="btnAiCompareModal" class="btnPrimary sm">🤖 AI Karşılaştır</button>
         </div>
-        
-        <div id="manualAddPanelModal" class="cardBox hidden" style="margin-top:15px;">
+
+        <!-- Manuel ekleme paneli -->
+        <div id="manualAddPanelModal" class="manualAddPanel hidden">
           <div class="manualAddHeader">
             <h4>🔗 Link veya Ürün Adı ile Ekle</h4>
             <button class="iconBtn closeManualPanelModal">✕</button>
@@ -273,20 +284,21 @@
             <button id="btnFetchFromLinkModal" class="btnGhost">🔗 Linkten Getir</button>
             <button id="btnSearchAndMatchModal" class="btnPrimary">🔍 Bul ve Eşleştir</button>
           </div>
-          <div id="matchResultsModal" class="matchResults"></div>
         </div>
 
-        <div id="compareListModal" class="compareList" style="margin-top:20px;">
+        <!-- Karşılaştırma listesi -->
+        <div id="compareListModal" class="compareList">
           <div class="emptyCompareState">
             <div class="emptyIcon">⚖️</div>
             <h3>Karşılaştırma Listesi Boş</h3>
-            <p>Ürünlerdeki "⚖️ Ekle" butonuna tıklayın veya yukarıdan manuel ekleyin.</p>
+            <p>Ürünlerdeki "⚖️ Karşılaştır" butonuna tıklayın veya yukarıdan manuel ekleyin.</p>
           </div>
         </div>
 
-        <div id="aiCompareResultModal" class="aiCompareResult hidden" style="margin-top:20px;">
+        <!-- AI karşılaştırma sonucu -->
+        <div id="aiCompareResultModal" class="aiCompareResult hidden">
           <div class="aiCompareHeader">
-            <h3>🤖 AI Karşılaştırma Raporu</h3>
+            <h4>🤖 AI Karşılaştırma Raporu</h4>
             <button class="iconBtn closeAiResultModal">✕</button>
           </div>
           <div id="aiCompareContentModal" class="aiCompareContent"></div>
@@ -297,5 +309,6 @@
 
   <!-- SCRIPTS -->
   <script type="module" src="app.js"></script>
+  <script type="module" src="compare.js"></script>
 </body>
 </html>
