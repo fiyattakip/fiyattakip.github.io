@@ -1212,7 +1212,7 @@ body{
   font-size: 13px;
 }
 
-/* ========== KARŞILAŞTIRMA BUTONLARI ========== */
+/* ========== KARŞILAŞTIRMA SİSTEMİ ========== */
 .btnCompare {
   background: linear-gradient(135deg, #36d399, #00b894) !important;
   border: none !important;
@@ -1222,16 +1222,26 @@ body{
   font-size: 12px !important;
   font-weight: 700 !important;
   cursor: pointer !important;
-  min-width: 60px !important;
+  min-width: 70px !important;
   height: 32px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  transition: all 0.3s !important;
 }
 
 .btnCompare.added {
   background: linear-gradient(135deg, #7c5cff, #5a3fdf) !important;
-  opacity: 0.8;
+  opacity: 0.9;
+}
+
+.btnCompare:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(54, 211, 153, 0.3);
+}
+
+.btnCompare.added:hover {
+  box-shadow: 0 4px 12px rgba(124, 92, 255, 0.3);
 }
 
 .btnGhost.xs.btnCompare {
@@ -1279,6 +1289,12 @@ body{
   border: 1px solid var(--stroke);
   border-radius: 14px;
   padding: 12px;
+  transition: all 0.3s;
+}
+
+.compareCard:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
 }
 
 .compareCardHeader {
@@ -1303,6 +1319,11 @@ body{
   font-size: 16px;
   cursor: pointer;
   padding: 2px;
+  transition: all 0.2s;
+}
+
+.removeCompare:hover {
+  transform: scale(1.2);
 }
 
 .compareProductName {
@@ -1337,6 +1358,67 @@ body{
   opacity: 0.5;
 }
 
+.aiCompareResult {
+  background: rgba(124,92,255,0.05);
+  border: 1px solid rgba(124,92,255,0.2);
+  border-radius: 14px;
+  padding: 15px;
+  margin-top: 20px;
+}
+
+.aiCompareHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.aiCompareContent {
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.compareCountBadge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--error);
+  color: white;
+  font-size: 11px;
+  font-weight: 900;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
 .hidden {
   display: none !important;
+}
+
+/* ÜRÜN KARTLARINDA KARŞILAŞTIRMA BUTONU */
+.productActions .btnCompare {
+  margin-right: 4px;
+}
+
+/* MANUEL KARŞILAŞTIRMA BUTONU */
+.btnManualCompare {
+  background: linear-gradient(135deg, #ff9f43, #ff7f00) !important;
+  border: none !important;
+  color: white !important;
+  border-radius: 10px !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  min-width: 70px !important;
+  height: 32px !important;
+}
+
+.btnManualCompare:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 159, 67, 0.3);
 }
