@@ -262,32 +262,32 @@
             <span id="compareCountModal">0</span> ürün
           </span>
         </div>
-        <button id="closeCompare" class="closeCompare" type="button" aria-label="Kapat">✕</button>
+        <button id="closeCompareModal" class="closeCompare" type="button" aria-label="Kapat">✕</button>
       </div>
 
       <div class="compareModalBody">
         <!-- Kontroller -->
         <div class="compareControls">
-          <button id="btnAddManuallyModal" class="btnGhost sm">➕ Manuel Ekle</button>
-          <button id="btnClearCompareModal" class="btnGhost sm">🗑️ Temizle</button>
-          <button id="btnAiCompareModal" class="btnPrimary sm">🤖 AI Karşılaştır</button>
+          <button id="btnAddManually" class="btnGhost sm">➕ Manuel Ekle</button>
+          <button id="btnClearCompare" class="btnGhost sm">🗑️ Temizle</button>
+          <button id="btnAiCompare" class="btnPrimary sm">🤖 AI Karşılaştır</button>
         </div>
 
         <!-- Manuel ekleme paneli -->
-        <div id="manualAddPanelModal" class="manualAddPanel hidden">
+        <div id="manualAddPanel" class="manualAddPanel hidden">
           <div class="manualAddHeader">
             <h4>🔗 Link veya Ürün Adı ile Ekle</h4>
-            <button class="iconBtn closeManualPanelModal">✕</button>
+            <button class="iconBtn" id="closeManualPanel">✕</button>
           </div>
-          <input type="text" id="manualInputModal" placeholder="Örn: https://www.trendyol.com/... veya 'iPhone 13'" class="fullInput">
+          <input type="text" id="manualInput" placeholder="Örn: https://www.trendyol.com/... veya 'iPhone 13'" class="fullInput">
           <div class="manualButtons">
-            <button id="btnFetchFromLinkModal" class="btnGhost">🔗 Linkten Getir</button>
-            <button id="btnSearchAndMatchModal" class="btnPrimary">🔍 Bul ve Eşleştir</button>
+            <button id="btnFetchFromLink" class="btnGhost">🔗 Linkten Getir</button>
+            <button id="btnSearchAndMatch" class="btnPrimary">🔍 Bul ve Eşleştir</button>
           </div>
         </div>
 
         <!-- Karşılaştırma listesi -->
-        <div id="compareListModal" class="compareList">
+        <div id="compareList" class="compareList">
           <div class="emptyCompareState">
             <div class="emptyIcon">⚖️</div>
             <h3>Karşılaştırma Listesi Boş</h3>
@@ -296,12 +296,12 @@
         </div>
 
         <!-- AI karşılaştırma sonucu -->
-        <div id="aiCompareResultModal" class="aiCompareResult hidden">
+        <div id="aiCompareResult" class="aiCompareResult hidden">
           <div class="aiCompareHeader">
             <h4>🤖 AI Karşılaştırma Raporu</h4>
-            <button class="iconBtn closeAiResultModal">✕</button>
+            <button class="iconBtn" id="closeAiResult">✕</button>
           </div>
-          <div id="aiCompareContentModal" class="aiCompareContent"></div>
+          <div id="aiCompareContent" class="aiCompareContent"></div>
         </div>
       </div>
     </div>
