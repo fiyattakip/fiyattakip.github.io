@@ -132,14 +132,44 @@
         </div>
       </section>
 
-      <!-- GRAPH -->
+      <!-- KARŞILAŞTIRMA SAYFASI -->
       <section id="page-graph" class="page">
         <div class="pageHead">
-          <div class="pageTitle">Grafik</div>
-          <button id="btnGraphRefresh" class="btnGhost" type="button">Yenile</button>
+          <div class="pageTitle">⚖️ Karşılaştır</div>
+          <div class="pageActions">
+            <button id="btnAddManually" class="btnGhost sm">➕ Manuel Ekle</button>
+            <button id="btnClearCompare" class="btnGhost sm">🗑️ Temizle</button>
+            <button id="btnAiCompare" class="btnPrimary sm">🤖 AI Karşılaştır</button>
+          </div>
         </div>
-        <div class="miniHint">Favorilerinin fiyat geçmişi burada görünecek.</div>
-        <div id="graphRoot" class="cardBox">Grafik alanı</div>
+        
+        <!-- Manuel Ekleme Paneli -->
+        <div id="manualAddPanel" class="cardBox hidden">
+          <div class="manualAddHeader">
+            <h4>🔗 Link veya Ürün Adı ile Ekle</h4>
+            <button class="iconBtn closeManualPanel">✕</button>
+          </div>
+          <input type="text" id="manualInput" placeholder="Örn: https://www.trendyol.com/... veya 'iPhone 13'" class="fullInput">
+          <div class="manualButtons">
+            <button id="btnFetchFromLink" class="btnGhost">🔗 Linkten Getir</button>
+            <button id="btnSearchAndMatch" class="btnPrimary">🔍 Bul ve Eşleştir</button>
+          </div>
+          <div id="matchResults" class="matchResults"></div>
+        </div>
+
+        <!-- Karşılaştırma Listesi -->
+        <div id="compareList" class="compareList">
+          <!-- İçerik JS ile doldurulacak -->
+        </div>
+
+        <!-- AI Karşılaştırma Sonucu -->
+        <div id="aiCompareResult" class="aiCompareResult hidden">
+          <div class="aiCompareHeader">
+            <h3>🤖 AI Karşılaştırma Raporu</h3>
+            <button class="iconBtn closeAiResult">✕</button>
+          </div>
+          <div id="aiCompareContent" class="aiCompareContent"></div>
+        </div>
       </section>
 
       <!-- FAVORITES -->
@@ -168,17 +198,15 @@
         </div>
 
         <!-- BU KISMI DEĞİŞTİRDİM: AI AYARLARI YERİNE AI SİSTEM BİLGİSİ -->
-        <!-- BULUN: (yaklaşık 210. satır) -->
-<div class="cardBox">
-  <div class="rowBetween">
-    <div>
-      <div class="cardTitle">🤖 AI Sistemi</div>
-      <div class="miniHint">Hugging Face AI aktif - Favorilerde AI butonuna tıkla!</div>
-    </div>
-    <button class="btnPrimary" type="button" style="background:linear-gradient(135deg, #7c5cff, #36d399);">Aktif</button>
-  </div>
-</div>
-
+        <div class="cardBox">
+          <div class="rowBetween">
+            <div>
+              <div class="cardTitle">🤖 AI Sistemi</div>
+              <div class="miniHint">Hugging Face AI aktif - Favorilerde AI butonuna tıkla!</div>
+            </div>
+            <button class="btnPrimary" type="button" style="background:linear-gradient(135deg, #7c5cff, #36d399);">Aktif</button>
+          </div>
+        </div>
 
         <div class="cardBox">
           <div class="rowBetween">
@@ -201,7 +229,7 @@
       </button>
 
       <button class="tab" type="button" data-page="graph">
-        <span class="ico">📊</span><span class="lbl">Grafik</span>
+        <span class="ico">⚖️</span><span class="lbl">Karşılaştır</span>
       </button>
 
       <!-- Kamera butonu JS ile eklenecek -->
@@ -249,8 +277,6 @@
       </div>
     </div>
   </div>
-
-  <!-- AI AYARLARI MODALINI TAMAMEN SİLDİM! -->
 
   <!-- SCRIPTS -->
   <script type="module" src="app.js"></script>
