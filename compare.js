@@ -12,8 +12,8 @@ async function fetchPriceFromLink(url) {
   console.log("🔗 Link'ten fiyat çekiliyor:", url);
   
   try {
-    // API URL'ini al (app.js'den veya localStorage'dan)
-    const API_URL = localStorage.getItem('fiyattakip_api_url') || "https://fiyattakip-api.onrender.com";
+    // YENİ API URL'Sİ - Render.com'daki
+    const API_URL = "https://fiyattakip-api.onrender.com";
     
     console.log(`📡 API'ye istek gönderiliyor: ${API_URL}/fiyat-cek-link`);
     
