@@ -351,34 +351,43 @@ body{
 /* ========== KAMERA TAB BUTONU ========== */
 .cameraTab {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 68px;
-  height: 68px;
-  background: var(--primary);
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--camera), #ff6b6b);
   border: none;
   border-radius: 50%;
   position: absolute;
-  bottom: 18px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
+  box-shadow: 0 10px 30px rgba(255,51,102,0.4);
   cursor: pointer;
   z-index: 10000;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition: all 0.3s;
 }
 
 .cameraTab:hover {
-  transform: translateX(-50%) scale(1.06);
+  transform: translateX(-50%) scale(1.1);
+  box-shadow: 0 15px 40px rgba(255,51,102,0.6);
 }
 
 .cameraTab:active {
-  transform: translateX(-50%) scale(0.96);
+  transform: translateX(-50%) scale(0.95);
 }
 
-.cameraTab .ico{ width:28px; height:28px; display:flex; align-items:center; justify-content:center; color: #fff; }
-.cameraTab .ico svg{ width:28px; height:28px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.cameraTab .lbl{ display:none; }
+.cameraTab .ico {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.cameraTab .lbl {
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+}
 
 /* ========== KAMERA MODALI ========== */
 .cameraModal {
@@ -798,13 +807,11 @@ body{
   border-radius: 16px;
   cursor:pointer;
 }
-.tab .ico{ width:24px; height:24px; display:flex; align-items:center; justify-content:center; }
-.tab .ico svg{ width:24px; height:24px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.tab[data-page="favs"] .ico svg{ fill: currentColor; stroke: none; }
+.tab .ico{ font-size: 18px; line-height: 18px; }
 .tab .lbl{ font-size: 11px; }
 .tab.active{
-  color: var(--primary);
-  background: rgba(124,92,255,.12);
+  color: var(--text);
+  background: rgba(255,255,255,.08);
 }
 .tabSpacer{ width: 64px; }
 
@@ -1482,4 +1489,52 @@ body{
   .compareModalTitle {
     font-size: 18px;
   }
+}
+
+
+/* ===== ALT BAR SVG + KAMERA FIX (SAFE OVERRIDE) ===== */
+.tabbar{
+  height: 88px !important;
+  padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+}
+
+.tab{
+  margin-top: 12px;
+}
+
+.ico.svg{
+  width:22px;
+  height:22px;
+  display:inline-block;
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center;
+}
+
+/* SVG ICONS */
+.ico.home{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23b8bdd0' viewBox='0 0 24 24'><path d='M12 3l9 8h-3v10h-5v-6h-2v6H6V11H3z'/></svg>");}
+.ico.graph{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23b8bdd0' viewBox='0 0 24 24'><path d='M4 19h16v2H2V3h2z'/><path d='M6 16h2V8H6zm5 0h2V4h-2zm5 0h2v-6h-2z'/></svg>");}
+.ico.fav{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23b8bdd0' viewBox='0 0 24 24'><path d='M12 21l-1-1C5 15 2 12 2 8a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 4-3 7-9 12z'/></svg>");}
+.ico.settings{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23b8bdd0' viewBox='0 0 24 24'><path d='M19.4 13a7.6 7.6 0 0 0 .1-2l2-1.6-2-3.4-2.3.5a7.9 7.9 0 0 0-1.6-.9l-.3-2.4h-4l-.3 2.4c-.6.2-1.1.5-1.6.9l-2.3-.5-2 3.4 2 1.6a7.6 7.6 0 0 0 .1 2l-2 1.6 2 3.4 2.3-.5c.5.4 1 .7 1.6.9l.3 2.4h4l.3-2.4c.6-.2 1.1-.5 1.6-.9l2.3.5 2-3.4zM12 15a3 3 0 1 1 0-6 3 3 0 0 1 0 6z'/></svg>");}
+
+/* CAMERA FAB */
+.cameraFab{
+  position:absolute;
+  top:-36px;
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  border:none;
+  background:linear-gradient(135deg,#8b6cff,#5f5cff);
+  box-shadow:0 12px 35px rgba(139,108,255,.55);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.cameraFab .camIcon{
+  width:26px;
+  height:26px;
+  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'><path d='M20 5h-3.2l-1.8-2H9L7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-8 13a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/></svg>") no-repeat center;
+  background-size:contain;
 }

@@ -195,47 +195,30 @@
     </main>
 
     <!-- TABBAR - 4 SEKMELİ -->
+    
     <nav class="tabbar" aria-label="Alt Menü">
-      <button class="tab active" type="button" data-page="home" aria-label="Ana">
-        <span class="ico" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
-        </span>
-        <span class="lbl">Ana</span>
+      <button class="tab active" type="button" data-page="home">
+        <span class="ico svg home"></span><span class="lbl">Ana</span>
       </button>
 
-      <button class="tab" type="button" data-page="graph" aria-label="Grafik">
-        <span class="ico" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img">
-            <path d="M4 19V5"/>
-            <path d="M4 19h16"/>
-            <path d="M7 14l4-4 3 3 4-6"/>
-          </svg>
-        </span>
-        <span class="lbl">Grafik</span>
+      <button class="tab" type="button" data-page="graph">
+        <span class="ico svg graph"></span><span class="lbl">Grafik</span>
       </button>
 
-      <!-- ORTADA KAMERA BUTONU -->
-      <div class="tabSpacer" aria-hidden="true"></div>
-
-      <button class="tab" type="button" data-page="favs" aria-label="Favori">
-        <span class="ico" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img">
-            <path d="M12 21s-7-4.6-9.4-8.7C.5 8.9 2.4 5.7 5.8 5.1c1.7-.3 3.4.4 4.4 1.7 1-1.3 2.7-2 4.4-1.7 3.4.6 5.3 3.8 3.2 7.2C19 16.4 12 21 12 21z"/>
-          </svg>
-        </span>
-        <span class="lbl">Favori</span>
+      <!-- ORTA KAMERA BUTONU -->
+      <button id="fabCamera" class="cameraFab" type="button" aria-label="Kamera">
+        <span class="camIcon"></span>
       </button>
 
-      <button class="tab" type="button" data-page="settings" aria-label="Ayarlar">
-        <span class="ico" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img">
-            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
-            <path d="M19.4 15a7.9 7.9 0 0 0 .1-1l2-1.5-2-3.4-2.4 1a8.3 8.3 0 0 0-1.7-1l-.3-2.6H11l-.3 2.6a8.3 8.3 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.5a7.9 7.9 0 0 0 .1 1 7.9 7.9 0 0 0-.1 1l-2 1.5 2 3.4 2.4-1a8.3 8.3 0 0 0 1.7 1L11 21h4l.3-2.6a8.3 8.3 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5a7.9 7.9 0 0 0 .1-1z"/>
-          </svg>
-        </span>
-        <span class="lbl">Ayarlar</span>
+      <button class="tab" type="button" data-page="favs">
+        <span class="ico svg fav"></span><span class="lbl">Favori</span>
+      </button>
+
+      <button class="tab" type="button" data-page="settings">
+        <span class="ico svg settings"></span><span class="lbl">Ayarlar</span>
       </button>
     </nav>
+
   </div>
 
   <!-- TOAST MESAJ -->
