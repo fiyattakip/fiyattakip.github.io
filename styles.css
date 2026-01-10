@@ -351,43 +351,34 @@ body{
 /* ========== KAMERA TAB BUTONU ========== */
 .cameraTab {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, var(--camera), #ff6b6b);
+  width: 68px;
+  height: 68px;
+  background: var(--primary);
   border: none;
   border-radius: 50%;
   position: absolute;
-  bottom: 20px;
+  bottom: 18px;
   left: 50%;
   transform: translateX(-50%);
-  box-shadow: 0 10px 30px rgba(255,51,102,0.4);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
   cursor: pointer;
   z-index: 10000;
-  transition: all 0.3s;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .cameraTab:hover {
-  transform: translateX(-50%) scale(1.1);
-  box-shadow: 0 15px 40px rgba(255,51,102,0.6);
+  transform: translateX(-50%) scale(1.06);
 }
 
 .cameraTab:active {
-  transform: translateX(-50%) scale(0.95);
+  transform: translateX(-50%) scale(0.96);
 }
 
-.cameraTab .ico {
-  font-size: 24px;
-  margin-bottom: 4px;
-}
-
-.cameraTab .lbl {
-  font-size: 11px;
-  font-weight: 700;
-  color: white;
-}
+.cameraTab .ico{ width:28px; height:28px; display:flex; align-items:center; justify-content:center; color: #fff; }
+.cameraTab .ico svg{ width:28px; height:28px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cameraTab .lbl{ display:none; }
 
 /* ========== KAMERA MODALI ========== */
 .cameraModal {
@@ -807,11 +798,13 @@ body{
   border-radius: 16px;
   cursor:pointer;
 }
-.tab .ico{ font-size: 18px; line-height: 18px; }
+.tab .ico{ width:24px; height:24px; display:flex; align-items:center; justify-content:center; }
+.tab .ico svg{ width:24px; height:24px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tab[data-page="favs"] .ico svg{ fill: currentColor; stroke: none; }
 .tab .lbl{ font-size: 11px; }
 .tab.active{
-  color: var(--text);
-  background: rgba(255,255,255,.08);
+  color: var(--primary);
+  background: rgba(124,92,255,.12);
 }
 .tabSpacer{ width: 64px; }
 
