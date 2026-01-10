@@ -348,47 +348,6 @@ body{
   font-size: 14px;
 }
 
-/* ========== KAMERA TAB BUTONU ========== */
-.cameraTab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, var(--camera), #ff6b6b);
-  border: none;
-  border-radius: 50%;
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  box-shadow: 0 10px 30px rgba(255,51,102,0.4);
-  cursor: pointer;
-  z-index: 10000;
-  transition: all 0.3s;
-}
-
-.cameraTab:hover {
-  transform: translateX(-50%) scale(1.1);
-  box-shadow: 0 15px 40px rgba(255,51,102,0.6);
-}
-
-.cameraTab:active {
-  transform: translateX(-50%) scale(0.95);
-}
-
-.cameraTab .ico {
-  font-size: 24px;
-  margin-bottom: 4px;
-}
-
-.cameraTab .lbl {
-  font-size: 11px;
-  font-weight: 700;
-  color: white;
-}
-
 /* ========== KAMERA MODALI ========== */
 .cameraModal {
   position: fixed;
@@ -773,48 +732,6 @@ body{
   to { transform: translate(-50%, 0); opacity: 1; }
 }
 
-/* ========== TABBAR ========== */
-.tabbar{
-  position: fixed;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  height: 72px;
-  border-radius: 26px;
-  background: rgba(20,25,40,.72);
-  border: 1px solid var(--stroke);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  display:flex;
-  align-items:center;
-  justify-content:space-around;
-  padding: 10px 12px;
-  box-shadow: 0 10px 40px rgba(0,0,0,.35);
-  z-index: 9999;
-}
-
-.tab{
-  background: transparent;
-  border: 0;
-  color: var(--muted);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap: 4px;
-  font-weight: 900;
-  min-width: 64px;
-  padding: 8px 6px;
-  border-radius: 16px;
-  cursor:pointer;
-}
-.tab .ico{ font-size: 18px; line-height: 18px; }
-.tab .lbl{ font-size: 11px; }
-.tab.active{
-  color: var(--text);
-  background: rgba(255,255,255,.08);
-}
-.tabSpacer{ width: 64px; }
-
 /* ========== MODAL ========== */
 .modalWrap{ position: fixed; inset:0; display:none; z-index: 20000; pointer-events: none; }
 .modalWrap.show{ display:flex; pointer-events: auto; align-items:center; justify-content:center; }
@@ -1031,16 +948,6 @@ body{
     width: 100%;
   }
   
-  .cameraTab {
-    width: 56px;
-    height: 56px;
-    bottom: 16px;
-  }
-  
-  .cameraTab .ico {
-    font-size: 20px;
-  }
-  
   .aiDetails {
     grid-template-columns: 1fr;
   }
@@ -1085,20 +992,10 @@ body{
 .btnFav{min-width:44px;}
 .btnFav.isFav{background:rgba(255,0,90,.18)!important;border-color:rgba(255,0,90,.35)!important}
 
-/* ========== SAFE AREA SUPPORT ========== */
-@supports (padding: max(0px)) {
-  .tabbar {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-  }
-  
-  body {
-    padding-bottom: max(110px, calc(env(safe-area-inset-bottom) + 110px));
-  }
-}
-
 .hidden {
   display: none !important;
 }
+
 /* ========== KARŞILAŞTIRMA BUTONLARI ========== */
 .btnCompare {
   background: linear-gradient(135deg, #36d399, #00b894) !important;
@@ -1491,9 +1388,128 @@ body{
   }
 }
 
-/* ===== REMOVE OLD CAMERA TAB (LEGACY) ===== */
-/* Eğer eski kamera sekmesi render ediliyorsa gizle */
-.tab[data-page="camera"],
-.tab .lbl:contains("Kamera") {
-  display: none !important;
+/* ========== TABBAR (GÜNCELLENMİŞ) ========== */
+.tabbar{
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  height: 72px;
+  border-radius: 26px;
+  background: rgba(20,25,40,.72);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display:flex;
+  align-items:center;
+  justify-content:space-around;
+  padding: 10px 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.35);
+  z-index: 9999;
+}
+
+.tab{
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap: 4px;
+  font-weight: 900;
+  min-width: 64px;
+  padding: 8px 6px;
+  border-radius: 16px;
+  cursor:pointer;
+}
+.tab .ico{ 
+  font-size: 18px; 
+  line-height: 18px; 
+}
+.tab .lbl{ 
+  font-size: 11px; 
+}
+.tab.active{
+  color: var(--text);
+  background: rgba(255,255,255,.08);
+}
+
+/* ===== FAB KAMERA BUTTONU (ORTA KISIM) ===== */
+.cameraFab{
+  position: absolute;
+  bottom: 85px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b6cff, #5f5cff);
+  box-shadow: 0 12px 35px rgba(139,108,255,.55);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border: none;
+  cursor: pointer;
+  z-index: 10000;
+}
+
+.cameraFab .camIcon{
+  width: 26px;
+  height: 26px;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'><path d='M20 5h-3.2l-1.8-2H9L7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-8 13a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/></svg>") no-repeat center;
+  background-size: contain;
+}
+
+/* SVG ICONLARI (SAYFA ICONLARI) */
+.ico.svg{
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* ANA SAYFA */
+.ico.home{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23b8bdd0' viewBox='0 0 24 24'><path d='M12 3l9 8h-3v10h-5v-6h-2v6H6V11H3z'/></svg>");
+}
+.tab.active .ico.home{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'><path d='M12 3l9 8h-3v10h-5v-6h-2v6H6V11H3z'/></svg>");
+}
+
+/* GRAFİK SAYFASI */
+.ico.graph{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23b8bdd0' viewBox='0 0 24 24'><path d='M4 19h16v2H2V3h2z'/><path d='M6 16h2V8H6zm5 0h2V4h-2zm5 0h2v-6h-2z'/></svg>");
+}
+.tab.active .ico.graph{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'><path d='M4 19h16v2H2V3h2z'/><path d='M6 16h2V8H6zm5 0h2V4h-2zm5 0h2v-6h-2z'/></svg>");
+}
+
+/* FAVORİLER SAYFASI */
+.ico.fav{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23b8bdd0' viewBox='0 0 24 24'><path d='M12 21l-1-1C5 15 2 12 2 8a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 4-3 7-9 12z'/></svg>");
+}
+.tab.active .ico.fav{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'><path d='M12 21l-1-1C5 15 2 12 2 8a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 4-3 7-9 12z'/></svg>");
+}
+
+/* AYARLAR SAYFASI - DÜZELTİLMİŞ DAİRE */
+.ico.settings{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23b8bdd0' viewBox='0 0 24 24'><circle cx='12' cy='12' r='3' stroke='%23b8bdd0' stroke-width='2' fill='none'/><path d='M19.4 13a7.6 7.6 0 0 0 .1-2l2-1.6-2-3.4-2.3.5a7.9 7.9 0 0 0-1.6-.9l-.3-2.4h-4l-.3 2.4c-.6.2-1.1.5-1.6.9l-2.3-.5-2 3.4 2 1.6a7.6 7.6 0 0 0 .1 2l-2 1.6 2 3.4 2.3-.5c.5.4 1 .7 1.6.9l.3 2.4h4l.3-2.4c.6-.2 1.1-.5 1.6-.9l2.3.5 2-3.4z' fill='%23b8bdd0' stroke='%23b8bdd0' stroke-width='0.5'/></svg>");
+}
+.tab.active .ico.settings{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'><circle cx='12' cy='12' r='3' stroke='white' stroke-width='2' fill='none'/><path d='M19.4 13a7.6 7.6 0 0 0 .1-2l2-1.6-2-3.4-2.3.5a7.9 7.9 0 0 0-1.6-.9l-.3-2.4h-4l-.3 2.4c-.6.2-1.1.5-1.6.9l-2.3-.5-2 3.4 2 1.6a7.6 7.6 0 0 0 .1 2l-2 1.6 2 3.4 2.3-.5c.5.4 1 .7 1.6.9l.3 2.4h4l.3-2.4c.6-.2 1.1-.5 1.6-.9l2.3.5 2-3.4z' fill='white' stroke='white' stroke-width='0.5'/></svg>");
+}
+
+/* SAFE AREA SUPPORT */
+@supports (padding: max(0px)) {
+  .tabbar {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  
+  body {
+    padding-bottom: max(110px, calc(env(safe-area-inset-bottom) + 110px));
+  }
 }
