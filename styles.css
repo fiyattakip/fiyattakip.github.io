@@ -11,7 +11,6 @@
   --success:#36d399;
   --error:#ff4757;
   --warning:#ffa502;
-  --camera:#7c5cff;
 }
 
 *{ box-sizing: border-box; }
@@ -1388,7 +1387,7 @@ body{
   }
 }
 
-/* ========== TABBAR (GÜNCELLENMİŞ) ========== */
+/* ========== TABBAR (TEK KAMERA) ========== */
 .tabbar{
   position: fixed;
   left: 10px;
@@ -1434,7 +1433,7 @@ body{
   background: rgba(255,255,255,.08);
 }
 
-/* ===== FAB KAMERA BUTTONU (ORTA KISIM) ===== */
+/* ===== TEK KAMERA BUTTONU (ORTA) ===== */
 .cameraFab{
   position: absolute;
   bottom: 85px;
@@ -1494,7 +1493,7 @@ body{
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 21l-1-1C5 15 2 12 2 8a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 4-3 7-9 12z' fill='white'/></svg>");
 }
 
-/* AYARLAR SAYFASI - DÜZELTİLMİŞ DAİRE */
+/* AYARLAR SAYFASI */
 .ico.settings{
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='3' stroke='%23b8bdd0' stroke-width='2' fill='none'/><path d='M19.4 13a7.6 7.6 0 0 0 .1-2l2-1.6-2-3.4-2.3.5a7.9 7.9 0 0 0-1.6-.9l-.3-2.4h-4l-.3 2.4c-.6.2-1.1.5-1.6.9l-2.3-.5-2 3.4 2 1.6a7.6 7.6 0 0 0 .1 2l-2 1.6 2 3.4 2.3-.5c.5.4 1 .7 1.6.9l.3 2.4h4l.3-2.4c.6-.2 1.1-.5 1.6-.9l2.3.5 2-3.4z' fill='%23b8bdd0'/></svg>");
 }
